@@ -1,0 +1,28 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "typeutil",
+    srcs = [
+        "doc.go",
+        "erroraslist.go",
+        "funcname.go",
+        "funcof.go",
+        "hasgo.go",
+        "typename.go",
+        "typeutil.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/typeutil",
+    visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "typeutil_test",
+    srcs = [
+        "funcname_test.go",
+        "funcof_test.go",
+        "helpers_test.go",
+        "typename_test.go",
+        "typeutil_test.go",
+    ],
+    deps = [":typeutil"],
+)

@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "errortypes",
+    srcs = [
+        "doc.go",
+        "errortypes.go",
+        "propertymap.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/errortypes",
+    visibility = ["//:__subpackages__"],
+    deps = ["@org_golang_x_exp//constraints"],
+)

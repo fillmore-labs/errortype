@@ -1,0 +1,50 @@
+load("@rules_go//go:def.bzl", "go_library", "go_sdk", "go_test")
+
+# gazelle:exclude testdata
+
+go_library(
+    name = "analyze",
+    srcs = [
+        "analyzer.go",
+        "doc.go",
+        "errorusage.go",
+        "handle_assert.go",
+        "handle_errorsas.go",
+        "handle_return.go",
+        "handle_switch.go",
+        "internal.go",
+        "iter.go",
+        "options.go",
+        "pass.go",
+        "process.go",
+        "reporter.go",
+        "result.go",
+        "run.go",
+        "usage.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/analyze",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/analyze/report",
+        "//internal/detect",
+        "//internal/errortypes",
+        "//internal/typeutil",
+        "@org_golang_x_tools//go/analysis",
+        "@org_golang_x_tools//go/analysis/passes/inspect",
+        "@org_golang_x_tools//go/ast/edge",
+        "@org_golang_x_tools//go/ast/inspector",
+    ],
+)
+
+go_test(
+    name = "analyze_test",
+    srcs = ["analyzer_test.go"],
+    data = glob(["testdata/**"]),
+    # env = {"GOROOT": "$(execpath @go_sdk//:root)",},
+    deps = [
+        ":analyze",
+        "//internal/detect",
+        "//internal/typeutil",
+        "@org_golang_x_tools//go/analysis/analysistest",
+    ],
+)

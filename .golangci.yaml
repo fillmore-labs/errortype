@@ -1,0 +1,131 @@
+---
+version: "2"
+
+run:
+  modules-download-mode: readonly
+
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+
+  settings:
+    gofumpt:
+      extra-rules: true
+    goimports:
+      local-prefixes:
+        - fillmore-labs.com/errortype
+
+linters:
+  enable:
+    # keep-sorted start
+    - copyloopvar
+    - err113
+    - errcheck
+    - errname
+    - errorlint
+    - exptostd
+    - gocheckcompilerdirectives
+    - gochecksumtype
+    - gocritic
+    - godot
+    - goheader
+    - gomoddirectives
+    - gosec
+    - govet
+    - iface
+    - inamedparam
+    - ineffassign
+    - intrange
+    - mirror
+    - misspell
+    - nlreturn
+    - nolintlint
+    - paralleltest
+    - perfsprint
+    - predeclared
+    - reassign
+    - revive
+    - sloglint
+    - staticcheck
+    - tagalign
+    - tagliatelle
+    - testableexamples
+    - thelper
+    - tparallel
+    - unconvert
+    - unparam
+    - unused
+    - usestdlibvars
+    - usetesting
+    - wastedassign
+    - wsl_v5
+    # keep-sorted end
+  settings:
+    # keep-sorted start
+    errcheck:
+      exclude-functions:
+        - (*os.File).Close
+        - (io/fs.File).Close
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+      settings:
+        shadow:
+          strict: true
+    nlreturn:
+      block-size: 2
+    predeclared:
+      ignore: ["new"]
+    revive:
+      rules:
+        # keep-sorted start
+        - name: atomic
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+          exclude: ["TEST"]
+        - name: early-return
+          arguments:
+            - allow-jump: true
+        - name: empty-block
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: file-header
+          arguments:
+            - "Copyright 2025 Oliver Eikemeier. All Rights Reserved."
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+          # keep-sorted end
+    wsl_v5:
+      disable:
+        - assign
+        # keep-sorted end
+  exclusions:
+    rules:
+      - path: _test\.go$
+        linters:
+          - govet
+        text: "lostcancel"
+      - path: ^main\.go$
+        linters:
+          - gocheckcompilerdirectives
+        text: "go:debug"
+      - linters:
+          - govet
+        text: '^shadow: declaration of "(ctx|err|ok)" shadows declaration at line \d+$'

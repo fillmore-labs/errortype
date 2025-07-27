@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "report",
+    srcs = [
+        "assert.go",
+        "errorsas.go",
+        "report.go",
+        "return.go",
+        "style.go",
+        "switch.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/analyze/report",
+    visibility = ["//:__subpackages__"],
+    deps = ["@org_golang_x_tools//go/analysis"],
+)

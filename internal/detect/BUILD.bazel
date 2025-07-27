@@ -1,0 +1,52 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# gazelle:exclude testdata
+
+go_library(
+    name = "detect",
+    srcs = [
+        "aliases.go",
+        "analyzer.go",
+        "assign.go",
+        "debug.go",
+        "doc.go",
+        "errorproperty.go",
+        "iter.go",
+        "options.go",
+        "optionsfunc.go",
+        "overrides.go",
+        "pass.go",
+        "receivers.go",
+        "result.go",
+        "run.go",
+        "typedecls.go",
+        "usage.go",
+        "vardecls.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/detect",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/errortypes",
+        "//internal/overrides",
+        "//internal/typeutil",
+        "@org_golang_x_tools//go/analysis",
+    ],
+)
+
+go_test(
+    name = "detect_test",
+    srcs = [
+        "analyzer_test.go",
+        "errorproperty_test.go",
+    ],
+    data = glob(["testdata/**"]),
+    deps = [
+        ":detect",
+        "//internal/errortypes",
+        "//internal/typeutil",
+        "@org_golang_x_tools//go/analysis",
+        "@org_golang_x_tools//go/analysis/analysistest",
+        "@org_golang_x_tools//go/analysis/passes/inspect",
+        "@org_golang_x_tools//go/ast/inspector",
+    ],
+)

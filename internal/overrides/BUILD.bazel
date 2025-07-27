@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "overrides",
+    srcs = [
+        "doc.go",
+        "file.go",
+        "read.go",
+        "write.go",
+    ],
+    importpath = "fillmore-labs.com/errortype/internal/overrides",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//internal/errortypes",
+        "//internal/typeutil",
+        "@com_github_goccy_go_yaml//:go-yaml",
+    ],
+)

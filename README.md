@@ -98,13 +98,11 @@ handling strategy may sometimes be the better solution.
 
 Choose one of the following installation methods:
 
-<!--
 #### Homebrew
 
 ```console
 brew install fillmore-labs/tap/errortype
 ```
--->
 
 #### Go
 
@@ -112,7 +110,6 @@ brew install fillmore-labs/tap/errortype
 go install fillmore-labs.com/errortype@latest
 ```
 
-<!--
 #### Eget
 
 [Install `eget`](https://github.com/zyedidia/eget?tab=readme-ov-file#how-to-get-eget), then
@@ -120,7 +117,6 @@ go install fillmore-labs.com/errortype@latest
 ```console
 eget fillmore-labs/errortype
 ```
--->
 
 ## Usage
 
@@ -329,7 +325,7 @@ the logic stabilizes.
 
 ## Real-World Examples
 
-See an upcoming blog post for examples of `errortype` in action.
+See [this blog post](https://blog.fillmore-labs.com/posts/errors-1/) for why `errortype` is useful.
 
 ## License
 

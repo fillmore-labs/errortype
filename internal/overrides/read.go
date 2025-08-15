@@ -17,6 +17,7 @@
 package overrides
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -34,6 +35,10 @@ func Read(r io.Reader) ([]Override, error) {
 
 	var errorfile errorfileType
 	if err := dec.Decode(&errorfile); err != nil {
+		if errors.Is(err, io.EOF) {
+			return nil, nil
+		}
+
 		return nil, fmt.Errorf("error parsing override file: %w", err)
 	}
 

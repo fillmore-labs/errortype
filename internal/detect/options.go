@@ -21,6 +21,7 @@ import (
 
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // HeuristicPass represents a set of heuristic flags used to control various passes in the analysis process.
@@ -36,7 +37,7 @@ const (
 
 type options struct {
 	// usageOverrides stores the usage configuration for error types, read from a file.
-	usageOverrides map[string]map[string]errortypes.ErrorType
+	usageOverrides map[typeutil.TypeName]errortypes.ErrorType
 
 	// heuristics controls heuristic passes
 	heuristics HeuristicPass

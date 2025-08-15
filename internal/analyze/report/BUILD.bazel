@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "assert.go",
         "errorsas.go",
+        "generic.go",
         "report.go",
         "return.go",
         "style.go",

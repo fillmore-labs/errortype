@@ -16,9 +16,7 @@
 
 package report
 
-import (
-	"go/types"
-)
+import "go/types"
 
 // CheckStyle reports a diagnostic if the target of an errors.As-style function is not an address operation on a variable, suggesting a proper syntax.
 func (r ErrorsAs) CheckStyle(tn types.Type) {

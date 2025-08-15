@@ -19,7 +19,6 @@ package detect
 import (
 	"go/types"
 	"log"
-	"strings"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
@@ -28,80 +27,49 @@ import (
 
 func (o *options) addOverrides(overrides []overrides.Override) {
 	if o.usageOverrides == nil {
-		o.usageOverrides = make(map[string]map[string]errortypes.ErrorType)
+		o.usageOverrides = make(map[typeutil.TypeName]errortypes.ErrorType)
 	}
 
 	for _, override := range overrides {
-		names, ok := o.usageOverrides[override.Path]
-		if !ok {
-			names = make(map[string]errortypes.ErrorType)
-			o.usageOverrides[override.Path] = names
-		}
-
-		names[override.Name] = override.ErrorType
+		o.usageOverrides[override.TypeName] = override.ErrorType
 	}
 }
 
-func (p pass) processOverrides(overrides map[string]map[string]errortypes.ErrorType) {
-	pkg := p.Pkg
+func (p pass) processOverrides(overrides map[typeutil.TypeName]errortypes.ErrorType) {
+	for tn, property := range p.PropertyMap {
+		typeName := typeutil.NewTypeName(tn)
 
-	path, scope := pkg.Path(), pkg.Scope()
-	for name, usage := range overrides[path] {
-		// Look up and ensure the object is found and actually a type name.
-		tn, ok := scope.Lookup(name).(*types.TypeName)
+		usage, ok := overrides[typeName]
 		if !ok {
-			if !p.hasTestFiles() { // could be defined in test files
-				log.Printf("Can't find override %q in package %s", name, path)
-			}
-
 			continue
 		}
-
-		var property ErrorProperty
 
 		// Check whether the override is valid.
 		switch usage {
 		case errortypes.PointerType:
 			ptrType := types.NewPointer(tn.Type())
 			if !typeutil.HasErrorMethod(ptrType) {
-				log.Printf("Pointer override \"*%s\" does not implement the error interface", name)
+				log.Printf("Pointer override \"*%s\" does not implement the error interface", typeName)
 
 				continue
 			}
-			property = PointerOverride
+			property |= PointerOverride
 
 		case errortypes.ValueType:
 			if !typeutil.HasErrorMethod(tn.Type()) {
-				log.Printf("Value override \"%s\" does not implement the error interface", name)
+				log.Printf("Value override \"%s\" does not implement the error interface", typeName)
 
 				continue
 			}
-			property = ValueOverride
+			property |= ValueOverride
 
 		case errortypes.SuppressType:
-			property = SuppressOverride
+			property |= SuppressOverride
 
 		default: // should not happen
 			continue
 		}
 
-		old := p.AddTypeProperty(tn, property)
-
-		if old&OverrideMask == None {
-			if prop := old.DeterminedType(); prop == usage {
-				log.Printf("Redundant override: %s %d", name, old)
-			}
-		}
+		p.PropertyMap[tn] = property
 	}
-}
-
-// hasTestFiles checks if any file in the pass has a _test.go suffix.
-func (p pass) hasTestFiles() bool {
-	for file := range p.Fset.Iterate {
-		if strings.HasSuffix(file.Name(), "_test.go") {
-			return true
-		}
-	}
-
-	return false
 }

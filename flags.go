@@ -31,6 +31,9 @@ import (
 
 // analyzerFlags are the command line flags for the analyzer.
 type analyzerFlags struct {
+	//
+	BuildTags string
+
 	// IncludeTests indicates whether test files should be analyzed too.
 	IncludeTests bool
 
@@ -89,6 +92,7 @@ func setFlags(analyzers []*analysis.Analyzer) *analyzerFlags {
 
 	flag.BoolFunc("V", "print version and exit", version)
 	flag.BoolFunc("flags", "print analyzer flags in JSON", printFlags)
+	flag.StringVar(&f.BuildTags, "tags", f.BuildTags, "comma-separated list of build tags to apply")
 	flag.BoolVar(&f.IncludeTests, "test", f.IncludeTests, "indicates whether test files should be analyzed, too")
 	flag.BoolVar(&f.JSON, "json", f.JSON, "emit JSON output")
 	flag.IntVar(&f.Context, "c", f.Context, `display offending line with this many lines of context`)

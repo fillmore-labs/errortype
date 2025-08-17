@@ -63,9 +63,12 @@ func main() {
 		panic("unreachable")
 	}
 
+	buildFlags := buildFlagsFromTags(flags.BuildTags)
+
 	cfg := &packages.Config{
-		Mode:  packages.LoadAllSyntax,
-		Tests: flags.IncludeTests,
+		Mode:       packages.LoadAllSyntax,
+		BuildFlags: buildFlags,
+		Tests:      flags.IncludeTests,
 	}
 
 	pkgs, err := packages.Load(cfg, args...)
@@ -120,6 +123,29 @@ func main() {
 	if err := writeSuggestions(flags.Suggest, graph); err != nil {
 		log.Fatal(err)
 	}
+}
+
+// buildFlagsFromTags processes a comma-separated string of build tags,
+// cleans them, and returns a slice of build flags for the packages.Load config.
+func buildFlagsFromTags(buildTags string) []string {
+	if buildTags == "" {
+		return nil
+	}
+
+	tags := strings.Split(buildTags, ",")
+
+	cleanedTags := make([]string, 0, len(tags))
+	for _, tag := range tags {
+		if trimmed := strings.TrimSpace(tag); trimmed != "" {
+			cleanedTags = append(cleanedTags, trimmed)
+		}
+	}
+
+	if len(cleanedTags) == 0 {
+		return nil
+	}
+
+	return []string{"-tags=" + strings.Join(cleanedTags, " ")}
 }
 
 func writeSuggestions(name string, graph *checker.Graph) error {

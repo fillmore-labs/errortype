@@ -18,6 +18,7 @@ package detect
 
 import (
 	"fmt"
+	"iter"
 	"os"
 	"path/filepath"
 	"strings"
@@ -53,28 +54,22 @@ func (o *options) readOverrides(fileName string) error {
 // Valid values are: "usage", "receivers", and "off".
 // "off" disables all heuristics and cannot be combined with other values.
 func (o *options) setHeuristics(list string) error {
-	const (
-		HeuristicOffName       = "off"
-		HeuristicUsageName     = "usage"
-		HeuristicReceiversName = "receivers"
-	)
-
 	var (
 		heuristics HeuristicPass
 		hasOff     bool
 	)
 
-	for _, h := range strings.FieldsFunc(list, func(r rune) bool { return r == ',' }) {
-		switch strings.TrimSpace(h) {
+	for h := range splitComma(list) {
+		switch h {
 		case "":
 
-		case HeuristicOffName:
+		case HeuristicOff.String():
 			hasOff = true
 
-		case HeuristicUsageName:
+		case HeuristicUsage.String():
 			heuristics |= HeuristicUsage
 
-		case HeuristicReceiversName:
+		case HeuristicReceivers.String():
 			heuristics |= HeuristicReceivers
 
 		default:
@@ -83,7 +78,7 @@ func (o *options) setHeuristics(list string) error {
 	}
 
 	if hasOff && heuristics != 0 {
-		return fmt.Errorf(`heuristic "off" cannot be combined with other values in %q`, list) //nolint:err113
+		return fmt.Errorf(`heuristic %q cannot be combined with other values in %q`, HeuristicOff.String(), list) //nolint:err113
 	}
 
 	// Only update if the user provided some values.
@@ -92,4 +87,21 @@ func (o *options) setHeuristics(list string) error {
 	}
 
 	return nil
+}
+
+func splitComma(list string) iter.Seq[string] {
+	fields := strings.Split(list, ",")
+
+	return func(yield func(string) bool) {
+		for _, s := range fields {
+			trim := strings.TrimSpace(s)
+			if trim == "" {
+				continue
+			}
+
+			if !yield(trim) {
+				return
+			}
+		}
+	}
 }

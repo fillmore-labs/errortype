@@ -2,6 +2,21 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 # gazelle:exclude testdata
 
+# load("@bazel_skylib//rules:run_binary.bzl", "run_binary")
+# run_binary(
+#     name = "heuristicpass_string",
+#     srcs = ["options.go"],
+#     outs = ["heuristicpass_string.go"],
+#     args = [
+#         "-output=$(location heuristicpass_string.go)",
+#         "-type=HeuristicPass",
+#         "-linecomment",
+#         "$(location options.go)",
+#     ],
+#     tool = "@org_golang_x_tools//cmd/stringer",
+#     # toolchains = ["@rules_go//go:toolchain"],
+# )
+
 go_library(
     name = "detect",
     srcs = [
@@ -11,6 +26,7 @@ go_library(
         "debug.go",
         "doc.go",
         "errorproperty.go",
+        "heuristicpass_string.go",
         "iter.go",
         "options.go",
         "optionsfunc.go",

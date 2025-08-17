@@ -40,7 +40,6 @@ go_test(
     name = "analyze_test",
     srcs = ["analyzer_test.go"],
     data = glob(["testdata/**"]),
-    # env = {"GOROOT": "$(execpath @go_sdk//:root)",},
     deps = [
         ":analyze",
         "//internal/detect",

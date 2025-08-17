@@ -67,6 +67,8 @@ func IsErrorAs(info *types.Info, n *ast.CallExpr) (fun *types.Func, targetType a
 var errorsAs = map[FuncName]struct{ targetArgIndex, typeParam int }{
 	{Path: "errors", Name: "As"}:                                                                          {1, -1},
 	{Path: "reflect", Name: "TypeAssert"}:                                                                 {-1, 0},
+	{Path: "fillmore-labs.com/exp/errors", Name: "Has"}:                                                   {-1, 0},
+	{Path: "fillmore-labs.com/exp/errors", Name: "HasError"}:                                              {-1, 0},
 	{Path: "golang.org/x/exp/errors", Name: "As"}:                                                         {1, -1},
 	{Path: "golang.org/x/xerrors", Name: "As"}:                                                            {1, -1},
 	{Path: "github.com/pkg/errors", Name: "As"}:                                                           {1, -1},

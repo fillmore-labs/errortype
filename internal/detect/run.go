@@ -37,7 +37,9 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 	p.processVarSpecs()
 
 	// Calculate overrides and log impossible ones.
-	p.processOverrides(o.usageOverrides)
+	if len(o.usageOverrides) > 0 {
+		p.processOverrides(o.usageOverrides)
+	}
 
 	if o.heuristics&HeuristicUsage != 0 && p.HasUndeterminedErrors() {
 		// Process error value usage in the current package.

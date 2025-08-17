@@ -25,14 +25,19 @@ import (
 )
 
 // HeuristicPass represents a set of heuristic flags used to control various passes in the analysis process.
+//
+//go:generate go tool stringer -type HeuristicPass -linecomment
 type HeuristicPass uint8
 
 const (
 	// HeuristicUsage represents a heuristic pass for general usage.
-	HeuristicUsage HeuristicPass = 1 << iota
+	HeuristicUsage HeuristicPass = 1 << iota // usage
 
 	// HeuristicReceivers represents a heuristic pass for consistent method receivers.
-	HeuristicReceivers
+	HeuristicReceivers // receivers
+
+	// HeuristicOff turns off all heuristic passes.
+	HeuristicOff HeuristicPass = 0 // off
 )
 
 type options struct {

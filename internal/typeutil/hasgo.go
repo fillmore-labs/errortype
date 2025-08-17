@@ -26,7 +26,7 @@ import (
 
 var errGOROOTMismatch = errors.New("'go env GOROOT' does not match runtime.GOROOT")
 
-// HasGo is a tool modeled after NeedsTool from "golang.org/x/tools/internal/testenv".
+// HasGo is a function modeled after https://pkg.go.dev/golang.org/x/tools/internal/testenv#HasTool.
 //
 // See also https://github.com/bazel-contrib/rules_go/issues/3934
 //

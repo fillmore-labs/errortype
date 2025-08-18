@@ -94,7 +94,11 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 		return // This is a type switch, not an assertion.
 	}
 
-	tv := p.TypesInfo.Types[n.Type]
+	tv, ok := p.TypesInfo.Types[n.Type]
+	if !ok {
+		return // !ok means errors in type parsing
+	}
+
 	if !tv.IsType() {
 		p.LogErrorf(n.Type, "Expected type in assertion, got %#v", tv)
 

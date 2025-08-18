@@ -85,4 +85,8 @@ func Assert3() {
 	_, _ = err.(interface{ Temporary() bool })
 
 	_, _ = err.(struct{ *net.ParseError })
+
+	switch any(nil).(type) {
+	default:
+	}
 }

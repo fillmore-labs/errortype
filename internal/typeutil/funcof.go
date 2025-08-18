@@ -34,37 +34,26 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 
 		case *ast.SelectorExpr:
 			sel, ok := info.Selections[e]
+
 			if !ok { // e.Sel is an identifier qualified by e.X
 				fun, ok = info.Uses[e.Sel].(*types.Func) // types.Checker calls recordUse for e.Sel from recordSelection.
 
 				return fun, tp, false, ok
 			}
 
-			switch sel.Kind() { //nolint:exhaustive
-			case types.MethodVal: // e.Sel is a method selector
-				fun, ok = sel.Obj().(*types.Func)
+			fun, ok = sel.Obj().(*types.Func) // !ok: e.Sel is a struct field selector
 
-				return fun, tp, false, ok
-
-			case types.MethodExpr: // e.Sel is a method expression
-				fun, ok = sel.Obj().(*types.Func)
-
-				return fun, tp, true, ok
-			}
-
-			return nil, nil, false, false // e.Sel is a struct field selector
+			return fun, tp, sel.Kind() == types.MethodExpr, ok
 
 		case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
 			if len(tp) > 0 { // Duplicate type parameters, shouldn't happen
 				return nil, nil, false, false
 			}
 
-			typeParam := info.Types[e.Index]
-			if !typeParam.IsType() {
-				return nil, nil, false, false // Must be a type parameter, not an array/slice index.
+			tp, ok = extractTypeParameters(info, []ast.Expr{e.Index})
+			if !ok {
+				return nil, nil, false, false
 			}
-
-			tp = []ast.Expr{e.Index}
 
 			ex = e.X // Unwrap to the function identifier.
 
@@ -73,14 +62,9 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 				return nil, nil, false, false
 			}
 
-			tp = make([]ast.Expr, 0, len(e.Indices))
-			for _, index := range e.Indices {
-				typeParam := info.Types[index]
-				if !typeParam.IsType() {
-					return nil, nil, false, false // Must be a type parameter, not an array/slice index.
-				}
-
-				tp = append(tp, index)
+			tp, ok = extractTypeParameters(info, e.Indices)
+			if !ok {
+				return nil, nil, false, false
 			}
 
 			ex = e.X // Unwrap to the function identifier.
@@ -92,4 +76,24 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 			return nil, nil, false, false
 		}
 	}
+}
+
+// extractTypeParameters validates and extracts type parameters from an IndexExpr
+// or IndexListExpr. It uses the provided types.Info to verify that each
+// expression represents a type.
+//
+// If any expression is not a type, it returns nil and false.
+func extractTypeParameters(info *types.Info, indices []ast.Expr) ([]ast.Expr, bool) {
+	tp := make([]ast.Expr, 0, len(indices))
+
+	for _, index := range indices {
+		typeParam := info.Types[index]
+		if !typeParam.IsType() {
+			return nil, false
+		}
+
+		tp = append(tp, index)
+	}
+
+	return tp, true
 }

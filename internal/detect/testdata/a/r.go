@@ -31,25 +31,25 @@ func Return4() error {
 		return c.AmbiguousValue{} // want "VALUE"
 
 	case 2:
-		return c.AmbiguousAmbiguous{}
+		return c.AmbiguousAmbiguous{} // want "NOT IN RESULTS"
 
 	case 3:
 		return &c.EmbeddedPointer{} // want "POINTER"
 
 	case 4:
-		return c.EmbeddedValue{}
+		return c.EmbeddedValue{} // want "NOT IN RESULTS"
 
 	case 5:
-		return c.EmbeddedAmbiguous{}
+		return c.EmbeddedAmbiguous{} // want "NOT IN RESULTS"
 
 	case 6:
-		return c.EmbeddedPPointer{}
+		return c.EmbeddedPPointer{} // want "NOT IN RESULTS"
 
 	case 7:
-		return c.EmbeddedPValue{}
+		return c.EmbeddedPValue{} // want "NOT IN RESULTS"
 
 	case 8:
-		return c.EmbeddedPAmbiguous{}
+		return c.EmbeddedPAmbiguous{} // want "NOT IN RESULTS"
 
 	default:
 		return nil

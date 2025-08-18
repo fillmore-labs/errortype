@@ -7,90 +7,14 @@
 [![Go Report Card](https://goreportcard.com/badge/fillmore-labs.com/errortype)](https://goreportcard.com/report/fillmore-labs.com/errortype)
 [![License](https://img.shields.io/github/license/fillmore-labs/errortype)](https://www.apache.org/licenses/LICENSE-2.0)
 
-`errortype` is a Go static analysis tool (linter) that detects inconsistent usage of custom error types as pointers
-versus values. It helps prevent subtle bugs by ensuring error types are used consistently throughout your codebase,
-eliminating a common source of bugs in error handling logic.
+`errortype` is a Go static analysis tool (linter) that helps prevent subtle bugs in error handling and other areas. It
+performs two main checks:
 
-## Motivation
+1. **Inconsistent Error Type Usage**: It analyzes function return values, type assertions, and calls to functions like
+   `errors.As` to ensure that custom error types are used consistently as either pointers or values.
 
-In Go, error types can be designed for use as either values or pointers. Inconsistent use can lead to subtle,
-hard-to-find bugs.
-
-Consider the following code, which attempts to provide a more specific error message for an incorrect AES key size
-([Go Playground](https://go.dev/play/p/m4SEPqkZ2Zu)):
-
-```go
-package main
-
-import (
-	"crypto/aes"
-	"errors"
-	"fmt"
-)
-
-func main() {
-	key := []byte("My kung fu is better than yours")
-	_, err := aes.NewCipher(key)
-
-	var kse *aes.KeySizeError
-	if errors.As(err, &kse) {
-		fmt.Printf("AES keys must be 16, 24 or 32 bytes long, got %d bytes.\n", kse)
-	} else if err != nil {
-		fmt.Println(err)
-	}
-}
-```
-
-This code doesn't work as intended because `aes.KeySizeError` is designed to be used as a value, not a pointer. As
-written, the code prints the generic error message instead of the custom one.
-
-Changing line 13 to “`var kse aes.KeySizeError`” fixes the issue, and the program correctly prints
-“`AES keys must be 16, 24 or 32 bytes long, got 31 bytes.`”
-
-### Why Consistency Matters
-
-Inconsistent usage of error types can lead to hard-to-spot bugs. `errortype` prevents these issues by automatically
-detecting the intended usage of error types and reporting inconsistencies in:
-
-- Function return values
-- Type assertions and type switches
-- Calls to `errors.As` and similar functions (e.g., from [`testify`](https://pkg.go.dev/github.com/stretchr/testify))
-
-In the above example, `errortype .` would report:
-
-```console
-/path/to/your/source/main.go:14:20: Target for value error "crypto/aes.KeySizeError" is a pointer-to-pointer, use a pointer to a value instead: "var kse aes.KeySizeError; ... errors.As(err, &kse)". (et:err)
-```
-
-This message suggests changing the variable declaration to “`var kse aes.KeySizeError`”, which corrects the bug.
-
-### Style Checks
-
-Go's syntax allows for some “clever” but potentially confusing constructs with `errors.As`. Consider the following:
-
-```go
-  if errors.As(err, &MyError{}) { /* ... */ } // Is this checking for a pointer or a value error?
-```
-
-While this is valid code, it can be misleading. The expression `&MyError{}` creates a pointer to a struct literal. When
-passed to `errors.As`, it checks if `err` wraps a `MyError` _value_, not a pointer. This is easily misread, obfuscating
-the check's true intent. To improve clarity and prevent misinterpretation, `errortype` encourages a more explicit and
-readable style:
-
-```go
-  var e MyError // Or "var e *MyError" for pointer errors
-  if errors.As(err, &e) { /* ... */ } // The clear, recommended style
-```
-
-This longer form is unambiguous and clearly states the type being checked for. `errortype` emits an `(et:sty)` warning
-for constructs where the target argument of an `errors.As`-like function is not an address of a variable.
-
-### Linter Scope
-
-The primary goal of this linter is to enforce consistent usage of error types.
-
-Good error type design is out of scope. While `errortype` promotes a consistent style, a broader refactor of your error
-handling strategy may sometimes be the better solution.
+2. **Pointless Comparisons**: It detects comparisons against the address of a newly-created value (like
+   `errors.Is(err, &url.Error{})`), which are almost always incorrect.
 
 ## Getting Started
 
@@ -133,21 +57,82 @@ Usage: `errortype [-flag] [package]`
 `errortype` supports the following flags:
 
 - **-overrides** `<filename>`: Read type overrides from the specified YAML file. See the
-  [“Overrides File”](#overrides-file) section for more details.
-- **-suggest** `<filename>`: Append suggestions for an override file. Use `-` for standard output.
-- **-stylecheck**: Check whether targets of errors.As-like functions are address operators on variables (default: true).
+  _[“Override File”](#override-file)_ section for more details.
+- **-suggest** `<filename>`: Append suggestions to an override file for review. Use `-` for standard output.
+- **-check-is**: Suppress diagnostics on `errors.Is` if the compared type has an `Is(error) bool` method (default:
+  true).
+- **-deep-is-check**: (Experimental) When checking an `Is(error) bool` method, diagnose calls to `errors.Is` even if
+  they don't use the `target` parameter. By default, only calls like `errors.Is(target, ...)` are flagged (default
+  false).
+- **-stylecheck**: Check for confusing uses of `errors.As` (default: true).
 - **-c** `<N>`: Display N lines of context around each issue (default: -1 for no context, 0 for only the offending
   line).
 - **-test**: Analyze test files in addition to source files (default: true).
-- **-heuristics**: (Experimental) List of heuristics used (default: "usage,receivers", "off" to disable).
-- **-debug**: (Experimental) Output information for debugging.
+- **-heuristics**: (Experimental) List of heuristics used (default: “usage,receivers”, “off” to disable).
+- **-trace**: (Experimental) Output information for result tracing.
 
-## How Intended Usage is Detected
+## Inconsistent Error Type Usage
 
-The linter determines an error type's intended use (pointer vs. value) by analyzing the package where the error is
+One of the most common and subtle error-handling bugs in Go occurs when error types are used inconsistently — sometimes
+as values and sometimes as pointers. This inconsistency can lead to subtle, hard-to-find bugs.
+
+Consider the following code, which attempts to provide a more specific error message for an incorrect AES key size
+([Go Playground](https://go.dev/play/p/m4SEPqkZ2Zu)):
+
+```go
+package main
+
+import (
+	"crypto/aes"
+	"errors"
+	"fmt"
+)
+
+func main() {
+	key := []byte("My kung fu is better than yours")
+	_, err := aes.NewCipher(key)
+
+	var kse *aes.KeySizeError
+	if errors.As(err, &kse) {
+		fmt.Printf("AES keys must be 16, 24, or 32 bytes long, got %d bytes.\n", kse)
+	} else if err != nil {
+		fmt.Println(err)
+	}
+}
+```
+
+This code doesn't work as intended because `aes.KeySizeError` is designed to be used as a value, not a pointer. As
+written, the code prints the generic error message instead of the custom one.
+
+Changing line 13 to `var kse aes.KeySizeError` fixes the issue, and the program correctly prints _“AES keys must be 16,
+24, or 32 bytes long, got 31 bytes.”_
+
+### How `errortype` Helps
+
+The `errortype` linter prevents these issues by automatically detecting the intended usage of error types and reporting
+inconsistencies in:
+
+- Function return values
+- Type assertions and type switches
+- Calls to `errors.As` and similar functions (e.g., from [`testify`](https://pkg.go.dev/github.com/stretchr/testify))
+
+In the above example, `errortype .` would report:
+
+```console
+/path/to/your/source/main.go:14:20: Target for value error "crypto/aes.KeySizeError" is a pointer-to-pointer, use a pointer to a value instead: "var kse aes.KeySizeError; ... errors.As(err, &kse)". (et:err)
+```
+
+The message suggests changing the variable declaration to `var kse aes.KeySizeError`, which corrects the bug.
+
+### How Intended Usage Is Detected
+
+The linter determines an error type's intended use _(pointer vs. value)_ by analyzing the package where the error is
 **defined**. It uses the following order of precedence:
 
-1. **Package-Level Variable Assignments**: If present, `var _ error = ...` assignments are used as explicit declarations
+1. **Overrides** (highest priority): User-defined overrides (see [below](#override-file)) are applied, overriding any
+   detected usage.
+
+2. **Package-Level Variable Assignments**: If present, `var _ error = ...` assignments are used as explicit declarations
    of intent.
 
    ```go
@@ -156,27 +141,19 @@ The linter determines an error type's intended use (pointer vs. value) by analyz
    var _ error = (*PointerError)(nil) // Determines PointerError is a "pointer" type.
    ```
 
-2. **Overrides**: User-defined overrides (see [below](#overrides-file)) are applied next, overriding any previously
-   detected usage.
-
-3. **Usage within Functions**: If still undecided, the linter analyzes usage within top-level functions (e.g., in
-   `return` statements or type assertions). Consistent usage can determine the type.
+3. **Usage Within Functions**: If still undecided, the linter analyzes usage within top-level functions (in `return`
+   statements or type assertions). Consistent usage can determine the type.
 
    ```go
-   return ValueError{} // Suggests value type
+   return ValueError{} // Suggests a value type
 
    if _, ok := err.(*PointerError); ok { /* ... */ } // Suggests pointer type
    ```
 
    Note: This heuristic is a fallback and should not be relied upon for defining a type's contract.
 
-4. **Consistent Method Receivers**: As a final heuristic, if all methods on a type have a consistent receiver (all-value
-   or all-pointer), that style is used.
-
-### Limitations
-
-If `errortype` cannot determine the intended usage (e.g., for types that embed the `error` interface without consistent
-receivers), it reports an `et:emb` diagnostic. This can be resolved [using an override](#overriding-detected-types).
+4. **Consistent Method Receivers** (lowest priority): As a final heuristic, if all methods on a type have a consistent
+   receiver (all-value or all-pointer), that style is used.
 
 ### Designing Linter-Friendly Packages
 
@@ -186,16 +163,15 @@ package-level variable assignment in the package where the error is defined:
 ```go
 // In your package, explicitly declare the intended usage.
 var _ error = ValueError{}
-
 var _ error = (*PointerError)(nil)
 ```
 
 ### Overriding Detected Types
 
-If the linter reports types from an imported package with ambiguous or inconsistent usage, you can guide the linter in
-two ways:
+When the linter reports types from an imported package that have ambiguous or inconsistent usage, you can guide the
+linter in two ways:
 
-1. **Local Override**: For a one-off fix within a single package, add a `var` block to a source file in that package.
+1. **Local Overrides**: For a one-off fix within a single package, add a `var` block to a source file in that package.
    This overrides the detected usage for that type _within this package only_.
 
    ```go
@@ -205,9 +181,100 @@ two ways:
    var _ error = (*imported.PointerError)(nil)
    ```
 
-2. **Global Override File**: For project-wide overrides, use an `errortypes.yaml` file.
+2. **Global Override File**: For project-wide overrides, use an `errortypes.yaml` file. See
+   [Override File](#override-file).
 
-## Overrides File
+## Pointless Comparisons
+
+Beyond error handling inconsistencies, `errortype` also detects a second class of subtle bugs: comparisons against the
+address of newly created values. These comparisons, such as `ptr == &MyStruct{}` or `ptr == new(MyStruct)`, are almost
+always incorrect and can lead to unexpected behavior.
+
+### The Problem
+
+According to the [Go language specification](https://go.dev/ref/spec#Variables), taking the address of a composite
+literal (`&MyStruct{}`) or calling `new()` creates a new allocation:
+
+> _“Calling the built-in function `new` or taking the address of a composite literal allocates storage for a variable at
+> run time.”_
+
+Each allocation gets a [unique address](https://go.dev/ref/spec#Composite_literals):
+
+> _“Taking the address of a composite literal generates a pointer to a **unique variable** initialized with the
+> literal's value.”_
+
+This means `ptr == &MyStruct{}` will almost always evaluate to `false`, regardless of what `ptr` points to. The only
+exception is zero-sized types, where [the behavior is undefined](https://go.dev/ref/spec#Address_operators):
+
+> _“Pointers to distinct zero-size variables may or may not be equal.”_
+
+### Examples of Problematic Code
+
+Here are examples that `errortype` will flag:
+
+#### Error Handling with `errors.Is`
+
+```go
+import (
+  "errors"
+  "net/url"
+)
+
+func handleNetworkError(err error) {
+  // This will always be false - &url.Error{} creates a unique address.
+  if errors.Is(err, &url.Error{}) {
+    log.Fatal("Cannot connect to service")
+  }
+
+  // Correct approach:
+  var urlErr *url.Error
+  if errors.As(err, &urlErr) {
+    log.Fatal("Error connecting to service:", urlErr)
+  }
+  // ...
+}
+```
+
+#### Direct Pointer Comparisons
+
+```go
+import (
+  "github.com/operator-framework/api/pkg/operators/v1alpha1"
+  metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+  "time"
+)
+
+// Checking if an operator update strategy matches expected values
+func validateUpdateStrategy(spec *v1alpha1.CatalogSourceSpec) {
+  expectedDuration := 30 * time.Second
+
+  // This comparison will always be false - &metav1.Duration{} creates a unique address.
+  if (spec.UpdateStrategy.Interval != &metav1.Duration{Duration: expectedDuration}) {
+    // ...
+  }
+
+  // Correct approach: Dereference the pointer and compare values (after a nil check).
+  if spec.UpdateStrategy.Interval == nil || spec.UpdateStrategy.Interval.Duration != expectedDuration {
+    // ...
+  }
+}
+```
+
+### Special Cases for `errors.Is`
+
+`errortype` includes special handling for `errors.Is` and similar functions to reduce false positives. The linter
+suppresses diagnostics when:
+
+- **The error type has an `Unwrap() error` method**, as `errors.Is` traverses the error tree.
+
+- **The error type has an `Is(error) bool` method**, as custom comparison logic is executed.
+
+This behavior can be disabled with the `-check-is=false` flag.
+
+## Override File
+
+For more complex projects or when working with third-party libraries that have ambiguous or wrongly detected error type
+usage, you may need to provide explicit guidance to the linter through an override file.
 
 You can generate a sample override file with the `-suggest` flag. This file will contain a list of types that require a
 decision:
@@ -234,7 +301,7 @@ inconsistent: # Types that are used inconsistently (generated by -suggest)
   - imported.path/two.InconsistentUsage
 ```
 
-The `inconsistent` section is only generated by `-suggest` and is ignored by the linter. You can review these entries
+The `inconsistent` section is only generated by `-suggest` and is ignored by the linter. You should review all entries
 and move them to the `pointer`, `value`, or `suppress` sections as appropriate.
 
 Once your `errortypes.yaml` file is configured, use it with the `-overrides` flag:
@@ -246,7 +313,7 @@ errortype -overrides=errortypes.yaml ./...
 This instructs the linter to use your specified configuration, resolving ambiguities and suppressing noise from types
 you wish to ignore.
 
-**Note:** Always review suggestions before adding them to your overrides file. A suggestion makes your code consistent
+**Note:** Always review suggestions before adding them to your override file. A suggestion makes your code consistent
 with how the type is _used in your package_, but this may conflict with how the type was _designed_ to be used in its
 defining package. When possible, fixing the inconsistency by refactoring the code is preferable to forcing an override.
 
@@ -268,64 +335,112 @@ in the defining package by making the usage explicit, see
 
 ## Diagnostic Code Reference
 
-`errortype` uses short codes to categorize the issues it finds.
+`errortype` uses short diagnostic codes to categorize the issues it finds, making it easier to understand and address
+specific problems.
 
-- **`et:ret` (Return Mismatch)**: An error type is returned incorrectly.
+### Error Type Consistency Issues
 
-  ```go
-  return &ValueError{} // Returning a value error as a pointer
-  ```
+- **`et:ret` (Return Mismatch)**: An error type is returned incorrectly (returning a value error as a pointer or vice
+  versa).
 
 - **`et:ast` (Assertion Mismatch)**: An error type is used incorrectly in a type assertion or type switch.
 
-  ```go
-  target, ok := err.(*ValueError) // Asserting a value error to a pointer type
-  ```
-
 - **`et:err` (Argument Mismatch)**: An error type is passed incorrectly as a target to an `errors.As`-like function.
 
-  ```go
-  var target *ValueError
-  errors.As(err, &target) // The target for a value error is a pointer-to-pointer
-  ```
-
 - **`et:emb` (Embedded/Ambiguous Usage)**: The linter could not determine if an error is a pointer or value type. This
-  is common for types that embed the `error` interface or have mixed usage in the defining package.
+  can be resolved with an [override](#overriding-detected-types).
+
+### Pointer Comparison Issues
+
+- **`et:cmp` (Pointless Error Comparison)**: A pointer is compared against the address of a newly created value in
+  `errors.Is` or similar functions. This comparison is almost always `false`, or its result is undefined for zero-sized
+  types.
 
   ```go
-  type AmbiguousError struct{ error }
-  // ...
-  return AmbiguousError{err}
+  if errors.Is(err, &url.Error{}) { // This comparison will always be false
+    // ...
+  }
   ```
 
-  See “[Overriding Detected Types](#overriding-detected-types).”
+  **Fix**: Use `errors.As` to check if an error is of a certain type. If you need to check for a specific sentinel error
+  instance, define it as a package-level variable and compare against that.
+
+  ```go
+  var urlErr *url.Error
+  if errors.As(err, &urlErr) { // Correct approach
+    // ...
+  }
+  ```
+
+- **`et:equ` (Pointless Comparison)**: A pointer is compared against the address of a newly created value using equality
+  operators. This comparison is almost always `false`, or its result is undefined for zero-sized types.
+
+  ```go
+  if ptr == &MyStruct{} { // This comparison will always be false
+    // ...
+  }
+  ```
+
+  **Fix**: Dereference the pointer and compare the underlying values (`*ptr == MyStruct{}`). If you need to check for a
+  specific sentinel instance, define it as a package-level variable and compare against that.
+
+### Other and Style Issues
+
+- **`et:unw` (Calling Unwrap)**: An unwrapping function (like `errors.Is`) was found inside an `Is(error) bool` method.
+
+  ```go
+  func (MyEOFError) Is(err error) bool {
+    return errors.Is(err, io.ErrUnexpectedEOF)
+  }
+  ```
+
+  See [function `Is(err, target)`](https://pkg.go.dev/errors#Is):
+
+  > _“An `Is` method should only shallowly compare `err` and the `target` and not call `Unwrap` on either.”_
+
+  **Fix**: Replace the call with a direct, shallow comparison, such as `err == io.ErrUnexpectedEOF`.
+
+  ```go
+  func (MyEOFError) Is(err error) bool {
+    return err == io.ErrUnexpectedEOF
+  }
+  ```
 
 - **`et:sty` (Style Mismatch)**: The target argument to an `errors.As`-like function is not an address operation on a
   variable.
 
   ```go
-  if ee := new(*exec.ExitError); !errors.As(err, ee) { /* ... */ }
+    // Confusing: checks for a value, but looks like a pointer check.
+    if errors.As(err, &MyError{}) { /* ... */ }
   ```
 
-- **`et:arg` (Invalid Argument)**: The target argument to an `errors.As`-like function is invalid (e.g., not a pointer
-  to a type implementing error).
+  While this is valid code, it can be misleading. The expression `&MyError{}` creates a pointer to a struct literal.
+  When passed to `errors.As`, it checks if `err` wraps a `MyError` _value_, not a pointer. This is easily misread,
+  obfuscating the check's true intent.
+
+  **Fix**: To improve clarity, declare a variable of the target error type and pass its address to `errors.As`.
 
   ```go
-  var target net.ParseError    // target is not an error type
-  if errors.As(err, &target) { /* ... */ }
+    var e MyError // Or "var e *MyError" for pointer errors
+    if errors.As(err, &e) { /* ... */ } // The clear, recommended style
   ```
 
-  This is also flagged by the standard [`errorsas`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas)
-  linter.
+  This longer form is unambiguous and clearly states the type being checked for.
+
+- **`et:arg` (Invalid Argument)**: The target argument to an `errors.As`-like function is invalid (not a pointer to a
+  type implementing `error`). This is also flagged by the standard Go
+  [`errorsas`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas) linter.
 
 ## Integration
 
 This linter is in an early phase and is currently usable only from the command line. Other integrations are planned as
 the logic stabilizes.
 
-## Real-World Examples
+## Links
 
-See [this blog post](https://blog.fillmore-labs.com/posts/errors-1/) for why `errortype` is useful.
+- [Background on the problem this linter solves](https://blog.fillmore-labs.com/posts/errors-1/)
+- [Enhanced error inspection with better ergonomics](https://pkg.go.dev/fillmore-labs.com/exp/errors)
+- [Proposal for a generic `errors.As` variant](http://go.dev/issues/51945)
 
 ## License
 

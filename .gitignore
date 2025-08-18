@@ -11,10 +11,7 @@
 !/.prettierrc.yaml
 !/.yamlfmt
 !/.yamllint
-/bazel-bin
-/bazel-errortype
-/bazel-out
-/bazel-testlogs
+/bazel-*
 /bin/
 /cover.out
 /custom-gcl

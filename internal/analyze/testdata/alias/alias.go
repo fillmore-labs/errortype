@@ -55,4 +55,13 @@ func main() {
 	if errors.As(err3, &ep3) {
 		fmt.Println("&ep3")
 	}
+
+	type aliasError4 = struct{ myError }
+
+	var err4 error = &aliasError4{}
+
+	var ep4 *aliasError4
+	if errors.As(err4, &ep4) {
+		fmt.Println("&ep4")
+	}
 }

@@ -22,7 +22,11 @@ import (
 	"test/a/c"
 )
 
-type Alias = c.Alias
+type (
+	Alias = c.Alias
+
+	PointerAlias = *c.Alias
+)
 
 func Return() error {
 	switch rand.Int() {
@@ -45,7 +49,7 @@ func Return() error {
 		return &c.PointerVar{} // want "POINTER"
 
 	case 6:
-		return &c.EmbeddedDefault{}
+		return &c.EmbeddedDefault{} // want "NOT IN RESULTS"
 
 	case 7:
 		return &c.EmbeddedFunc{} // want "POINTER"
@@ -55,6 +59,15 @@ func Return() error {
 
 	case 9:
 		return &c.Alias{} // want "VALUE"
+
+	case 10:
+		return c.PointerAlias(&c.PointerDefault{}) // want "VALUE"
+
+	case 11:
+		return (*Alias)(&c.Alias{}) // want "VALUE"
+
+	case 12:
+		return PointerAlias(&c.PointerDefault{}) // want "VALUE"
 
 	default:
 		return nil

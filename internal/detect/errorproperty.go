@@ -106,12 +106,15 @@ const (
 	// PointerDef is set for defined pointer types, e.g., `type T *S`. Such types are used like values.
 	PointerDef
 
-	// NonStruct is set if the defined type is not a structure or pointer.
+	// NonStruct is set if the defined type is not a structure.
 	NonStruct
+
+	// ZeroSized is set if the defined type is a zero-sized structure or pointer.
+	ZeroSized
 
 	// --- Others ---.
 
-	// None. We have no idea.
+	// None: We have no idea.
 	None ErrorProperty = 0
 
 	// OverrideMask is a bitmask to identify any override property.
@@ -141,6 +144,7 @@ var errorProperties = map[ErrorProperty]string{
 	ValueReceivers:   "ValueReceivers",
 	PointerDef:       "PointerDef",
 	NonStruct:        "NonStruct",
+	ZeroSized:        "ZeroSized",
 }
 
 // String returns the string representation of a TypeProperty.

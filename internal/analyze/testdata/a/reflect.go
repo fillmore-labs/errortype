@@ -27,4 +27,6 @@ func Reflect(err error) {
 	v := reflect.ValueOf(err)
 
 	_, _ = reflect.TypeAssert[*net.InvalidAddrError](v) // want " \\(et:ast\\)$"
+
+	_, _ = reflect.TypeAssert[*net.Buffers](v)
 }

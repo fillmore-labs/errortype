@@ -26,7 +26,7 @@ import (
 func TestErrorProperty_String(t *testing.T) {
 	t.Parallel()
 
-	input := ErrorProperty((1 << 23) - 1)
+	input := ErrorProperty((1 << 24) - 1)
 	actual := input.String()
 
 	seen := make(map[string]struct{})
@@ -34,7 +34,7 @@ func TestErrorProperty_String(t *testing.T) {
 		seen[word] = struct{}{}
 	}
 
-	if len(seen) != 23 {
+	if len(seen) != 24 {
 		t.Fail()
 	}
 }

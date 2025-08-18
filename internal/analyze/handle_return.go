@@ -29,9 +29,9 @@ func (p pass) handleReturns(b inspector.Cursor, lastResult int) {
 
 		res := retStmt.Results[lastResult]
 
-		resType := p.TypesInfo.Types[res]
-		if !resType.IsValue() { // should not happen
-			p.ReportErrorf(res, "Expected value, got %#v", resType)
+		resType, ok := p.TypesInfo.Types[res]
+		if !ok || !resType.IsValue() { // should not happen
+			p.ReportErrorf(retStmt, "Expected return value in %d, got %#v", lastResult, resType)
 		}
 
 		if resType.IsNil() {

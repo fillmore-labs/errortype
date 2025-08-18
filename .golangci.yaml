@@ -20,10 +20,8 @@ linters:
   enable:
     # keep-sorted start
     - copyloopvar
-    - err113
     - errcheck
     - errname
-    - errorlint
     - exptostd
     - gocheckcompilerdirectives
     - gochecksumtype

@@ -40,7 +40,7 @@ func New(opts ...Option) *analysis.Analyzer {
 		ResultType:       reflect.TypeFor[Result](),
 	}
 
-	a.Flags.BoolVar(&o.debug, "debug", o.debug, "debug output")
+	a.Flags.BoolVar(&o.trace, "trace", o.trace, "trace output")
 	a.Flags.Func("overrides", "read error type overrides from this file", o.readOverrides)
 	a.Flags.Func("heuristics", "list of heuristics used (default: \"usage,receivers\", \"off\" to disable)", o.setHeuristics)
 

@@ -71,7 +71,7 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 
 	// Check if the return type is a type with an `Error() string`` method.
 	tv, ok := info.Types[lastTypeExpr]
-	if ok && HasErrorMethod(tv.Type) { // inclding concrete types, otherwise: && types.IsInterface(tv.Type)
+	if ok && types.IsInterface(tv.Type) && HasErrorMethod(tv.Type) {
 		return results.NumFields() - 1
 	}
 

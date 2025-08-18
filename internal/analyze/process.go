@@ -54,8 +54,9 @@ func (p pass) processDetectedTypes(resultInfo []detect.ResultInfo) {
 // processAST traverses the abstract syntax tree of the package being analyzed.
 // It visits nodes relevant to error usage and dispatches each to its
 // corresponding handler function.
-func (p pass) processAST(in *inspector.Inspector, styleCheck bool) {
+func (p pass) processAST(in *inspector.Inspector, opts astOptions) {
 	for c := range in.Root().Preorder(
+		(*ast.BinaryExpr)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
@@ -63,12 +64,20 @@ func (p pass) processAST(in *inspector.Inspector, styleCheck bool) {
 		(*ast.TypeSwitchStmt)(nil),
 	) {
 		switch n := c.Node().(type) {
+		case *ast.BinaryExpr:
+			p.handleBinaryExpr(n)
+
 		case *ast.CallExpr:
-			p.handleErrorsAs(n, styleCheck)
+			p.handleCall(n, opts)
 
 		case *ast.FuncDecl:
 			if n.Body == nil {
 				continue // Skip function declarations without a body.
+			}
+
+			if err, target, ok := p.isIs(n); ok {
+				b := c.ChildAt(edge.FuncDecl_Body, -1)
+				p.handleIs(b, err, target, opts.deepIsCheck)
 			}
 
 			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {

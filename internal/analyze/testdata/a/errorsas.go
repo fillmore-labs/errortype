@@ -48,5 +48,13 @@ func ErrorsAs(err error) {
 	_ = errors.As(err, &ErrorsAsValue{})   // want " \\(et:sty\\)$"
 	_ = errors.As(err, &ErrorsAsPointer{}) // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
 
-	_ = errors.As(err, eany)
+	_ = errors.As(err, eany) // This could be a style violation
+	_ = errors.As(err, &eany)
+
+	_ = errors.As(func() (error, any) { return nil, nil }())
+
+	_ = errors.As(err, evv) // want " \\(et:arg\\)$"
+	_ = errors.As(err, evp) // want " \\(et:sty\\)$"
+	_ = errors.As(err, epv) // want " \\(et:arg\\)$"
+	_ = errors.As(err, epp) // want  " \\(et:err\\+\\)$" " \\(et:sty\\)$"
 }

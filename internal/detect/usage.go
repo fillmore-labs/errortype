@@ -111,13 +111,13 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 
 	res := ret.Results[v.lastResult]
 
-	resType := v.TypesInfo.Types[res]
-	if !resType.IsValue() { // should not happen
-		v.LogErrorf(res, "Expected value, got %#v", resType)
+	resType, ok := v.TypesInfo.Types[res]
+	if !ok || resType.IsNil() {
+		return // !ok means errors in type parsing, nil is fine.
 	}
 
-	if resType.IsNil() {
-		return // nil is fine.
+	if !resType.IsValue() { // should not happen
+		v.LogErrorf(ret, "Expected returned value in %d , got %#v", v.lastResult, resType)
 	}
 
 	tn, isPtr, ok := typeutil.TypeNameOf(resType.Type)
@@ -133,9 +133,47 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 	v.addTypePropertyInCurrentPackage(tn, property)
 }
 
+// isErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
+// It returns the target argument, or nil if the function is not of interest.
+func isErrorAs(info *types.Info, n *ast.CallExpr) ast.Expr {
+	fun, _, methodExpr, ok := typeutil.FuncOf(info, n.Fun)
+	if !ok {
+		return nil // Could not resolve function, might be a func variable.
+	}
+
+	// Check if the function is one we analyze (e.g., errors.As).
+	// errorsAs maps a function name to the index of its "target" argument.
+	funcName := typeutil.FuncNameOf(fun)
+
+	target, ok := typeutil.KnownFuncs[funcName]
+	if !ok || target.Kind() != typeutil.KindAs {
+		return nil // Not a function we are interested in.
+	}
+
+	targetArgIndex, _ := target.AsTarget()
+
+	if targetArgIndex < 0 {
+		return nil
+	}
+
+	if methodExpr {
+		// For method expression calls ("(*assert.Assertions).ErrorsAs(a, ...)"),
+		// the receiver `a` is the first argument. The argument indices in `errorsAs`
+		// are for the function form, so we increment the index to correctly locate
+		// the target argument in the method call expression.
+		targetArgIndex++
+	}
+
+	if len(n.Args) <= targetArgIndex {
+		return nil // Maybe called with the result of a multivalued function
+	}
+
+	return n.Args[targetArgIndex]
+}
+
 func (p pass) handleCallExpr(n *ast.CallExpr) {
-	_, _, targetArgIndex := typeutil.IsErrorAs(p.TypesInfo, n)
-	if targetArgIndex < 0 { // not an errors.As-like function
+	targetArg := isErrorAs(p.TypesInfo, n)
+	if targetArg == nil { // not an errors.As-like function
 		p.walkExprs(n.Args)
 
 		if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
@@ -150,15 +188,9 @@ func (p pass) handleCallExpr(n *ast.CallExpr) {
 		return
 	}
 
-	if len(n.Args) <= targetArgIndex {
-		return // Maybe called with the result of a multivalued function
-	}
-
-	targetArg := n.Args[targetArgIndex]
-
 	typ, ok := p.TypesInfo.Types[targetArg]
 	if !ok {
-		return
+		return // !ok means errors in type parsing
 	}
 
 	ptr, ok := typ.Type.Underlying().(*types.Pointer)

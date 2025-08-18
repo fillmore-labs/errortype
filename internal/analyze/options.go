@@ -22,18 +22,29 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
+type astOptions struct {
+	styleCheck bool // styleCheck controls the target style check in `errors.As`` calls
+
+	checkIs bool // checkIs controls whether to check for `Is(error) bool` methods
+
+	deepIsCheck bool // deepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
+}
+
 type options struct {
 	detecttypes *analysis.Analyzer
 
-	// styleCheck controls style check
-	styleCheck bool
+	astOptions
 }
 
 // defaultOptions returns a [options] struct initialized with default values.
 func defaultOptions() *options {
 	return &options{ // Default options
 		detecttypes: nil,
-		styleCheck:  true,
+		astOptions: astOptions{
+			styleCheck:  true,
+			checkIs:     true,
+			deepIsCheck: false,
+		},
 	}
 }
 
@@ -100,3 +111,36 @@ func (o styleCheckOption) LogValue() slog.Value { return slog.BoolValue(o.styleC
 func (o styleCheckOption) key() string { return "stylecheck" }
 
 func (o styleCheckOption) apply(opts *options) { opts.styleCheck = o.styleCheck }
+
+// WithCheckIs returns an [Option] that configures the diagnostic suppression behavior
+// related to the `Is(error) bool` method.
+// If `checkIs` is true (the default), diagnostics for `errors.Is(err, &MyError{})`
+// may be suppressed if `*MyError` implements `Is(error) bool`.
+// If false, this specific suppression heuristic is disabled.
+func WithCheckIs(checkIs bool) Option { return checkIsOption{checkIs: checkIs} }
+
+// checkIsOption implements the [Option] interface to configure the `checkIs` behavior.
+type checkIsOption struct{ checkIs bool }
+
+// LogValue implements the [slog.LogValuer] interface.
+func (o checkIsOption) LogValue() slog.Value { return slog.BoolValue(o.checkIs) }
+
+func (o checkIsOption) key() string { return "checkIs" }
+
+func (o checkIsOption) apply(opts *options) { opts.checkIs = o.checkIs }
+
+// WithDeepIsCheckUnwrap returns an Option to configure `Is` method analysis.
+// If allUnwrap is true, the analyzer will flag every method calling `Unwrap`.
+// The default behavior is to flag only applications to the target.
+func WithDeepIsCheckUnwrap(deepIsCheck bool) Option {
+	return deepIsCheckOption{deepIsCheck: deepIsCheck}
+}
+
+type deepIsCheckOption struct{ deepIsCheck bool }
+
+// LogValue implements the [slog.LogValuer] interface.
+func (o deepIsCheckOption) LogValue() slog.Value { return slog.BoolValue(o.deepIsCheck) }
+
+func (o deepIsCheckOption) key() string { return "allUnwrap" }
+
+func (o deepIsCheckOption) apply(opts *options) { opts.deepIsCheck = o.deepIsCheck }

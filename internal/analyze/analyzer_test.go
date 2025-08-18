@@ -24,15 +24,10 @@ import (
 
 	. "fillmore-labs.com/errortype/internal/analyze"
 	"fillmore-labs.com/errortype/internal/detect"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func TestAnalyzer(t *testing.T) {
+func TestAnalyzerA(t *testing.T) {
 	t.Parallel()
-
-	if err := typeutil.HasGo(); err != nil {
-		t.Skipf("Go not available: %s", err)
-	}
 
 	testdata := analysistest.TestData()
 
@@ -43,5 +38,39 @@ func TestAnalyzer(t *testing.T) {
 		t.Fatal("can't set override file", err)
 	}
 
-	analysistest.Run(t, testdata, a, "test/...")
+	analysistest.Run(t, testdata, a, "test/a")
+}
+
+func TestAnalyzerB(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+
+	d := detect.New()
+	a := New(WithDetectTypes(d))
+
+	if err := a.Flags.Set("check-is", "false"); err != nil {
+		t.Fatal("can't set check-is", err)
+	}
+
+	if err := a.Flags.Set("deep-is-check", "true"); err != nil {
+		t.Fatal("can't set deep-is-check", err)
+	}
+
+	analysistest.Run(t, testdata, a, "test/b", "test/alias")
+}
+
+func TestAnalyzerC(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+
+	d := detect.New()
+	a := New(WithDetectTypes(d))
+
+	if err := a.Flags.Set("stylecheck", "false"); err != nil {
+		t.Fatal("can't set stylecheck", err)
+	}
+
+	analysistest.Run(t, testdata, a, "test/c")
 }

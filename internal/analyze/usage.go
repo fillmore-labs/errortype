@@ -16,14 +16,10 @@
 
 package analyze
 
-import (
-	"fmt"
-
-	"fillmore-labs.com/errortype/internal/errortypes"
-)
+import "fillmore-labs.com/errortype/internal/errortypes"
 
 // Usage represents the expected and observed usage of an error type.
-type Usage byte
+type Usage uint8
 
 // Constants defining the possible usages of an error type.
 const (
@@ -56,7 +52,7 @@ const (
 // that differs from the expected analysis type. It returns the determined
 // ErrorType and a boolean indicating whether a differing observed type was found.
 func (u Usage) DeterminedType() errortypes.ErrorType {
-	// Do we have a consistent use that is different from the detected type
+	// Do we have a consistent use that is different from the detected type?
 	switch u & ObservedMask {
 	case PointerObserved:
 		if u&ExpectedMask != PointerExpected {
@@ -75,26 +71,4 @@ func (u Usage) DeterminedType() errortypes.ErrorType {
 	}
 
 	return errortypes.Undecided
-}
-
-// String returns a string representation of the Usage.
-func (u Usage) String() string {
-	switch u {
-	case PointerExpected:
-		return "pointer"
-
-	case ValueExpected:
-		return "value"
-
-	case SuppressExpected:
-		return "suppress"
-
-	case PointerObserved:
-		return "pointer use"
-
-	case ValueObserved:
-		return "value use"
-	}
-
-	return fmt.Sprintf("unknown %d", u)
 }

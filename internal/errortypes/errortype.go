@@ -16,37 +16,18 @@
 
 package errortypes
 
-import "fmt"
-
 // ErrorType represents a detected usage type of an error.
-type ErrorType byte
+type ErrorType uint8
 
 // Constants defining the possible usages of an error type.
+//
+//go:generate go tool stringer -type ErrorType -linecomment
 const (
-	Undecided ErrorType = iota
-	PointerType
-	ValueType
-	SuppressType
+	Undecided    ErrorType = iota // Undecided
+	PointerType                   // Pointer
+	ValueType                     // Value
+	SuppressType                  // Suppress
 )
-
-// String returns a string representation of the Usage.
-func (e ErrorType) String() string {
-	switch e {
-	case PointerType:
-		return "Pointer"
-
-	case ValueType:
-		return "Value"
-
-	case SuppressType:
-		return "Suppress"
-
-	case Undecided:
-		return "Undecided"
-	}
-
-	return fmt.Sprintf("Unknown(%d)", e)
-}
 
 // AFact makes *ErrorType satisfy the [analysis.Fact] interface.
 // [analysis.Fact]s must be pointers to be exported as a fact.

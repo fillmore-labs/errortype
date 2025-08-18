@@ -156,3 +156,73 @@ func TestNewTypeName(t *testing.T) {
 		})
 	}
 }
+
+func TestTypeName_MarshalText(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		typeName TypeName
+		want     string
+	}{
+		{
+			name:     "with path",
+			typeName: TypeName{Path: "example.com/pkg/path", Name: "MyType"},
+			want:     "example.com/pkg/path.MyType",
+		},
+		{
+			name:     "without path",
+			typeName: TypeName{Path: "", Name: "error"},
+			want:     "error",
+		},
+		{
+			name:     "built-in type",
+			typeName: TypeName{Path: "types", Name: "TypeName"},
+			want:     "types.TypeName",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, err := tt.typeName.MarshalText()
+			if err != nil {
+				t.Fatalf("MarshalText() error = %v", err)
+			}
+
+			if string(got) != tt.want {
+				t.Errorf("MarshalText() got = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTypeName_UnmarshalText(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		text    []byte
+		want    TypeName
+		wantErr bool
+	}{
+		{"with path", []byte("example.com/pkg/path.MyType"), TypeName{Path: "example.com/pkg/path", Name: "MyType"}, false},
+		{"without path", []byte("error"), TypeName{Path: "", Name: "error"}, false},
+		{"built-in type", []byte("types.TypeName"), TypeName{Path: "types", Name: "TypeName"}, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var tn TypeName
+			if err := tn.UnmarshalText(tt.text); (err != nil) != tt.wantErr {
+				t.Fatalf("UnmarshalText() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if tn != tt.want {
+				t.Errorf("UnmarshalText() got = %v, want %v", tn, tt.want)
+			}
+		})
+	}
+}

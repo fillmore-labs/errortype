@@ -27,8 +27,6 @@ import (
 	"golang.org/x/xerrors"
 )
 
-var ErrOne, ErrTwo error
-
 type myError1 struct{}
 
 func (myError1) Error() string {

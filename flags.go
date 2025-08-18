@@ -31,7 +31,7 @@ import (
 
 // analyzerFlags are the command line flags for the analyzer.
 type analyzerFlags struct {
-	//
+	// Build tags to use
 	BuildTags string
 
 	// IncludeTests indicates whether test files should be analyzed too.
@@ -40,7 +40,7 @@ type analyzerFlags struct {
 	// -json
 	JSON bool
 
-	// -c=N: if N>0, display offending line plus N lines of context
+	// -c=N: if N>=0, display the offending line plus N lines of context
 	Context int
 
 	// Fix determines whether to apply (!Diff) or display (Diff) all suggested fixes.
@@ -68,6 +68,10 @@ func defaultFlags() *analyzerFlags {
 func setFlags(analyzers []*analysis.Analyzer) *analyzerFlags {
 	for _, a := range analyzers {
 		a.Flags.VisitAll(func(f *flag.Flag) {
+			if flag.Lookup(f.Name) != nil {
+				log.Fatalf("Duplicate flag: %s", f.Name)
+			}
+
 			flag.Var(f.Value, f.Name, f.Usage)
 		})
 	}

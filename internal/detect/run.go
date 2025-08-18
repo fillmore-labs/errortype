@@ -54,7 +54,7 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 	// Process alias declarations in the current package.
 	p.processAliases()
 
-	if o.debug {
+	if o.trace {
 		p.logResults()
 	}
 

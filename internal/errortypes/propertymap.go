@@ -58,8 +58,7 @@ func (p PropertyMap[P]) SetTypeProperty(tn *types.TypeName, property P) {
 func (p PropertyMap[P]) AddTypeProperty(tn *types.TypeName, newProperty P) P {
 	old, ok := p.GetTypeProperty(tn)
 
-	var unset P
-	if !ok || old&newProperty == unset { // properties are not set.
+	if !ok || old&newProperty != newProperty { // properties are not set.
 		p.SetTypeProperty(tn, old|newProperty)
 	}
 

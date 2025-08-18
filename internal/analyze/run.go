@@ -50,7 +50,7 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 
 	p.processDetectedTypes(detectedResult.Types)
 
-	p.processAST(in, o.styleCheck)
+	p.processAST(in, o.astOptions)
 
 	res := p.calculateResult()
 

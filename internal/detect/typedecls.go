@@ -31,7 +31,7 @@ func (p pass) processTypeDecls() {
 	for typespec := range p.AllTypeDecls {
 		tn, ok := p.TypesInfo.Defs[typespec.Name].(*types.TypeName)
 		if !ok { // should not happen
-			p.LogErrorf(typespec.Name, "Not a types.TypeName: %s", typespec.Name.Name)
+			p.LogErrorf(typespec.Name, "Not a TypeName: %s", typespec.Name.Name)
 
 			continue
 		}
@@ -46,44 +46,39 @@ func (p pass) processTypeDecls() {
 			continue // *types.Var or wrong signature, not an error type
 		}
 
-		_, ptrRecv := typeutil.HasPointerReceiver(fun.Signature())
+		prop := None
 
-		var nonstruct, pointer bool // Non-Struct error types are often value types
-
-		switch tn.Type().Underlying().(type) {
+		switch u := tn.Type().Underlying().(type) {
 		case *types.Interface:
 			continue // Interface type
 
 		case *types.Struct:
+			if typeutil.ZeroSized(u, 0) {
+				prop |= ZeroSized
+			}
 
 		case *types.Pointer:
-			pointer = true
-
-		default:
-			nonstruct = true
-		}
-
-		var prop ErrorProperty
-
-		switch {
-		case ptrRecv && !indirect:
-			// Type has a `Error() string` method with a pointer receiver, possibly embedded without indirections
-			prop = PointerReceiver
-
-		case pointer:
 			// The type is an alias of a pointer to type with an `Error() string` method.
 			// This should be rare.
-			prop = PointerDef
+			prop |= PointerDef
+			if typeutil.ZeroSized(u.Elem(), 0) {
+				prop |= ZeroSized
+			}
 
 		default:
-			// The type has a (possibly embedded) `Error() string` method, either with value receiver
-			// or the receiver type is not relevant because of indirection
-			prop = None
-			if nonstruct {
-				prop = NonStruct
-			}
+			// Non-Struct error types are often value types
+			prop |= NonStruct
 		}
 
+		_, ptrRecv := typeutil.HasPointerReceiver(fun.Signature())
+
+		if ptrRecv && !indirect {
+			// Type has a `Error() string` method with a pointer receiver, possibly embedded without indirections
+			prop |= PointerReceiver
+		}
+
+		// Otherwise the type has a (possibly embedded) `Error() string` method, either with value receiver
+		// or the receiver type is not relevant because of indirection. We need to rely on heuristics.
 		p.AddTypeProperty(tn, prop)
 	}
 }

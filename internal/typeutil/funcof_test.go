@@ -18,7 +18,6 @@ package typeutil_test
 
 import (
 	"go/ast"
-	"slices"
 	"testing"
 
 	. "fillmore-labs.com/errortype/internal/typeutil"
@@ -111,10 +110,6 @@ var _ = (myFunc)()()`,
 			src: `var a [1]func() int
 var _ = a[0]()`,
 		},
-	}
-
-	if err := HasGo(); err != nil {
-		tests = slices.Delete(tests, 1, 2)
 	}
 
 	for _, tt := range tests {

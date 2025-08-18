@@ -24,22 +24,6 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// HeuristicPass represents a set of heuristic flags used to control various passes in the analysis process.
-//
-//go:generate go tool stringer -type HeuristicPass -linecomment
-type HeuristicPass uint8
-
-const (
-	// HeuristicUsage represents a heuristic pass for general usage.
-	HeuristicUsage HeuristicPass = 1 << iota // usage
-
-	// HeuristicReceivers represents a heuristic pass for consistent method receivers.
-	HeuristicReceivers // receivers
-
-	// HeuristicOff turns off all heuristic passes.
-	HeuristicOff HeuristicPass = 0 // off
-)
-
 type options struct {
 	// usageOverrides stores the usage configuration for error types, read from a file.
 	usageOverrides map[typeutil.TypeName]errortypes.ErrorType
@@ -47,8 +31,8 @@ type options struct {
 	// heuristics controls heuristic passes
 	heuristics HeuristicPass
 
-	// debug controls debug output
-	debug bool
+	// trace controls result output
+	trace bool
 }
 
 // defaultOptions returns a [options] struct initialized with default values.
@@ -56,7 +40,7 @@ func defaultOptions() *options {
 	return &options{ // Default options
 		usageOverrides: nil,
 		heuristics:     HeuristicUsage | HeuristicReceivers,
-		debug:          false,
+		trace:          false,
 	}
 }
 
@@ -163,14 +147,14 @@ func (o heuristicsOption) key() string { return "heuristics" }
 
 func (o heuristicsOption) apply(opts *options) { opts.heuristics = o.heuristics }
 
-// WithDebug is an [Option] to configure debug output.
-func WithDebug(debug bool) Option { return debugOption{debug: debug} }
+// WithTrace is an [Option] to configure result output.
+func WithTrace(trace bool) Option { return traceOption{trace: trace} }
 
-type debugOption struct{ debug bool }
+type traceOption struct{ trace bool }
 
 // LogValue implements the [slog.LogValuer] interface.
-func (o debugOption) LogValue() slog.Value { return slog.BoolValue(o.debug) }
+func (o traceOption) LogValue() slog.Value { return slog.BoolValue(o.trace) }
 
-func (o debugOption) key() string { return "debug" }
+func (o traceOption) key() string { return "trace" }
 
-func (o debugOption) apply(opts *options) { opts.debug = o.debug }
+func (o traceOption) apply(opts *options) { opts.trace = o.trace }

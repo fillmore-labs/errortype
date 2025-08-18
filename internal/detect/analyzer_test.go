@@ -30,15 +30,10 @@ import (
 
 	. "fillmore-labs.com/errortype/internal/detect"
 	"fillmore-labs.com/errortype/internal/errortypes"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 func TestExclusionsAnalyzer(t *testing.T) {
 	t.Parallel()
-
-	if err := typeutil.HasGo(); err != nil {
-		t.Skipf("Go not available: %s", err)
-	}
 
 	d := New()
 
@@ -99,42 +94,54 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 
 	for returnStmt := range inspector.All[*ast.ReturnStmt](in) {
 		for _, result := range returnStmt.Results {
-			t := types.Unalias(ap.TypesInfo.Types[result].Type)
+			tv, ok := ap.TypesInfo.Types[result]
+			if !ok || tv.IsNil() {
+				continue
+			}
+
+			t := tv.Type
 			if p, ok := t.(*types.Pointer); ok {
-				t = types.Unalias(p.Elem())
+				t = p.Elem()
 			}
 
-			named, ok := t.(*types.Named)
-			if !ok {
-				continue
-			}
+			msg := message(t, errorMap)
 
-			tn := named.Obj()
-
-			typ, ok := errorMap[tn]
-			if !ok {
-				continue
-			}
-
-			var msg string
-
-			switch typ {
-			case errortypes.PointerType:
-				msg = "POINTER"
-
-			case errortypes.ValueType:
-				msg = "VALUE"
-
-			case errortypes.SuppressType:
-				msg = "SUPPRESS"
-
-			default:
-				msg = "ERROR"
-			}
-
-			ap.ReportRangef(result, "Type %q %s", named.String(), msg)
+			ap.ReportRangef(result, "Type %q %s", t.String(), msg)
 		}
 	}
 
 	return any(nil), nil
+}
+
+func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) string {
+	var tn *types.TypeName
+	switch t := t.(type) {
+	case *types.Named:
+		tn = t.Obj()
+
+	case *types.Alias:
+		tn = t.Obj()
+
+	default:
+		return "NOT A NAMED TYPE"
+	}
+
+	typ, ok := errorMap[tn]
+	if !ok {
+		return "NOT IN RESULTS"
+	}
+
+	switch typ {
+	case errortypes.PointerType:
+		return "POINTER"
+
+	case errortypes.ValueType:
+		return "VALUE"
+
+	case errortypes.SuppressType:
+		return "SUPPRESS"
+
+	default:
+		return "ERROR"
+	}
 }

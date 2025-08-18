@@ -30,6 +30,8 @@ type (
 	LocalOverride struct{ error }
 
 	Alias = ValueDefault
+
+	PointerAlias = *PointerDefault
 )
 
 func (ValueDefault) Error() string { return "" } // value type

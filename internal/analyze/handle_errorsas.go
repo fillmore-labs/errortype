@@ -25,43 +25,30 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like errors.As.
-func (p pass) handleErrorsAs(n *ast.CallExpr, styleCheck bool) {
-	if len(n.Args) == 0 {
-		return // Not interested in calls with no arguments.
+// handleErrorsAsGeneric checks for incorrect pointer/value usage of error types passed to functions like `reflect.TypeAssert[T]`.
+func (p pass) handleErrorsAsGeneric(fun *types.Func, targetExpr ast.Expr) {
+	tv, ok := p.TypesInfo.Types[targetExpr]
+	if !ok || !typeutil.HasErrorMethod(tv.Type) {
+		return // We are only interested in errors
 	}
 
-	// Retrieve the definition of the called function.
-	fun, targetExpr, targetArgIndex := typeutil.IsErrorAs(p.TypesInfo, n)
+	reporter := p.GenericReporter(targetExpr, fun)
 
-	if fun == nil {
-		return // Not an errors.As-like function.
-	}
+	// Now, check if the error type is used correctly (pointer vs. value).
+	p.checkErrorUsage(tv.Type, reporter)
+}
 
-	if targetExpr != nil {
-		reporter := p.GenericReporter(targetExpr, fun)
-
-		targetType := p.TypesInfo.Types[targetExpr].Type
-
-		// Now, check if the error type is used correctly (pointer vs. value).
-		p.checkErrorUsage(targetType, reporter)
-
-		return
-	}
-
-	if targetArgIndex < 0 {
-		return // Not an errors.As-like function.
-	}
-
-	if targetArgIndex >= 0 && targetArgIndex >= len(n.Args) {
+// handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
+func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int, opts astOptions) {
+	if targetArgIndex >= len(n.Args) {
 		return // Not enough arguments, e.g. called with return values of another function.
 	}
 
 	targetArg := n.Args[targetArgIndex]
 
-	tv := p.TypesInfo.Types[targetArg]
-	if !tv.IsValue() { // should not happen
-		p.ReportErrorf(targetArg, "Expected value, got %#v", tv)
+	tv, ok := p.TypesInfo.Types[targetArg]
+	if !ok || !tv.IsValue() { // should not happen
+		p.ReportErrorf(targetArg, "Expected argument value, got %#v", tv)
 	}
 
 	targetType := tv.Type
@@ -72,10 +59,10 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, styleCheck bool) {
 		elemType := t.Elem()
 
 		// The target for errors.As can be a pointer to an interface that does not
-		// itself implement error (e.g., `var target interface{ Temporary() bool }`).
+		// itself implement `error` (e.g., `var target interface{ Temporary() bool }`).
 		// This is a valid use case for checking for specific error capabilities.
 		if types.IsInterface(elemType) {
-			break
+			return
 		}
 
 		// Otherwise, the pointed-to type should implement the error interface.
@@ -84,7 +71,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, styleCheck bool) {
 			typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
 			p.ReportRangef(targetArg, "Expected pointer to type implementing error, but %s does not. (et:arg)", typeName)
 
-			break
+			return
 		}
 
 		reporter := p.ErrorsAsReporter(targetArg, fun)
@@ -92,7 +79,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, styleCheck bool) {
 		// Now, check if the error type is used correctly (pointer vs. value).
 		p.checkErrorUsage(elemType, reporter)
 
-		if styleCheck {
+		if opts.styleCheck {
 			reporter.CheckStyle(elemType)
 		}
 
@@ -104,12 +91,18 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, styleCheck bool) {
 		// 	err := struct{ error }{}
 		//	var target error = &err
 		//	if errors.As(err, target) { /* ... */ }
+		//
+		// We could report a style violation here.
 
 	default:
-		// The argument to an errors.As-like function must be a pointer or an interface.
-		var sb strings.Builder
-		_ = format.Node(&sb, p.Fset, targetArg)
+		// The argument to an `errors.As`-like function must be a pointer or an interface.
+		argStr := "<invalid>"
 
-		p.ReportRangef(targetArg, "Target argument in %s must be a pointer or an interface, got %q (type %s). (et:arg)", fun.Name(), sb.String(), targetType)
+		var sb strings.Builder
+		if format.Node(&sb, p.Fset, targetArg) == nil {
+			argStr = sb.String()
+		}
+
+		p.ReportRangef(targetArg, "Target argument in %s must be a pointer or an interface, got %q (type %s). (et:arg)", fun.Name(), argStr, targetType)
 	}
 }

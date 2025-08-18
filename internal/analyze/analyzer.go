@@ -28,15 +28,20 @@ import (
 // Documentation constants.
 const (
 	Name = "errortype"
-	Doc  = `errortype checks for incorrect pointer-vs-value usage of error types.
+	Doc  = `errortype is a Go static analysis tool that helps prevent subtle bugs in error handling.
 
-The errortype linter analyzes function returns, type assertions, and calls to
-functions like errors.As to ensure that error types are used consistently
-as either pointers or values.
+It performs two main checks:
 
-It automatically determines the correct usage for most error types but may
-require a configuration file for ambiguous cases, such as structs that embed
-the 'error' interface without providing their own Error() method.`
+1. Inconsistent Error Type Usage: It analyzes function returns, type assertions,
+   and calls to functions like errors.As to ensure that custom error types
+   are used consistently as either pointers or values.
+
+2. Pointless Pointer Comparisons: It detects comparisons of pointers against
+   the address of a newly created value (e.g., 'ptr == &MyStruct{}'), which
+   are almost always incorrect.
+
+For inconsistent error type usage, it automatically determines the correct usage
+for most error types but may require a configuration file for ambiguous cases.`
 
 	URL = "https://pkg.go.dev/fillmore-labs.com/errortype/internal/analyzer"
 )
@@ -62,7 +67,12 @@ func New(opts ...Option) *analysis.Analyzer {
 		ResultType: reflect.TypeFor[Result](),
 	}
 
-	a.Flags.BoolVar(&o.styleCheck, "stylecheck", o.styleCheck, "style check (default true)")
+	a.Flags.BoolVar(&o.styleCheck, "stylecheck", o.styleCheck, "check for confusing uses of errors.As (default true)")
+
+	a.Flags.BoolVar(&o.checkIs, "check-is", o.checkIs,
+		`suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true)`)
+
+	a.Flags.BoolVar(&o.deepIsCheck, "deep-is-check", o.deepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only on target (default false)`)
 
 	return a
 }

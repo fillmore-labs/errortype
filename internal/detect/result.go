@@ -18,6 +18,8 @@ package detect
 
 import (
 	"go/types"
+	"iter"
+	"maps"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -41,10 +43,10 @@ type Result struct {
 // It merges types from the current package and dependencies (facts) and local overrides,
 // with local overrides having the highest precedence.
 func (p pass) createResult() Result {
-	facts := p.AllObjectFacts()
-
 	// Add types from dependencies (via facts).
-	determinedTypes := extractErrorTypes(facts)
+	facts := p.AllObjectFacts()
+	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
+	maps.Insert(determinedTypes, extractErrorTypes(facts))
 
 	// Iterate over all types in the current package whose pointer-ness has been determined.
 	for tn, errorType := range p.AllDetermined {
@@ -72,21 +74,23 @@ func createResult(determinedTypes map[*types.TypeName]errortypes.ErrorType) Resu
 	return Result{Types: typs}
 }
 
-func extractErrorTypes(facts []analysis.ObjectFact) map[*types.TypeName]errortypes.ErrorType {
-	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
-	for _, f := range facts {
-		fact, ok := f.Fact.(*errortypes.ErrorType)
-		if !ok {
-			continue
-		}
+// extractErrorTypes processes imported [analysis.ObjectFact]s and returns a sequence of *types.TypeName with errortypes.ErrorType.
+func extractErrorTypes(facts []analysis.ObjectFact) iter.Seq2[*types.TypeName, errortypes.ErrorType] {
+	return func(yield func(*types.TypeName, errortypes.ErrorType) bool) {
+		for _, f := range facts {
+			fact, ok := f.Fact.(*errortypes.ErrorType)
+			if !ok || fact == nil {
+				continue
+			}
 
-		tn, ok := f.Object.(*types.TypeName)
-		if !ok {
-			continue
-		}
+			tn, ok := f.Object.(*types.TypeName)
+			if !ok {
+				continue
+			}
 
-		determinedTypes[tn] = *fact
+			if !yield(tn, *fact) {
+				return
+			}
+		}
 	}
-
-	return determinedTypes
 }

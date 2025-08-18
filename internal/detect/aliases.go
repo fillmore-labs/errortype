@@ -31,29 +31,35 @@ func (p pass) processAliases() {
 		}
 
 		// Resolve the alias to its underlying named type.
-		named, ok := types.Unalias(alias.Type()).(*types.Named)
-		if !ok {
+		var tn *types.TypeName
+
+		switch n := types.Unalias(alias.Type()).(type) {
+		case *types.Named:
+			tn = n.Obj()
+
+		case *types.Pointer:
+			continue // Already done in type declaration
+
+		default:
 			continue // Alias to an unnamed type with embedded error
 		}
 
-		orig := named.Obj()
-
 		var property ErrorProperty
 		// Check if the original type is from the same package.
-		if orig.Pkg() == p.Pkg {
+		if tn.Pkg() == p.Pkg {
 			// If the original type is in the same package, its properties
 			// have already been computed by processTypeDecls. We can copy them.
-			p, ok := p.GetTypeProperty(orig)
+			oldp, ok := p.GetTypeProperty(tn)
 			if !ok {
 				continue
 			}
 
-			property = p &^ OverrideMask // Copy all but override flags.
+			property = oldp &^ OverrideMask // Copy all but override flags.
 		} else {
 			// If the original type is from another package, we rely on
 			// the facts exported by that package's analysis.
 			var errorType errortypes.ErrorType
-			if !p.ImportObjectFact(orig, &errorType) {
+			if !p.ImportObjectFact(tn, &errorType) {
 				continue
 			}
 

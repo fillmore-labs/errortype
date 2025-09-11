@@ -19,24 +19,22 @@ package analyze
 import (
 	"go/token"
 	"go/types"
+
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // errorIsInterface holds a reference to the `interface{ Is(error) bool }` type.
 // This is used by [shouldSuppressDiagnostic] to check if a type implements
 // the optional error comparison interface defined by `errors.Is`.
-//
-//nolint:gochecknoglobals
 var (
-	universeError = types.Universe.Lookup("error").Type()
-
 	// errorIsInterface represents `interface{ Is(error) bool }`.
-	errorIsInterface = newErrorIsInterface(universeError)
+	errorIsInterface = newErrorIsInterface(typeutil.UniverseError.Type())
 
 	// errorUnwrapInterface represents `interface{ Unwrap() error }`.
-	errorUnwrapInterface = newErrorUnwrapInterface(universeError)
+	errorUnwrapInterface = newErrorUnwrapInterface(typeutil.UniverseError.Type())
 
 	// errorUnwrapArrayInterface represents `interface{ Unwrap() []error }`.
-	errorUnwrapArrayInterface = newErrorUnwrapArrayInterface(universeError)
+	errorUnwrapArrayInterface = newErrorUnwrapArrayInterface(typeutil.UniverseError.Type())
 )
 
 // newErrorIsInterface constructs and returns a new [types.Interface] representing

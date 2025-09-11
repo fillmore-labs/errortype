@@ -30,6 +30,8 @@ func JujuErrors() {
 		pve *ValueError
 	)
 
+	_ = errors.Is(err, (&myError1{})) // want "is false or undefined"
+
 	_ = errors.As(err, &pve) // want " \\(et:err\\)$"
 
 	_, _ = errors.AsType[*ValueError](err) // want " \\(et:ast\\)$"

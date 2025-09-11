@@ -25,8 +25,8 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// handleErrorsAsGeneric checks for incorrect pointer/value usage of error types passed to functions like `reflect.TypeAssert[T]`.
-func (p pass) handleErrorsAsGeneric(fun *types.Func, targetExpr ast.Expr) {
+// handleErrorsAsType checks for incorrect pointer/value usage of error types passed to functions like `errors.AsType[T]`.
+func (p pass) handleErrorsAsType(fun *types.Func, targetExpr ast.Expr) {
 	tv, ok := p.TypesInfo.Types[targetExpr]
 	if !ok || !typeutil.HasErrorMethod(tv.Type) {
 		return // We are only interested in errors
@@ -39,7 +39,7 @@ func (p pass) handleErrorsAsGeneric(fun *types.Func, targetExpr ast.Expr) {
 }
 
 // handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
-func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int, opts astOptions) {
+func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int, opts AstOptions) {
 	if targetArgIndex >= len(n.Args) {
 		return // Not enough arguments, e.g. called with return values of another function.
 	}
@@ -79,7 +79,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 		// Now, check if the error type is used correctly (pointer vs. value).
 		p.checkErrorUsage(elemType, reporter)
 
-		if opts.styleCheck {
+		if opts.StyleCheck {
 			reporter.CheckStyle(elemType)
 		}
 

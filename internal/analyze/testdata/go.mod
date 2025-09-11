@@ -12,7 +12,7 @@ require (
 	github.com/juju/errors v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp/errors v0.0.0-20250819193227-8b4c13bb791b
+	golang.org/x/exp/errors v0.0.0-20250911091902-df9299821621
 	golang.org/x/net v0.44.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 	gotest.tools/v3 v3.5.2
@@ -22,7 +22,7 @@ require (
 	github.com/cockroachdb/logtags v0.0.0-20241215232642-bb51bb14a506 // indirect
 	github.com/cockroachdb/redact v1.1.6 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/getsentry/sentry-go v0.35.1 // indirect
+	github.com/getsentry/sentry-go v0.35.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/kr/pretty v0.3.1 // indirect

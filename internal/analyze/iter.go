@@ -30,23 +30,22 @@ import (
 // of the current function are considered.
 func AllReturns(b inspector.Cursor) iter.Seq[*ast.ReturnStmt] {
 	return func(yield func(*ast.ReturnStmt) bool) {
-		cont := true
+		more := true // Set to `false` to stop yielding
 
-		b.Inspect(
-			[]ast.Node{(*ast.FuncLit)(nil), (*ast.ReturnStmt)(nil)},
-			func(c inspector.Cursor) bool {
-				switch n := c.Node().(type) {
-				case *ast.FuncLit:
-					return false // Don't check returns in nested function literals
+		visit := func(c inspector.Cursor) (descend bool) {
+			switch n := c.Node().(type) {
+			case *ast.FuncLit:
+				return false // Don't check returns in nested function literals
 
-				case *ast.ReturnStmt:
-					if cont {
-						cont = yield(n)
-					}
+			case *ast.ReturnStmt:
+				if more {
+					more = yield(n)
 				}
+			}
 
-				return cont
-			},
-		)
+			return more
+		}
+
+		b.Inspect([]ast.Node{(*ast.FuncLit)(nil), (*ast.ReturnStmt)(nil)}, visit)
 	}
 }

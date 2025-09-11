@@ -17,144 +17,27 @@
 package detect
 
 import (
-	"log/slog"
-
 	"fillmore-labs.com/errortype/internal/errortypes"
-	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-type options struct {
-	// usageOverrides stores the usage configuration for error types, read from a file.
-	usageOverrides map[typeutil.TypeName]errortypes.ErrorType
+// Options defines configuration settings for type analysis, including heuristic passes, usage overrides, and tracing.
+type Options struct {
+	// UsageOverrides stores the usage configuration for error types, read from a file.
+	UsageOverrides map[typeutil.TypeName]errortypes.ErrorType
 
-	// heuristics controls heuristic passes
-	heuristics HeuristicPass
+	// Heuristics controls heuristic passes
+	Heuristics HeuristicPass
 
-	// trace controls result output
-	trace bool
+	// Trace controls result output
+	Trace bool
 }
 
-// defaultOptions returns a [options] struct initialized with default values.
-func defaultOptions() *options {
-	return &options{ // Default options
-		usageOverrides: nil,
-		heuristics:     HeuristicUsage | HeuristicReceivers,
-		trace:          false,
+// DefaultOptions returns a [Options] struct initialized with default values.
+func DefaultOptions() *Options {
+	return &Options{ // Default options
+		UsageOverrides: nil,
+		Heuristics:     HeuristicUsage | HeuristicReceivers,
+		Trace:          false,
 	}
 }
-
-// makeOptions returns a [options] struct with overriding [Option]s applied.
-func makeOptions(opts Options) *options {
-	o := defaultOptions()
-	opts.apply(o)
-
-	return o
-}
-
-// Option configures specific behavior of the zerolint [analysis.Analyzer].
-type Option interface {
-	LogValue() slog.Value
-	key() string
-	apply(opts *options)
-}
-
-// Options is a list of [Option] values that also satisfies the [Option] interface.
-type Options []Option
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o Options) LogValue() slog.Value {
-	as := make([]slog.Attr, 0, len(o))
-	for _, opt := range o {
-		as = append(as, slog.Attr{Key: opt.key(), Value: opt.LogValue()})
-	}
-
-	return slog.GroupValue(as...)
-}
-
-func (o Options) key() string { return "options" }
-
-func (o Options) apply(opts *options) {
-	for _, opt := range o {
-		opt.apply(opts)
-	}
-}
-
-// WithOverrides returns an Option that applies the provided overrides mapping,
-// allowing specific type names to be associated with custom error types.
-// The override map keys are type names, and the values are the corresponding error types
-// to use for those types during error detection.
-func WithOverrides(overrides []overrides.Override) Option {
-	return overridesOption{overrides: overrides}
-}
-
-type overridesOption struct {
-	overrides []overrides.Override
-}
-
-// LogValue implements Option.
-func (o overridesOption) LogValue() slog.Value {
-	var as []slog.Attr
-	for _, usage := range o.overrides {
-		as = append(as, slog.Attr{
-			Key:   usage.TypeName.String(),
-			Value: slog.StringValue(usage.ErrorType.String()),
-		})
-	}
-
-	return slog.GroupValue(as...)
-}
-
-func (o overridesOption) key() string { return "overrides" }
-
-func (o overridesOption) apply(opts *options) { opts.addOverrides(o.overrides) }
-
-// WithHeuristics is an [Option] to configure heuristic passes.
-func WithHeuristics(heuristics ...HeuristicPass) Option {
-	var combined HeuristicPass
-	for _, heuristic := range heuristics {
-		combined |= heuristic
-	}
-
-	return heuristicsOption{heuristics: combined}
-}
-
-type heuristicsOption struct{ heuristics HeuristicPass }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o heuristicsOption) LogValue() slog.Value {
-	var v []string
-	if o.heuristics == 0 {
-		v = append(v, "None")
-	} else {
-		for _, mask := range [...]struct {
-			name      string
-			heuristic HeuristicPass
-		}{
-			{"usage", HeuristicUsage},
-			{"receivers", HeuristicReceivers},
-		} {
-			if o.heuristics&mask.heuristic != 0 {
-				v = append(v, mask.name)
-			}
-		}
-	}
-
-	return slog.AnyValue(v)
-}
-
-func (o heuristicsOption) key() string { return "heuristics" }
-
-func (o heuristicsOption) apply(opts *options) { opts.heuristics = o.heuristics }
-
-// WithTrace is an [Option] to configure result output.
-func WithTrace(trace bool) Option { return traceOption{trace: trace} }
-
-type traceOption struct{ trace bool }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o traceOption) LogValue() slog.Value { return slog.BoolValue(o.trace) }
-
-func (o traceOption) key() string { return "trace" }
-
-func (o traceOption) apply(opts *options) { opts.trace = o.trace }

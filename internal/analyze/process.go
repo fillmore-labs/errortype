@@ -22,14 +22,13 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/detect"
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // processDetectedTypes populates the initial error usage map based on the results
 // from the prerequisite `detecttypes` analyzer.
-func (p pass) processDetectedTypes(resultInfo []detect.ResultInfo) {
+func (p pass) processDetectedTypes(resultInfo []errortypes.ResultInfo) {
 	for _, detectedType := range resultInfo {
 		var usage Usage
 
@@ -54,7 +53,7 @@ func (p pass) processDetectedTypes(resultInfo []detect.ResultInfo) {
 // processAST traverses the abstract syntax tree of the package being analyzed.
 // It visits nodes relevant to error usage and dispatches each to its
 // corresponding handler function.
-func (p pass) processAST(in *inspector.Inspector, opts astOptions) {
+func (p pass) processAST(in *inspector.Inspector, opts AstOptions) {
 	for c := range in.Root().Preorder(
 		(*ast.BinaryExpr)(nil),
 		(*ast.CallExpr)(nil),
@@ -77,7 +76,7 @@ func (p pass) processAST(in *inspector.Inspector, opts astOptions) {
 
 			if err, target, ok := p.isIs(n); ok {
 				b := c.ChildAt(edge.FuncDecl_Body, -1)
-				p.handleIs(b, err, target, opts.deepIsCheck)
+				p.handleIs(b, err, target, opts.DeepIsCheck)
 			}
 
 			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {
@@ -91,8 +90,12 @@ func (p pass) processAST(in *inspector.Inspector, opts astOptions) {
 				p.handleReturns(b, lastResult)
 			}
 
+		// Nothing interesting in > 750 projects
+		// case *ast.SwitchStmt:
+		// 	p.handleSwitch(n)
+
 		case *ast.TypeAssertExpr:
-			p.handleTypeAssert(n)
+			p.handleTypeAssert(n, opts.UncheckedAssert)
 
 		case *ast.TypeSwitchStmt:
 			p.handleTypeSwitch(n)

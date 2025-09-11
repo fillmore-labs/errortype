@@ -24,7 +24,7 @@ import (
 // handleBinaryExpr checks binary expressions for equality or inequality
 // comparisons involving addresses of composite literals or new() calls.
 func (p pass) handleBinaryExpr(n *ast.BinaryExpr) {
-	switch n.Op { //nolint:exhaustive
+	switch n.Op {
 	case token.EQL, token.NEQ:
 		p.comparison(n, n.X, n.Y, false)
 

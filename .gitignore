@@ -4,6 +4,7 @@
 !/.gitattributes
 !/.github/
 !/.gitignore
+!/.golangci-custom.yaml
 !/.golangci.yaml
 !/.markdownlint.yaml
 !/.mockery.yaml
@@ -14,9 +15,9 @@
 /bazel-*
 /bin/
 /cover.out
-/custom-gcl
 /dist/
+/errortype
+/golangci-lint
 /out/
 /test.xml
 /trace.out
-/errortype

@@ -33,37 +33,36 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 			return fun, tp, false, ok
 
 		case *ast.SelectorExpr:
-			sel, ok := info.Selections[e]
-
-			if !ok { // e.Sel is an identifier qualified by e.X
-				fun, ok = info.Uses[e.Sel].(*types.Func) // types.Checker calls recordUse for e.Sel from recordSelection.
-
-				return fun, tp, false, ok
+			fun, ok = info.Uses[e.Sel].(*types.Func) // types.Checker calls recordUse for e.Sel from recordSelection.
+			if !ok {
+				return nil, nil, false, false // struct field selector
 			}
 
-			fun, ok = sel.Obj().(*types.Func) // !ok: e.Sel is a struct field selector
+			if sel, isSel := info.Selections[e]; isSel {
+				return fun, tp, sel.Kind() == types.MethodExpr, ok
+			}
 
-			return fun, tp, sel.Kind() == types.MethodExpr, ok
+			return fun, tp, false, ok // e.Sel is an identifier qualified by e.X
 
 		case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
-			if len(tp) > 0 { // Duplicate type parameters, shouldn't happen
+			if tp != nil { // should not happen, duplicate type parameters
 				return nil, nil, false, false
 			}
 
-			tp, ok = extractTypeParameters(info, []ast.Expr{e.Index})
-			if !ok {
-				return nil, nil, false, false
+			tp = []ast.Expr{e.Index}
+			if !checkTypeParameters(info, tp) {
+				return nil, nil, false, false // No type, but an array/slice index.
 			}
 
 			ex = e.X // Unwrap to the function identifier.
 
 		case *ast.IndexListExpr: // Generic function instantiation with multiple type parameters ("myFunc[T, U]").
-			if len(tp) > 0 { // Duplicate type parameters, shouldn't happen
+			if tp != nil { // should not happen, duplicate type parameters
 				return nil, nil, false, false
 			}
 
-			tp, ok = extractTypeParameters(info, e.Indices)
-			if !ok {
+			tp = e.Indices
+			if !checkTypeParameters(info, tp) { // should not happen
 				return nil, nil, false, false
 			}
 
@@ -78,22 +77,18 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 	}
 }
 
-// extractTypeParameters validates and extracts type parameters from an IndexExpr
+// checkTypeParameters validates type parameters from an IndexExpr
 // or IndexListExpr. It uses the provided types.Info to verify that each
 // expression represents a type.
 //
-// If any expression is not a type, it returns nil and false.
-func extractTypeParameters(info *types.Info, indices []ast.Expr) ([]ast.Expr, bool) {
-	tp := make([]ast.Expr, 0, len(indices))
-
+// If any expression is not a type, it returns false.
+func checkTypeParameters(info *types.Info, indices []ast.Expr) bool {
 	for _, index := range indices {
 		typeParam := info.Types[index]
-		if !typeParam.IsType() {
-			return nil, false
+		if !typeParam.IsType() { // Must be a type parameter, not an array/slice index.
+			return false
 		}
-
-		tp = append(tp, index)
 	}
 
-	return tp, true
+	return true
 }

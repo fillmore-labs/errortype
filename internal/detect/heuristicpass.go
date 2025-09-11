@@ -18,6 +18,7 @@ package detect
 
 import (
 	"fmt"
+	"iter"
 	"strings"
 )
 
@@ -36,6 +37,7 @@ const (
 )
 
 var heuristicPasses = map[HeuristicPass]string{
+	HeuristicOff:       "off",
 	HeuristicUsage:     "usage",
 	HeuristicReceivers: "receivers",
 }
@@ -45,7 +47,7 @@ var heuristicPasses = map[HeuristicPass]string{
 // If no flags are set, it returns "off".
 func (h HeuristicPass) String() string {
 	if h == HeuristicOff {
-		return "off"
+		return heuristicPasses[HeuristicOff]
 	}
 
 	var parts []string
@@ -62,4 +64,54 @@ func (h HeuristicPass) String() string {
 	}
 
 	return strings.Join(parts, ", ")
+}
+
+// HeuristicsFromString parses a comma-separated string into a HeuristicPass value.
+// Returns an error if the input contains invalid or conflicting heuristics.
+func HeuristicsFromString(list string) (HeuristicPass, error) {
+	var (
+		heuristics HeuristicPass
+		hasOff     bool
+	)
+
+	for h := range splitComma(list) {
+		switch h {
+		case "":
+
+		case heuristicPasses[HeuristicOff]:
+			hasOff = true
+
+		case heuristicPasses[HeuristicUsage]:
+			heuristics |= HeuristicUsage
+
+		case heuristicPasses[HeuristicReceivers]:
+			heuristics |= HeuristicReceivers
+
+		default:
+			return HeuristicOff, fmt.Errorf("unknown heuristic %q", h)
+		}
+	}
+
+	if hasOff && heuristics != 0 {
+		return HeuristicOff, fmt.Errorf(`heuristic %q cannot be combined with other values in %q`, HeuristicOff.String(), list)
+	}
+
+	return heuristics, nil
+}
+
+func splitComma(list string) iter.Seq[string] {
+	fields := strings.Split(list, ",")
+
+	return func(yield func(string) bool) {
+		for _, s := range fields {
+			trim := strings.TrimSpace(s)
+			if trim == "" {
+				continue
+			}
+
+			if !yield(trim) {
+				return
+			}
+		}
+	}
 }

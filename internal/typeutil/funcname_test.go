@@ -91,8 +91,7 @@ func TestFuncNameOf(t *testing.T) {
 		{
 			name: "method on type without package",
 			fun: func() *types.Func {
-				typeName := types.Universe.Lookup("error")
-				iface := typeName.Type().Underlying().(*types.Interface)
+				iface := UniverseError.Type().Underlying().(*types.Interface)
 
 				return iface.Method(0)
 			}(),

@@ -111,7 +111,7 @@ const (
 	AsFuncType1         = FuncInfo(KindAs) | (FuncInfo(AsFunc1+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParamNone+asIndexOffset) << asTypeParamShift)
 	AsFuncType0WithType = FuncInfo(KindAs) | (FuncInfo(AsFunc0+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParam0+asIndexOffset) << asTypeParamShift)
 
-	// Assert-like functions.
+	// Assert-like functions without a target parameter.
 	AssertFuncWithType = FuncInfo(KindAs) | (FuncInfo(AssertFunc+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParam0+asIndexOffset) << asTypeParamShift)
 )
 

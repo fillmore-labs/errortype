@@ -110,6 +110,12 @@ linters:
         - name: var-declaration
         - name: var-naming
           # keep-sorted end
+    tagliatelle:
+      case:
+        rules:
+          json: kebab
+          yaml: kebab
+        use-field-name: true
     wsl_v5:
       disable:
         - assign

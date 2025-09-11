@@ -32,4 +32,6 @@ func CockroachErrors() {
 	)
 
 	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+
+	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
 }

@@ -43,13 +43,6 @@ type analyzerFlags struct {
 	// -c=N: if N>=0, display the offending line plus N lines of context
 	Context int
 
-	// Fix determines whether to apply (!Diff) or display (Diff) all suggested fixes.
-	Fix bool
-
-	// Diff causes the file updates to be displayed, but not applied.
-	// This flag has no effect unless Fix is true.
-	Diff bool
-
 	// Suggest writes a file with suggestions.
 	Suggest string
 }
@@ -60,8 +53,6 @@ func defaultFlags() *analyzerFlags {
 		IncludeTests: true,
 		JSON:         false,
 		Context:      -1,
-		Fix:          false,
-		Diff:         false,
 	}
 }
 
@@ -100,14 +91,12 @@ func setFlags(analyzers []*analysis.Analyzer) *analyzerFlags {
 	flag.BoolVar(&f.IncludeTests, "test", f.IncludeTests, "indicates whether test files should be analyzed, too")
 	flag.BoolVar(&f.JSON, "json", f.JSON, "emit JSON output")
 	flag.IntVar(&f.Context, "c", f.Context, `display offending line with this many lines of context`)
-	// flag.BoolVar(&f.Fix, "fix", f.Fix, "apply all suggested fixes")
-	// flag.BoolVar(&f.Diff, "diff", f.Diff, "with -fix, don't update the files, but print a unified diff")
-	flag.StringVar(&f.Suggest, "suggest", f.Suggest, "append override suggestions to this file, - for standard output")
+	flag.StringVar(&f.Suggest, "suggest", f.Suggest, `append override suggestions to this file, "-" for standard output`)
 
 	return f
 }
 
-// version represents a [flag] to print version information and exit the program.
+// version represents a [flag.BoolFunc] to print version information and exit the program.
 func version(string) error {
 	progname, err := os.Executable()
 	if err != nil {

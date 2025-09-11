@@ -16,131 +16,35 @@
 
 package analyze
 
-import (
-	"log/slog"
+import "golang.org/x/tools/go/analysis"
 
-	"golang.org/x/tools/go/analysis"
-)
+// AstOptions represents configuration flags to control the behavior of style and correctness checks for errors.
+type AstOptions struct {
+	StyleCheck bool // styleCheck controls the target style check in `errors.As`` calls
 
-type astOptions struct {
-	styleCheck bool // styleCheck controls the target style check in `errors.As`` calls
+	CheckIs bool // checkIs controls whether to check for `Is(error) bool` methods
 
-	checkIs bool // checkIs controls whether to check for `Is(error) bool` methods
+	DeepIsCheck bool // deepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
 
-	deepIsCheck bool // deepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
+	UncheckedAssert bool // uncheckedAssert flags all uncheckd asserts on errors
 }
 
-type options struct {
-	detecttypes *analysis.Analyzer
+// Options provides configuration for analysis passes, including type detection and AST-related behavior customization.
+type Options struct {
+	DetectTypes *analysis.Analyzer
 
-	astOptions
+	AstOptions
 }
 
-// defaultOptions returns a [options] struct initialized with default values.
-func defaultOptions() *options {
-	return &options{ // Default options
-		detecttypes: nil,
-		astOptions: astOptions{
-			styleCheck:  true,
-			checkIs:     true,
-			deepIsCheck: false,
+// DefaultOptions returns a [Options] struct initialized with default values.
+func DefaultOptions() *Options {
+	return &Options{ // Default options
+		DetectTypes: nil,
+		AstOptions: AstOptions{
+			StyleCheck:      true,
+			CheckIs:         true,
+			DeepIsCheck:     false,
+			UncheckedAssert: false,
 		},
 	}
 }
-
-// makeOptions returns a [options] struct with overriding [Option]s applied.
-func makeOptions(opts Options) *options {
-	o := defaultOptions()
-	opts.apply(o)
-
-	return o
-}
-
-// Option configures specific behavior of the zerolint [analysis.Analyzer].
-type Option interface {
-	LogValue() slog.Value
-	key() string
-	apply(opts *options)
-}
-
-// Options is a list of [Option] values that also satisfies the [Option] interface.
-type Options []Option
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o Options) LogValue() slog.Value {
-	as := make([]slog.Attr, 0, len(o))
-	for _, opt := range o {
-		as = append(as, slog.Attr{Key: opt.key(), Value: opt.LogValue()})
-	}
-
-	return slog.GroupValue(as...)
-}
-
-func (o Options) apply(opts *options) {
-	for _, opt := range o {
-		opt.apply(opts)
-	}
-}
-
-func (o Options) key() string {
-	return "options"
-}
-
-// WithDetectTypes sets a custom *analysis.Analyzer for detecting error types.
-func WithDetectTypes(detecttypes *analysis.Analyzer) Option {
-	return detectTypesOption{detecttypes: detecttypes}
-}
-
-type detectTypesOption struct{ detecttypes *analysis.Analyzer }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o detectTypesOption) LogValue() slog.Value { return slog.StringValue(o.detecttypes.Name) }
-
-func (o detectTypesOption) key() string { return "detect" }
-
-func (o detectTypesOption) apply(opts *options) { opts.detecttypes = o.detecttypes }
-
-// WithStyleCheck is an [Option] to configure style check.
-func WithStyleCheck(styleCheck bool) Option { return styleCheckOption{styleCheck: styleCheck} }
-
-type styleCheckOption struct{ styleCheck bool }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o styleCheckOption) LogValue() slog.Value { return slog.BoolValue(o.styleCheck) }
-
-func (o styleCheckOption) key() string { return "stylecheck" }
-
-func (o styleCheckOption) apply(opts *options) { opts.styleCheck = o.styleCheck }
-
-// WithCheckIs returns an [Option] that configures the diagnostic suppression behavior
-// related to the `Is(error) bool` method.
-// If `checkIs` is true (the default), diagnostics for `errors.Is(err, &MyError{})`
-// may be suppressed if `*MyError` implements `Is(error) bool`.
-// If false, this specific suppression heuristic is disabled.
-func WithCheckIs(checkIs bool) Option { return checkIsOption{checkIs: checkIs} }
-
-// checkIsOption implements the [Option] interface to configure the `checkIs` behavior.
-type checkIsOption struct{ checkIs bool }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o checkIsOption) LogValue() slog.Value { return slog.BoolValue(o.checkIs) }
-
-func (o checkIsOption) key() string { return "checkIs" }
-
-func (o checkIsOption) apply(opts *options) { opts.checkIs = o.checkIs }
-
-// WithDeepIsCheckUnwrap returns an Option to configure `Is` method analysis.
-// If allUnwrap is true, the analyzer will flag every method calling `Unwrap`.
-// The default behavior is to flag only applications to the target.
-func WithDeepIsCheckUnwrap(deepIsCheck bool) Option {
-	return deepIsCheckOption{deepIsCheck: deepIsCheck}
-}
-
-type deepIsCheckOption struct{ deepIsCheck bool }
-
-// LogValue implements the [slog.LogValuer] interface.
-func (o deepIsCheckOption) LogValue() slog.Value { return slog.BoolValue(o.deepIsCheck) }
-
-func (o deepIsCheckOption) key() string { return "allUnwrap" }
-
-func (o deepIsCheckOption) apply(opts *options) { opts.deepIsCheck = o.deepIsCheck }

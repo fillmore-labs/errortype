@@ -26,7 +26,7 @@ type Assert struct {
 // ShouldBeValue reports a diagnostic when a value error is asserted as a pointer.
 func (r Assert) ShouldBeValue(tn *types.TypeName) {
 	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
-	// "_, ok := err.(*MyValueError)" or "case *MyValueError:"
+	// _, ok := err.(*MyValueError)
 	r.ReportRangef(r.Expr,
 		`Error type %q should be asserted as a value ("err.(%s)"), not a pointer. (et:ast)`, fullName, importName)
 }
@@ -34,7 +34,7 @@ func (r Assert) ShouldBeValue(tn *types.TypeName) {
 // ShouldBePointer reports a diagnostic when a pointer error is asserted as a value.
 func (r Assert) ShouldBePointer(tn *types.TypeName) {
 	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
-	// "_, ok := err.(MyPointerError)"" or "case MyPointerError:""
+	// _, ok := err.(MyPointerError)
 	r.ReportRangef(r.Expr,
 		`Error type %q should be asserted as a pointer ("err.(*%s)"), not a value. (et:ast+)`, fullName, importName)
 }

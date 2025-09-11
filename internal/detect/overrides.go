@@ -21,19 +21,8 @@ import (
 	"log"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
-	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
-
-func (o *options) addOverrides(overrides []overrides.Override) {
-	if o.usageOverrides == nil {
-		o.usageOverrides = make(map[typeutil.TypeName]errortypes.ErrorType)
-	}
-
-	for _, override := range overrides {
-		o.usageOverrides[override.TypeName] = override.ErrorType
-	}
-}
 
 func (p pass) processOverrides(overrides map[typeutil.TypeName]errortypes.ErrorType) {
 	for tn, property := range p.PropertyMap {

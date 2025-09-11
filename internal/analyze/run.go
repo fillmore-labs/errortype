@@ -23,7 +23,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/detect"
+	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
 // ErrNoInspectorResult is returned when the ast inspector is missing.
@@ -32,11 +32,11 @@ var ErrNoInspectorResult = errors.New("errortype: inspector result missing")
 // ErrNoDetectTypesResult is returned when the result from the detecttypes analyzer is missing.
 var ErrNoDetectTypesResult = errors.New("errortype: detecttypes result missing")
 
-// run executes the analysis pass using the provided options. It processes detected types,
+// Run executes the analysis pass using the provided options. It processes detected types,
 // analyzes the abstract syntax tree (AST), and calculates the final result. If any step fails,
 // an error is returned. Otherwise, the computed result is returned.
-func (o *options) run(ap *analysis.Pass) (any, error) {
-	detectedResult, ok := ap.ResultOf[o.detecttypes].(detect.Result)
+func (o *Options) Run(ap *analysis.Pass) (any, error) {
+	detectedResult, ok := ap.ResultOf[o.DetectTypes].(errortypes.Result)
 	if !ok {
 		return nil, ErrNoDetectTypesResult
 	}
@@ -50,9 +50,9 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 
 	p.processDetectedTypes(detectedResult.Types)
 
-	p.processAST(in, o.astOptions)
+	p.processAST(in, o.AstOptions)
 
-	res := p.calculateResult()
+	result := p.calculateResult()
 
-	return res, nil
+	return result, nil
 }

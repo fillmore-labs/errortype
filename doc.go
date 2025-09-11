@@ -36,26 +36,28 @@ for most error types but may require a configuration file for ambiguous cases.
 
 The flags are:
 
-	-c int
-	  	display offending line with this many lines of context (default -1)
-	-check-is
-	  	suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true) (default true)
-	-deep-is-check
-	  	diagnose all "Unwrap" functions in "Is" methods, not only on target (default false)
-	-heuristics value
-	  	list of heuristics used (default: "usage,receivers", "off" to disable)
-	-overrides value
-	  	read error type overrides from this file
-	-stylecheck
-	  	check for confusing uses of errors.As (default true) (default true)
-	-suggest string
-	  	append override suggestions to this file, - for standard output
-	-tags string
-	  	comma-separated list of build tags to apply
-	-test
-	  	indicates whether test files should be analyzed, too (default true)
-	-trace
-	  	trace output
+		-c int
+		  	display offending line with this many lines of context (default -1)
+		-check-is
+		  	suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true)
+		-deep-is-check
+		  	diagnose all "Unwrap" functions in "Is" methods, not only on target (default false)
+	  	-unchecked-assert
+	    	report unchecked type asserts on errors (default false)
+		-heuristics value
+		  	list of heuristics used (default: "usage,receivers", "off" to disable)
+		-overrides value
+		  	read error type overrides from this file
+		-style-check
+		  	check for confusing uses of errors.As (default true)
+		-suggest string
+		  	append override suggestions to this file, "-" for standard output
+		-tags string
+		  	comma-separated list of build tags to apply
+		-test
+		  	indicates whether test files should be analyzed, too (default true)
+		-trace
+		  	trace output
 
 # Examples
 

@@ -1,0 +1,10 @@
+# Error types for test/a
+---
+pointer:
+  - test/a.PointerOverride
+
+value:
+  - test/a.ValueOverride
+
+suppress:
+  - test/a.SuppressOverride

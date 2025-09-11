@@ -23,7 +23,7 @@ import (
 )
 
 // handleCall checks for incorrect pointer/value usage of error types passed to functions like errors.As.
-func (p pass) handleCall(n *ast.CallExpr, opts astOptions) {
+func (p pass) handleCall(n *ast.CallExpr, opts AstOptions) {
 	if len(n.Args) == 0 {
 		return // Not interested in calls with no arguments.
 	}
@@ -42,7 +42,7 @@ func (p pass) handleCall(n *ast.CallExpr, opts astOptions) {
 
 	switch info.Kind() {
 	case typeutil.KindIs:
-		p.handleErrorIs(n, methodExpr, info.IsType(), opts.checkIs)
+		p.handleErrorIs(n, methodExpr, info.IsType(), opts.CheckIs)
 		return
 
 	case typeutil.KindEqu:
@@ -52,11 +52,11 @@ func (p pass) handleCall(n *ast.CallExpr, opts astOptions) {
 	case typeutil.KindAs:
 		targetArgIndex, typeParam := info.AsTarget()
 
-		// Handle generic functions like `reflect.TypeAssert[T]`.
+		// Handle generic functions like `errors.AsType[T]`.
 		if typeParam >= 0 {
 			if len(typeParams) > typeParam {
 				typ := typeParams[typeParam]
-				p.handleErrorsAsGeneric(fun, typ)
+				p.handleErrorsAsType(fun, typ)
 
 				return
 			}

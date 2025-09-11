@@ -19,25 +19,17 @@ package analyze
 import (
 	"fmt"
 	"go/ast"
-	"io"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 )
-
-// Fprint outputs the syntax tree representation of the given AST node `n` to `w`.
-// This can be useful for debugging purposes.
-func (p pass) Fprint(w io.Writer, n ast.Node) error {
-	return ast.Fprint(w, p.Fset, n, ast.NotNilFilter)
-}
 
 // ReportErrorf reports an internal ("should not happen") failure message.
 func (p pass) ReportErrorf(n ast.Node, format string, args ...any) {
 	var sb strings.Builder
 	_, _ = sb.WriteString("Internal error: ")
 	_, _ = fmt.Fprintf(&sb, format, args...)
-	_, _ = sb.WriteString(". (et:xxx)\n")
-	_ = p.Fprint(&sb, n)
+	_, _ = sb.WriteString(". (et:xxx)")
 
 	p.Report(analysis.Diagnostic{
 		Pos:      n.Pos(),

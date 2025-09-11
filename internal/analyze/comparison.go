@@ -49,19 +49,15 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
 		return // Not a comparison we are interested in.
 	}
 
+	ptr, isPtr := types.Unalias(typ).(*types.Pointer)
+
 	isUndefined := false
 
-	// Get the type of the operand that is the new/non-comparable literal.
-	var checkType types.Type
-	if !canCompare { // e.g. T{} where T is a non-comparable struct.
-		checkType = typ
-	} else if typ != nil { // e.g. &T{} or new(T), the type is a pointer.
-		checkType = types.NewPointer(typ)
-
+	if isPtr {
 		// Determine if the comparison is with a zero-sized type and the other operand is not nil.
-		// In this case, the result is undefined.
-		if typeutil.ZeroSized(typ, 0) {
+		if typeutil.ZeroSized(ptr.Elem(), 0) {
 			otherType, ok := p.TypesInfo.Types[other]
+			// In this case, the result is undefined.
 			isUndefined = !ok || !otherType.IsNil()
 		}
 	}
@@ -70,8 +66,8 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
 
 	// If the type implements the error interface, it may be a valid comparison
 	// in the context of errors.Is, which has special unwrapping rules.
-	if checkType != nil && typeutil.HasErrorMethod(checkType) {
-		if checkIs && shouldSuppressDiagnostic(checkType, isLeft) {
+	if typeutil.HasErrorMethod(typ) {
+		if checkIs && shouldSuppressDiagnostic(typ, isLeft) {
 			return
 		}
 
@@ -79,8 +75,10 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
 	}
 
 	// Report diagnostic
-	typeName := "<invalid type>"
-	if typ != nil {
+	var typeName string
+	if isPtr { // e.g. &T{} or new(T), the type is a pointer.
+		typeName = types.TypeString(ptr.Elem(), types.RelativeTo(p.Pkg))
+	} else {
 		typeName = types.TypeString(typ, types.RelativeTo(p.Pkg))
 	}
 
@@ -91,29 +89,27 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
 		otherStr = sb.String()
 	}
 
+	var format string
+
 	switch {
 	case !canCompare:
-		p.ReportRangef(n,
-			"Result of comparison of %q with non-comparable variable of type %q is always false (et:%s)",
-			otherStr, typeName, tag)
+		format = "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s)"
 
 	case isUndefined:
-		p.ReportRangef(n,
-			"Result of comparison of %q with address of new zero-sized variable of type %q is false or undefined (et:%s)",
-			otherStr, typeName, tag)
+		format = "Result of comparison of %q with address of new zero-sized variable of type %q is false or undefined. (et:%s)"
 
 	default:
-		p.ReportRangef(n,
-			"Result of comparison of %q with address of new variable of type %q is always false (et:%s+)",
-			otherStr, typeName, tag)
+		format = "Result of comparison of %q with address of new variable of type %q is always false. (et:%s+)"
 	}
+
+	p.ReportRangef(n, format, otherStr, typeName, tag)
 }
 
 // isNewOrNonComparable checks if an expression `x` is one of the following:
 // 1. The address of a new composite literal: `&T{...}`
 // 2. A call to the built-in `new()` function: `new(T)`
 // 3. A non-comparable composite literal: `T{...}` where T is not comparable.
-// It returns the underlying type `T`, a boolean indicating if the expression is comparable, and a boolean for success.
+// It returns the type of the expression, a boolean indicating if the expression is comparable, and a boolean for success.
 func (p pass) isNewOrNonComparable(x ast.Expr) (typ types.Type, canCompare, ok bool) {
 	switch e := ast.Unparen(x).(type) {
 	case *ast.UnaryExpr:
@@ -121,16 +117,13 @@ func (p pass) isNewOrNonComparable(x ast.Expr) (typ types.Type, canCompare, ok b
 			return nil, false, false // not &...
 		}
 
-		cl, ok := ast.Unparen(e.X).(*ast.CompositeLit)
-		if !ok {
+		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok {
 			return nil, false, false // not &...{}
 		}
 
-		if tv, ok := p.TypesInfo.Types[cl]; ok {
-			return tv.Type, true, true
-		}
+		tv, ok := p.TypesInfo.Types[e]
 
-		return nil, false, false
+		return tv.Type, true, ok
 
 	case *ast.CallExpr:
 		if len(e.Args) != 1 {
@@ -146,11 +139,9 @@ func (p pass) isNewOrNonComparable(x ast.Expr) (typ types.Type, canCompare, ok b
 			return nil, false, false // not the built-in "new"
 		}
 
-		if tv, ok := p.TypesInfo.Types[e.Args[0]]; ok {
-			return tv.Type, true, true
-		}
+		tv, ok := p.TypesInfo.Types[e]
 
-		return nil, false, false
+		return tv.Type, true, ok
 
 	case *ast.CompositeLit:
 		if tv, ok := p.TypesInfo.Types[e.Type]; ok && !types.Comparable(tv.Type) {

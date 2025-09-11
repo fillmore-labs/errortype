@@ -20,6 +20,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/goccy/go-yaml"
 
@@ -30,7 +32,7 @@ import (
 // Read parses an override file from the provided io.Reader and returns a map
 // associating type names with their corresponding error types. The override file
 // is expected to be in YAML format and structured according to errorfileType.
-func Read(r io.Reader) ([]Override, error) {
+func Read(r io.Reader) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
 	dec := yaml.NewDecoder(r)
 
 	var errorfile errorfileType
@@ -42,20 +44,23 @@ func Read(r io.Reader) ([]Override, error) {
 		return nil, fmt.Errorf("error parsing override file: %w", err)
 	}
 
-	errorfileMap := map[errortypes.ErrorType][]typeutil.TypeName{
-		errortypes.PointerType:  errorfile.Pointer,
-		errortypes.ValueType:    errorfile.Value,
-		errortypes.SuppressType: errorfile.Suppress,
-		// errortypes.InconsistentType are ignored.
+	return map[errortypes.ErrorType][]typeutil.TypeName{
+			errortypes.PointerType:  errorfile.Pointer,
+			errortypes.ValueType:    errorfile.Value,
+			errortypes.SuppressType: errorfile.Suppress,
+			// errortypes.InconsistentType are ignored.
+		},
+		nil
+}
+
+// ReadFile reads error type usage overrides from the specified file.
+func ReadFile(fileName string) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
+	overridesFile, err := os.Open(filepath.Clean(fileName))
+	if err != nil {
+		return nil, fmt.Errorf("can't open overrides file: %w", err)
 	}
 
-	var overrides []Override
+	defer overridesFile.Close()
 
-	for override, types := range errorfileMap {
-		for _, typeName := range types {
-			overrides = append(overrides, Override{TypeName: typeName, ErrorType: override})
-		}
-	}
-
-	return overrides, nil
+	return Read(overridesFile)
 }

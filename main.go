@@ -29,15 +29,16 @@ import (
 	"golang.org/x/tools/go/analysis/unitchecker"
 	"golang.org/x/tools/go/packages"
 
+	"fillmore-labs.com/errortype/analyzer"
+	"fillmore-labs.com/errortype/detect"
 	"fillmore-labs.com/errortype/internal/analyze"
-	"fillmore-labs.com/errortype/internal/detect"
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 func main() {
-	a := analyze.Analyzer
+	a := analyzer.Analyzer
 	d := detect.Analyzer
 	analyzers := []*analysis.Analyzer{a, d}
 
@@ -91,19 +92,6 @@ func main() {
 	graph, err := checker.Analyze(analyzers, pkgs, opts)
 	if err != nil {
 		log.Fatal(err)
-	}
-
-	// Don't print the diagnostics
-	// but apply all fixes from the root actions.
-	if flags.Fix {
-		if err := applyFixes(graph.Roots, flags.Diff); err != nil {
-			// Fail when applying fixes failed.
-			log.Fatal(err)
-		}
-		// Don't proceed to print text/JSON,
-		// and don't report an error
-		// just because there were diagnostics.
-		return
 	}
 
 	if flags.JSON {

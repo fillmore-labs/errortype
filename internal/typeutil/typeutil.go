@@ -67,11 +67,10 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 
 	// Only check the last return type expression, as `error` is
 	// conventionally the last one.
-	lastTypeExpr := results.List[len(results.List)-1].Type
+	lastType := results.List[len(results.List)-1].Type
 
 	// Check if the return type is a type with an `Error() string`` method.
-	tv, ok := info.Types[lastTypeExpr]
-	if ok && types.IsInterface(tv.Type) && HasErrorMethod(tv.Type) {
+	if tv, ok := info.Types[lastType]; ok && types.IsInterface(tv.Type) && HasErrorMethod(tv.Type) {
 		return results.NumFields() - 1
 	}
 
@@ -81,6 +80,10 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 // HasErrorMethod checks if a given type implements the standard `error`
 // interface. Note that when T implements `error`, *T can, but must not, implement `error` too.
 func HasErrorMethod(typ types.Type) bool {
+	if typ == UniverseError.Type() {
+		return true
+	}
+
 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Error")
 	if obj == nil {
 		return false // Not an error type

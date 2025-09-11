@@ -31,19 +31,18 @@ func (p pass) handleIs(b inspector.Cursor, err, target *ast.Ident, deepIsCheck b
 	targetVar, ok := p.TypesInfo.Defs[target].(*types.Var)
 	if !ok { // should not happen
 		p.ReportErrorf(b.Node(), "Can't determine parameter %v", target)
-
 		return
 	}
 
 	for c := range b.Preorder((*ast.CallExpr)(nil)) {
 		node, ok := c.Node().(*ast.CallExpr)
-		if !ok {
+		if !ok { // should not happen
 			continue
 		}
 
 		fun, _, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, node.Fun)
 		if !ok {
-			continue // Could not resolve function, might be a func variable.
+			continue // Could not resolve the calls function, might be a func variable.
 		}
 
 		funcName := typeutil.FuncNameOf(fun)
@@ -88,101 +87,105 @@ func (p pass) handleIs(b inspector.Cursor, err, target *ast.Ident, deepIsCheck b
 			continue
 		}
 
-		plus := ""
+		codeSuffix := ""
 		if p.isTargetArg(node.Args[errArgIndex], target, targetVar) {
-			plus = "+"
+			codeSuffix = "+"
 		} else if !deepIsCheck {
 			continue
 		}
 
-		var names strings.Builder
-		if err != nil && err.Name != "" && err.Name != "_" {
-			names.WriteString(err.Name)
-		}
-
-		if target != nil && target.Name != "" && target.Name != "_" {
-			if names.Len() != 0 {
-				names.WriteString(" and ")
-			}
-
-			names.WriteString(target.Name)
-		}
-
-		p.ReportRangef(node, "An Is method should only shallowly compare %s (et:unw%s)", names.String(), plus)
+		names := buildNames(err, target)
+		p.ReportRangef(node, "An Is method should only shallowly compare %s. (et:unw%s)", names, codeSuffix)
 	}
 }
 
-// isTargetArg determindes whether arg is an identifier that refers to the target variable.
+// isTargetArg determines whether arg is an identifier that refers to the target variable.
 func (p pass) isTargetArg(arg ast.Expr, target *ast.Ident, targetVar *types.Var) bool {
 	id, ok := ast.Unparen(arg).(*ast.Ident)
 	if !ok || id.Name != target.Name {
-		return false // no an identifier or the wrong one
+		return false // not an identifier or the wrong one
 	}
 
 	// arg resolves to the target variable.
 	return p.TypesInfo.Uses[id] == targetVar
 }
 
-// isIs determindes whether the function is an `Is(error)bool` method on an error type.
+// isIs determines whether the function is an `Is(error) bool` method on an error type.
 func (p pass) isIs(n *ast.FuncDecl) (err, target *ast.Ident, ok bool) {
-	if n.Name.Name != "Is" {
+	if n.Name.Name != "Is" { // wrong function
 		return nil, nil, false
 	}
 
-	err, recv, ok := singleParam(n.Recv)
+	err, recv, ok := singleField(n.Recv)
 	if !ok {
-		return nil, nil, false
+		return nil, nil, false // not a method
 	}
 
 	recvTV := p.TypesInfo.Types[recv]
 
 	tn, _, ok := typeutil.TypeNameOf(recvTV.Type)
-	if !ok {
+	if !ok { // should not happen
 		return nil, nil, false
 	}
 
 	if _, ok = p.errorUsages.GetTypeProperty(tn); !ok {
-		return nil, nil, false
+		return nil, nil, false // not an error type
 	}
 
-	target, param, ok := singleParam(n.Type.Params)
+	target, param, ok := singleField(n.Type.Params)
 	if !ok {
-		return nil, nil, false
+		return nil, nil, false // wrong argument count
 	}
 
-	_, result, ok := singleParam(n.Type.Results)
+	_, result, ok := singleField(n.Type.Results)
 	if !ok {
-		return nil, nil, false
+		return nil, nil, false // wrong result count
 	}
 
 	argTV := p.TypesInfo.Types[param]
 	argType := types.Unalias(argTV.Type)
 
-	if !types.Identical(argType, universeError) {
-		return nil, nil, false // Wrong result type
+	if !types.Identical(argType, typeutil.UniverseError.Type()) {
+		return nil, nil, false // wrong argument type
 	}
 
 	resultTV := p.TypesInfo.Types[result]
 	if b, basic := types.Unalias(resultTV.Type).(*types.Basic); !basic || b.Kind() != types.Bool {
-		return nil, nil, false // Wrong result type
+		return nil, nil, false // wrong result type
 	}
 
 	return err, target, true
 }
 
-func singleParam(f *ast.FieldList) (name *ast.Ident, typ ast.Expr, ok bool) {
+// singleField checks if a field list contains exactly one field, which itself has at most one name.
+// It's used to validate receivers, parameters, and results.
+func singleField(f *ast.FieldList) (name *ast.Ident, typ ast.Expr, ok bool) {
 	if f == nil || len(f.List) != 1 || len(f.List[0].Names) > 1 {
 		return nil, nil, false
 	}
 
-	switch len(f.List[0].Names) {
-	case 0:
-		return nil, f.List[0].Type, true
-
-	case 1:
-		return f.List[0].Names[0], f.List[0].Type, true
-
-	default:
-		return nil, nil, false
+	field := f.List[0]
+	if len(field.Names) == 1 {
+		return field.Names[0], field.Type, true
 	}
+
+	return nil, field.Type, true
+}
+
+// buildNames constructs a string like "v and target" from the receiver and parameter identifiers.
+func buildNames(receiver, param *ast.Ident) string {
+	var names strings.Builder
+	if receiver != nil && receiver.Name != "" && receiver.Name != "_" {
+		names.WriteString(receiver.Name)
+	}
+
+	if param != nil && param.Name != "" && param.Name != "_" {
+		if names.Len() != 0 {
+			names.WriteString(" and ")
+		}
+
+		names.WriteString(param.Name)
+	}
+
+	return names.String()
 }

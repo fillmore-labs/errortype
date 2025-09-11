@@ -28,7 +28,6 @@ func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 	expr, ok := getTypeSwitchExpr(n)
 	if !ok { // should not happen
 		p.ReportErrorf(n, "Cannot analyze type switch: unable to determine switch expression")
-
 		return
 	}
 
@@ -42,7 +41,6 @@ func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 		clause, ok := stmt.(*ast.CaseClause)
 		if !ok { // should not happen
 			p.ReportErrorf(stmt, "Expected a case clause in type switch, but got %T", stmt)
-
 			continue
 		}
 
@@ -59,12 +57,11 @@ func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 
 			if !caseType.IsType() { // should not happen
 				p.ReportErrorf(caseExpr, "Expected a type in case clause, but got %v", caseType)
-
 				continue
 			}
 
 			// Perform the pointer-vs-value analysis on the case type.
-			p.checkErrorUsage(caseType.Type, p.SwitchReporter(caseExpr))
+			p.checkErrorUsage(caseType.Type, p.TypeSwitchReporter(caseExpr))
 		}
 	}
 }

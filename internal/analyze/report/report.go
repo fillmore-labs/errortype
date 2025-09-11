@@ -33,16 +33,16 @@ type Base struct {
 
 // UndeterminedUsage reports a diagnostic for an error type with undetermined usage.
 func (r Base) UndeterminedUsage(tn *types.TypeName, isPtr bool) {
-	fullName := r.relativeNameOf(tn)
+	fullName := types.TypeString(tn.Type(), nil)
 
-	plus := ""
+	codeSuffix := ""
 	if isPtr {
-		plus = "+"
+		codeSuffix = "+"
 	}
 
 	r.ReportRangef(r.Expr,
 		"Undetermined usage for error type %q. Specify in the configuration whether it is a pointer or value error. (et:emb%s)",
-		fullName, plus)
+		fullName, codeSuffix)
 }
 
 func (r Base) relativeNameOf(tn *types.TypeName) string {

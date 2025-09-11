@@ -18,7 +18,7 @@ package detect
 
 import "golang.org/x/tools/go/analysis"
 
-// run is the main function for the detecttypes analyzer.
+// Run is the main function for the detecttypes analyzer.
 //
 // It inspects type, function and variable declarations to infer whether an error type
 // is intended to be used as a pointer or a value, including handling
@@ -26,7 +26,7 @@ import "golang.org/x/tools/go/analysis"
 //
 // It then exports the determined properties as facts for downstream packages and
 // returns a result containing all relevant properties for the current analysis pass.
-func (o *options) run(ap *analysis.Pass) (any, error) {
+func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	p := newPass(ap)
 
 	// Process type declarations in the current package.
@@ -37,16 +37,16 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 	p.processVarSpecs()
 
 	// Calculate overrides and log impossible ones.
-	if len(o.usageOverrides) > 0 {
-		p.processOverrides(o.usageOverrides)
+	if len(o.UsageOverrides) > 0 {
+		p.processOverrides(o.UsageOverrides)
 	}
 
-	if o.heuristics&HeuristicUsage != 0 && p.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicUsage != 0 && p.HasUndeterminedErrors() {
 		// Process error value usage in the current package.
 		p.processUsage()
 	}
 
-	if o.heuristics&HeuristicReceivers != 0 && p.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicReceivers != 0 && p.HasUndeterminedErrors() {
 		// Last resort.
 		p.processReceivers()
 	}
@@ -54,7 +54,7 @@ func (o *options) run(ap *analysis.Pass) (any, error) {
 	// Process alias declarations in the current package.
 	p.processAliases()
 
-	if o.trace {
+	if o.Trace {
 		p.logResults()
 	}
 

@@ -228,11 +228,8 @@ func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property Error
 	}
 
 	old, ok := p.GetTypeProperty(tn)
-	if !ok {
-		return // Not a known error type
-	}
 
-	if old&property == 0 { // property isn't set.
+	if ok && old&property != property { // known, but property isn't set.
 		p.SetTypeProperty(tn, old|property)
 	}
 }

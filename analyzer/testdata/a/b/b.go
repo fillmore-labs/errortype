@@ -14,21 +14,20 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package main
+package b
 
-import (
-	_ "unsafe"
+type (
+	PointerError struct{ msg string }
 
-	"golang.org/x/tools/go/analysis/checker"
-	_ "golang.org/x/tools/go/analysis/singlechecker"
+	ValueError struct{ msg string }
+
+	AmbiguousError struct{ error }
 )
 
-// applyFixes attempts to apply the first suggested fix associated
-// with each diagnostic reported by the specified actions.
-//
-// It is imported for the internal package [golang.org/x/tools/go/analysis/internal/checker].
-// This is safe, since this is the main package,
-// so it is not importable, and we know the source code of the dependent libraries.
-//
-//go:linkname applyFixes golang.org/x/tools/go/analysis/internal/checker.applyFixes
-func applyFixes(actions []*checker.Action, showDiff bool) error
+func (e PointerError) Error() string { return e.msg }
+
+func (e ValueError) Error() string { return e.msg }
+
+var _, _ error = (*PointerError)(nil), ValueError{}
+
+var _, _ error = (*AmbiguousError)(nil), AmbiguousError{}

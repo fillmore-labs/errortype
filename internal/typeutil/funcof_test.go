@@ -23,7 +23,7 @@ import (
 	. "fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func TestFuncOf(t *testing.T) { //nolint:funlen
+func TestFuncOf(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -56,7 +56,8 @@ var _ = v.myMethod()`,
 			name: "method expression call",
 			src: `type S struct{}
 func (s S) myMethod() int { return 0 }
-var _ = (S).myMethod(S{})`,
+var v S
+var _ = (S).myMethod(v)`,
 			wantFuncName:   "(test.S).myMethod",
 			wantMethodExpr: true,
 		},
@@ -101,7 +102,7 @@ var f myFuncType
 var _ = myFuncType(f)()`,
 		},
 		{
-			name: "call on a function reult",
+			name: "call on a function result",
 			src: `func myFunc() func() int { return nil }
 var _ = (myFunc)()()`,
 		},
@@ -146,7 +147,6 @@ var _ = a[0]()`,
 	}
 }
 
-//nolint:forcetypeassert
 func lastDeclCallExpr(f *ast.File) *ast.CallExpr {
 	lastDecl := f.Decls[len(f.Decls)-1]
 	genDecl := lastDecl.(*ast.GenDecl)

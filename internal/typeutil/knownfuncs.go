@@ -26,6 +26,8 @@ var KnownFuncs = map[FuncName]FuncInfo{
 	{Path: "github.com/pkg/errors", Name: "Is"}:                                                           IsFuncType0,
 	{Path: "github.com/go-errors/errors", Name: "Is"}:                                                     IsFuncType0,
 	{Path: "github.com/go-faster/errors", Name: "Is"}:                                                     IsFuncType0,
+	{Path: "github.com/cockroachdb/errors", Name: "Is"}:                                                   IsFuncType0,
+	{Path: "github.com/juju/errors", Name: "Is"}:                                                          IsFuncType0,
 	{Path: "gotest.tools/v3/assert", Name: "Equal"}:                                                       EquFuncType1,
 	{Path: "gotest.tools/v3/assert", Name: "ErrorIs"}:                                                     IsFuncType1,
 	{Path: "github.com/stretchr/testify/assert", Name: "ErrorIs"}:                                         IsFuncType1,
@@ -47,6 +49,7 @@ var KnownFuncs = map[FuncName]FuncInfo{
 
 	// errors.As-like functions
 	{Path: "errors", Name: "As"}:                                                                          AsFuncType0,
+	{Path: "errors", Name: "AsType"}:                                                                      AssertFuncWithType,
 	{Path: "reflect", Name: "TypeAssert"}:                                                                 AssertFuncWithType,
 	{Path: "fillmore-labs.com/exp/errors", Name: "Has"}:                                                   AssertFuncWithType,
 	{Path: "fillmore-labs.com/exp/errors", Name: "HasError"}:                                              AssertFuncWithType,

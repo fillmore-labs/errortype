@@ -13,7 +13,7 @@ performs two main checks:
 1. **Inconsistent Error Type Usage**: It analyzes function return values, type assertions, and calls to functions like
    `errors.As` to ensure that custom error types are used consistently as either pointers or values.
 
-2. **Pointless Comparisons**: It detects comparisons against the address of a newly-created value (like
+2. **Pointless Comparisons**: It detects comparisons against the address of a newly created value (like
    `errors.Is(err, &url.Error{})`), which are almost always incorrect.
 
 ## Getting Started
@@ -56,15 +56,16 @@ Usage: `errortype [-flag] [package]`
 
 `errortype` supports the following flags:
 
-- **-overrides** `<filename>`: Read type overrides from the specified YAML file. See the
+- **-overrides** `<filename>`: Read type overrides from the specified YAML file, see the
   _[“Override File”](#override-file)_ section for more details.
 - **-suggest** `<filename>`: Append suggestions to an override file for review. Use `-` for standard output.
 - **-check-is**: Suppress diagnostics on `errors.Is` if the compared type has an `Is(error) bool` method (default:
   true).
-- **-deep-is-check**: (Experimental) When checking an `Is(error) bool` method, diagnose calls to `errors.Is` even if
-  they don't use the `target` parameter. By default, only calls like `errors.Is(target, ...)` are flagged (default
-  false).
-- **-stylecheck**: Check for confusing uses of `errors.As` (default: true).
+- **-deep-is-check**: (Experimental) When checking an `Is(error) bool` method, diagnose any call to an unwrapping
+  function (like `errors.Is` or `errors.As`). By default, only calls that use the `target` parameter are flagged
+  (default: false).
+- **-style-check**: Check for confusing uses of `errors.As` (default: true).
+- **-unchecked-assert**: Diagnose unchecked type asserts on errors (default: false).
 - **-c** `<N>`: Display N lines of context around each issue (default: -1 for no context, 0 for only the offending
   line).
 - **-test**: Analyze test files in addition to source files (default: true).
@@ -119,7 +120,9 @@ inconsistencies in:
 In the above example, `errortype .` would report:
 
 ```console
-/path/to/your/source/main.go:14:20: Target for value error "crypto/aes.KeySizeError" is a pointer-to-pointer, use a pointer to a value instead: "var kse aes.KeySizeError; ... errors.As(err, &kse)". (et:err)
+.../main.go:14:20: Target for value error "crypto/aes.KeySizeError" ⏎
+    is a pointer-to-pointer, use a pointer to a value instead: ⏎
+    "var kse aes.KeySizeError; ... errors.As(err, &kse)". (et:err)
 ```
 
 The message suggests changing the variable declaration to `var kse aes.KeySizeError`, which corrects the bug.
@@ -129,8 +132,8 @@ The message suggests changing the variable declaration to `var kse aes.KeySizeEr
 The linter determines an error type's intended use _(pointer vs. value)_ by analyzing the package where the error is
 **defined**. It uses the following order of precedence:
 
-1. **Overrides** (highest priority): User-defined overrides (see [below](#override-file)) are applied, overriding any
-   detected usage.
+1. **Overrides** (the highest priority): User-defined overrides (see [below](#override-file)) are applied, overriding
+   any detected usage.
 
 2. **Package-Level Variable Assignments**: If present, `var _ error = ...` assignments are used as explicit declarations
    of intent.
@@ -147,7 +150,7 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
    ```go
    return ValueError{} // Suggests a value type
 
-   if _, ok := err.(*PointerError); ok { /* ... */ } // Suggests pointer type
+   if _, ok := err.(*PointerError); ok { /* ... */ } // Suggests a pointer type
    ```
 
    Note: This heuristic is a fallback and should not be relied upon for defining a type's contract.
@@ -158,12 +161,22 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
 ### Designing Linter-Friendly Packages
 
 To make an error type's intended usage explicit and ensure `errortype` can automatically determine it, add a
-package-level variable assignment in the package where the error is defined:
+package-level variable assignment anywhere in the package where the error is defined:
 
 ```go
+type ValueError struct{ /* ... */ }
+
+func (v ValueError) Error() string { /* ... */ }
+
+type PointerError struct{ /* ... */ }
+
+func (p PointerError) Error() string { /* ... */ }
+
 // In your package, explicitly declare the intended usage.
-var _ error = ValueError{}
-var _ error = (*PointerError)(nil)
+var (
+	_ error = ValueError{}
+	_ error = (*PointerError)(nil)
+)
 ```
 
 ### Overriding Detected Types
@@ -181,8 +194,8 @@ linter in two ways:
    var _ error = (*imported.PointerError)(nil)
    ```
 
-2. **Global Override File**: For project-wide overrides, use an `errortypes.yaml` file. See
-   [Override File](#override-file).
+2. **Global Override File**: For project-wide overrides, use an `errortypes.yaml` file, see
+   _[“Override File”](#override-file)_.
 
 ## Pointless Comparisons
 
@@ -216,22 +229,23 @@ Here are examples that `errortype` will flag:
 
 ```go
 import (
-  "errors"
-  "net/url"
+	"errors"
+	"log"
+	"net/url"
 )
 
 func handleNetworkError(err error) {
-  // This will always be false - &url.Error{} creates a unique address.
-  if errors.Is(err, &url.Error{}) {
-    log.Fatal("Cannot connect to service")
-  }
+	// This will always be false - &url.Error{} creates a unique address.
+	if errors.Is(err, &url.Error{}) {
+		log.Fatal("Cannot connect to service")
+	}
 
-  // Correct approach:
-  var urlErr *url.Error
-  if errors.As(err, &urlErr) {
-    log.Fatal("Error connecting to service:", urlErr)
-  }
-  // ...
+	// Correct approach:
+	var urlErr *url.Error
+	if errors.As(err, &urlErr) {
+		log.Fatal("Error connecting to service:", urlErr)
+	}
+	// ...
 }
 ```
 
@@ -239,24 +253,24 @@ func handleNetworkError(err error) {
 
 ```go
 import (
-  "github.com/operator-framework/api/pkg/operators/v1alpha1"
-  metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-  "time"
+	"github.com/operator-framework/api/pkg/operators/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 )
 
 // Checking if an operator update strategy matches expected values
 func validateUpdateStrategy(spec *v1alpha1.CatalogSourceSpec) {
-  expectedDuration := 30 * time.Second
+	expectedDuration := 30 * time.Second
 
-  // This comparison will always be false - &metav1.Duration{} creates a unique address.
-  if (spec.UpdateStrategy.Interval != &metav1.Duration{Duration: expectedDuration}) {
-    // ...
-  }
+	// This comparison will always be false - &metav1.Duration{} creates a unique address.
+	if spec.UpdateStrategy.Interval != &metav1.Duration{Duration: expectedDuration} {
+		// ...
+	}
 
-  // Correct approach: Dereference the pointer and compare values (after a nil check).
-  if spec.UpdateStrategy.Interval == nil || spec.UpdateStrategy.Interval.Duration != expectedDuration {
-    // ...
-  }
+	// Correct approach: Dereference the pointer and compare values (after a nil check).
+	if spec.UpdateStrategy.Interval == nil || spec.UpdateStrategy.Interval.Duration != expectedDuration {
+		// ...
+	}
 }
 ```
 
@@ -322,8 +336,8 @@ defining package. When possible, fixing the inconsistency by refactoring the cod
 It's important to understand the difference between autodetection and overrides.
 
 - **Autodetection** runs on the package where an error type is **defined**, see
-  “[How Intended Usage is Detected](#how-intended-usage-is-detected)”. This is the ideal place to establish the intended
-  usage.
+  _[“How Intended Usage is Detected”](#how-intended-usage-is-detected)_. This is the ideal place to establish the
+  intended usage.
 
 - **Overrides** are based on the usage within **your** code. They force a specific pointer or value style, overriding
   what was detected in the defining package.
@@ -331,7 +345,20 @@ It's important to understand the difference between autodetection and overrides.
 **Every suggestion should be reviewed before being used as an override.** An `inconsistent` usage report may indicate a
 genuine opportunity to refactor and improve your error handling. When possible, it is always better to improve detection
 in the defining package by making the usage explicit, see
-“[Designing Linter-Friendly Packages](#designing-linter-friendly-packages).”
+_[“Designing Linter-Friendly Packages”](#designing-linter-friendly-packages)_.
+
+## Other Possible Detections
+
+The linter currently does not look into expression `switch` logic, like
+
+```go
+	switch err {
+	case io.EOF:
+		return true
+	}
+```
+
+A survey of more than 750 popular open source projects showed that there are nearly no issues in usages.
 
 ## Diagnostic Code Reference
 
@@ -431,14 +458,75 @@ specific problems.
   type implementing `error`). This is also flagged by the standard Go
   [`errorsas`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas) linter.
 
+- **`et:auc` (Unchecked Type Assert)**: An unchecked type assert might lead to a run-time panic on a wrapped error.
+
+  ```go
+    if err.(*net.AddrError).Err == "missing port in address" { /* ... */ }
+  ```
+
+  **Fix**: While sometimes valid, prefer `errors.As`.
+
 ## Integration
 
-This linter is in an early phase and is currently usable only from the command line. Other integrations are planned as
-the logic stabilizes.
+### `golangci-lint` Module Plugin
+
+Add a file `.custom-gcl.yaml` to your source with
+
+```yaml
+---
+version: v2.4.0
+
+name: golangci-lint
+destination: .
+
+plugins:
+  - module: fillmore-labs.com/errortype
+    import: fillmore-labs.com/errortype/gclplugin
+    version: v0.0.5
+```
+
+then run `golangci-lint custom` from your project root. You get a custom `golangci-lint` executable that can be
+configured in `.golangci.yaml`:
+
+```YAML
+---
+version: "2"
+linters:
+  enable:
+    - errortype
+  settings:
+    custom:
+      errortype:
+        type: module
+        description: "errortype helps prevent subtle bugs in error handling."
+        original-url: "https://fillmore-labs.com/errortype"
+        settings:
+          overrides:
+            pointer:
+              - test/a.PointerOverride
+            value:
+              - test/a.ValueOverride
+            suppress:
+              - test/a.SuppressOverride
+          style-check: true
+          deep-is-check: false
+          check-is: true
+          unchecked-assert: false
+```
+
+and can be used like `golangci-lint`:
+
+```shell
+./golangci-lint run .
+```
+
+See also the golangci-lint
+[module plugin system documentation](https://golangci-lint.run/plugins/module-plugins/#the-automatic-way).
 
 ## Links
 
 - [Background on the problem this linter solves](https://blog.fillmore-labs.com/posts/errors-1/)
+- [Why you shouldn't call `Unwrap` in `Is(error) bool` methods](https://blog.fillmore-labs.com/posts/errors-2/)
 - [Enhanced error inspection with better ergonomics](https://pkg.go.dev/fillmore-labs.com/exp/errors)
 - [Proposal for a generic `errors.As` variant](http://go.dev/issues/51945)
 

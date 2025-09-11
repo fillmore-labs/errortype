@@ -33,16 +33,16 @@ func New(opts ...Option) *analysis.Analyzer {
 	a := &analysis.Analyzer{
 		Name:             "detecttypes",
 		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
-		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/internal/detect",
-		Run:              o.run,
+		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/detect",
+		Run:              o.Run,
 		RunDespiteErrors: true,
 		FactTypes:        []analysis.Fact{(*errortypes.ErrorType)(nil)},
-		ResultType:       reflect.TypeFor[Result](),
+		ResultType:       reflect.TypeFor[errortypes.Result](),
 	}
 
-	a.Flags.BoolVar(&o.trace, "trace", o.trace, "trace output")
-	a.Flags.Func("overrides", "read error type overrides from this file", o.readOverrides)
-	a.Flags.Func("heuristics", "list of heuristics used (default: \"usage,receivers\", \"off\" to disable)", o.setHeuristics)
+	a.Flags.BoolVar(&o.Trace, "trace", o.Trace, "trace output")
+	a.Flags.Func("overrides", "read error type overrides from this file", o.ReadOverrides)
+	a.Flags.Func("heuristics", `list of heuristics used (default: "usage,receivers", "off" to disable)`, o.SetHeuristics)
 
 	return a
 }

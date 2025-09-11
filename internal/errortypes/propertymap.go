@@ -43,8 +43,8 @@ func NewPropertyMap[P TypeProperty]() PropertyMap[P] {
 // GetTypeProperty retrieves the property associated with the given TypeName in the map.
 // It returns the property and a boolean indicating if the TypeName exists in the map.
 func (p PropertyMap[P]) GetTypeProperty(tn *types.TypeName) (P, bool) {
-	old, ok := p[tn]
-	return old, ok
+	property, ok := p[tn]
+	return property, ok
 }
 
 // SetTypeProperty assigns a given property to a TypeName in the PropertyMap, overwriting any existing property.
@@ -56,13 +56,13 @@ func (p PropertyMap[P]) SetTypeProperty(tn *types.TypeName, property P) {
 // It combines the new property with any existing properties for the given type.
 // If the type is not yet in the map, it is added.
 func (p PropertyMap[P]) AddTypeProperty(tn *types.TypeName, newProperty P) P {
-	old, ok := p.GetTypeProperty(tn)
+	oldProperty, ok := p[tn]
 
-	if !ok || old&newProperty != newProperty { // properties are not set.
-		p.SetTypeProperty(tn, old|newProperty)
+	if !ok || oldProperty&newProperty != newProperty { // properties are not set.
+		p[tn] = oldProperty | newProperty // p[tn] |= newProperty
 	}
 
-	return old
+	return oldProperty
 }
 
 // HasUndeterminedErrors checks if the PropertyMap contains any entries with undetermined error types.

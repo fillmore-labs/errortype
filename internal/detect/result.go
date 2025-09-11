@@ -26,23 +26,10 @@ import (
 	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
-// ResultInfo holds the determined pointer-ness for a type,
-// identified by its *types.TypeName.
-type ResultInfo struct {
-	TypeName  *types.TypeName
-	ErrorType errortypes.ErrorType
-}
-
-// Result is the result of the detecttypes analyzer. It contains a list of all
-// error types whose pointer-ness could be unambiguously determined.
-type Result struct {
-	Types []ResultInfo
-}
-
 // createResult combines all determined type information into the final analyzer result.
 // It merges types from the current package and dependencies (facts) and local overrides,
 // with local overrides having the highest precedence.
-func (p pass) createResult() Result {
+func (p pass) createResult() errortypes.Result {
 	// Add types from dependencies (via facts).
 	facts := p.AllObjectFacts()
 	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
@@ -56,7 +43,7 @@ func (p pass) createResult() Result {
 			p.ExportObjectFact(tn, &errorType)
 		}
 
-		// Add type to result.
+		// Add type to the result.
 		// Local overrides will overwrite any existing entries from facts, only for this package.
 		determinedTypes[tn] = errorType
 	}
@@ -65,13 +52,13 @@ func (p pass) createResult() Result {
 	return createResult(determinedTypes)
 }
 
-func createResult(determinedTypes map[*types.TypeName]errortypes.ErrorType) Result {
-	typs := make([]ResultInfo, 0, len(determinedTypes))
+func createResult(determinedTypes map[*types.TypeName]errortypes.ErrorType) errortypes.Result {
+	typs := make([]errortypes.ResultInfo, 0, len(determinedTypes))
 	for tn, errorType := range determinedTypes {
-		typs = append(typs, ResultInfo{TypeName: tn, ErrorType: errorType})
+		typs = append(typs, errortypes.ResultInfo{TypeName: tn, ErrorType: errorType})
 	}
 
-	return Result{Types: typs}
+	return errortypes.Result{Types: typs}
 }
 
 // extractErrorTypes processes imported [analysis.ObjectFact]s and returns a sequence of *types.TypeName with errortypes.ErrorType.

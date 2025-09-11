@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package analyzer
 
 import (
 	"reflect"
@@ -22,7 +22,8 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"fillmore-labs.com/errortype/internal/detect"
+	"fillmore-labs.com/errortype/detect"
+	"fillmore-labs.com/errortype/internal/analyze"
 )
 
 // Documentation constants.
@@ -43,7 +44,7 @@ It performs two main checks:
 For inconsistent error type usage, it automatically determines the correct usage
 for most error types but may require a configuration file for ambiguous cases.`
 
-	URL = "https://pkg.go.dev/fillmore-labs.com/errortype/internal/analyzer"
+	URL = "https://pkg.go.dev/fillmore-labs.com/errortype/analyzer"
 )
 
 // New creates a new instance of the errortype analyzer.
@@ -53,26 +54,27 @@ for most error types but may require a configuration file for ambiguous cases.`
 func New(opts ...Option) *analysis.Analyzer {
 	o := makeOptions(opts)
 
-	detectAnalyzer := o.detecttypes
-	if detectAnalyzer == nil {
-		detectAnalyzer = detect.New()
+	if o.DetectTypes == nil {
+		o.DetectTypes = detect.New()
 	}
 
 	a := &analysis.Analyzer{
 		Name:       Name,
 		Doc:        Doc,
 		URL:        URL,
-		Run:        o.run,
-		Requires:   []*analysis.Analyzer{inspect.Analyzer, detectAnalyzer},
-		ResultType: reflect.TypeFor[Result](),
+		Run:        o.Run,
+		Requires:   []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
+		ResultType: reflect.TypeFor[analyze.Result](),
 	}
 
-	a.Flags.BoolVar(&o.styleCheck, "stylecheck", o.styleCheck, "check for confusing uses of errors.As (default true)")
+	a.Flags.BoolVar(&o.StyleCheck, "style-check", o.StyleCheck, "check for confusing uses of errors.As")
 
-	a.Flags.BoolVar(&o.checkIs, "check-is", o.checkIs,
-		`suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true)`)
+	a.Flags.BoolVar(&o.CheckIs, "check-is", o.CheckIs,
+		`suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`)
 
-	a.Flags.BoolVar(&o.deepIsCheck, "deep-is-check", o.deepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only on target (default false)`)
+	a.Flags.BoolVar(&o.DeepIsCheck, "deep-is-check", o.DeepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only on target`)
+
+	a.Flags.BoolVar(&o.UncheckedAssert, "unchecked-assert", o.UncheckedAssert, `report unchecked type asserts on errors`)
 
 	return a
 }

@@ -21,6 +21,7 @@ import (
 	"go/ast"
 	"go/types"
 	"path/filepath"
+	"reflect"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -35,13 +36,21 @@ import (
 func TestExclusionsAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	d := New()
-
 	dir := analysistest.TestData()
+	overrides := filepath.Join(dir, "overrides.yaml")
 
-	if err := d.Flags.Set("overrides", filepath.Join(dir, "overrides.yaml")); err != nil {
-		t.Fatalf("can't set overrides flag: %v", err)
+	o := DefaultOptions()
+
+	if err := o.ReadOverrides(overrides); err != nil {
+		t.Fatalf("can't read overrides: %v", err)
 	}
+	d := newAnalyzer(o)
+
+	/*
+		if err := d.Flags.Set("overrides", filepath.Join(dir, "overrides.yaml")); err != nil {
+			t.Fatalf("can't set overrides flag: %v", err)
+		}
+	*/
 
 	testAnalyzer := &analysis.Analyzer{
 		Name: "testanalyzer",
@@ -68,6 +77,17 @@ func TestExclusionsAnalyzer(t *testing.T) {
 	}
 }
 
+func newAnalyzer(o *Options) *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:             "detecttypes",
+		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
+		Run:              o.Run,
+		RunDespiteErrors: true,
+		FactTypes:        []analysis.Fact{(*errortypes.ErrorType)(nil)},
+		ResultType:       reflect.TypeFor[errortypes.Result](),
+	}
+}
+
 var (
 	// ErrNoInspectorResult is returned when the ast inspector is missing.
 	ErrNoInspectorResult = errors.New("testanalyzer: inspector result missing")
@@ -82,7 +102,7 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 		return nil, ErrNoInspectorResult
 	}
 
-	res, ok := ap.ResultOf[d].(Result)
+	res, ok := ap.ResultOf[d].(errortypes.Result)
 	if !ok {
 		return nil, ErrNoDetecttypesResult
 	}

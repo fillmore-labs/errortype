@@ -18,22 +18,26 @@ package analyze_test
 
 import (
 	"path"
+	"reflect"
 	"testing"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
+	"golang.org/x/tools/go/analysis/passes/inspect"
 
+	"fillmore-labs.com/errortype/detect"
 	. "fillmore-labs.com/errortype/internal/analyze"
-	"fillmore-labs.com/errortype/internal/detect"
 )
 
 func TestAnalyzerA(t *testing.T) {
 	t.Parallel()
 
+	o := DefaultOptions()
+	a := newAnalyzer(o)
+
 	testdata := analysistest.TestData()
 
-	d := detect.New()
-	a := New(WithDetectTypes(d))
-
+	d := o.DetectTypes
 	if err := d.Flags.Set("overrides", path.Join(testdata, "overrides.yaml")); err != nil {
 		t.Fatal("can't set override file", err)
 	}
@@ -44,20 +48,15 @@ func TestAnalyzerA(t *testing.T) {
 func TestAnalyzerB(t *testing.T) {
 	t.Parallel()
 
+	o := DefaultOptions()
+	o.CheckIs = false
+	o.DeepIsCheck = true
+	o.UncheckedAssert = true
+	a := newAnalyzer(o)
+
 	testdata := analysistest.TestData()
 
-	d := detect.New()
-	a := New(WithDetectTypes(d))
-
-	if err := a.Flags.Set("check-is", "false"); err != nil {
-		t.Fatal("can't set check-is", err)
-	}
-
-	if err := a.Flags.Set("deep-is-check", "true"); err != nil {
-		t.Fatal("can't set deep-is-check", err)
-	}
-
-	analysistest.Run(t, testdata, a, "test/b", "test/alias")
+	analysistest.Run(t, testdata, a, "test/b", "test/alias", "test/main", "test/style")
 }
 
 func TestAnalyzerC(t *testing.T) {
@@ -65,12 +64,23 @@ func TestAnalyzerC(t *testing.T) {
 
 	testdata := analysistest.TestData()
 
-	d := detect.New()
-	a := New(WithDetectTypes(d))
-
-	if err := a.Flags.Set("stylecheck", "false"); err != nil {
-		t.Fatal("can't set stylecheck", err)
-	}
+	o := DefaultOptions()
+	o.StyleCheck = false
+	a := newAnalyzer(o)
 
 	analysistest.Run(t, testdata, a, "test/c")
+}
+
+func newAnalyzer(o *Options) *analysis.Analyzer {
+	if o.DetectTypes == nil {
+		o.DetectTypes = detect.New()
+	}
+
+	return &analysis.Analyzer{
+		Name:       "errortype",
+		Doc:        "errortype is a Go static analysis tool that helps prevent subtle bugs in error handling.",
+		Run:        o.Run,
+		Requires:   []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
+		ResultType: reflect.TypeFor[Result](),
+	}
 }

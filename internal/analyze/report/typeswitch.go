@@ -18,23 +18,23 @@ package report
 
 import "go/types"
 
-// Switch reports diagnostics related to type assertions in switch cases.
-type Switch struct {
+// TypeSwitch reports diagnostics related to type assertions in type switch cases.
+type TypeSwitch struct {
 	Base
 }
 
 // ShouldBeValue reports a diagnostic when a value error is asserted as a pointer.
-func (r Switch) ShouldBeValue(tn *types.TypeName) {
+func (r TypeSwitch) ShouldBeValue(tn *types.TypeName) {
 	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
-	// "_, ok := err.(*MyValueError)" or "case *MyValueError:"
+	// case *MyValueError:
 	r.ReportRangef(r.Expr,
 		`Value error %q should be used as a value type ("case %s:") in the type switch, not as a pointer type. (et:ast)`, fullName, importName)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is asserted as a value.
-func (r Switch) ShouldBePointer(tn *types.TypeName) {
+func (r TypeSwitch) ShouldBePointer(tn *types.TypeName) {
 	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
-	// "_, ok := err.(MyPointerError)"" or "case MyPointerError:""
+	// case MyPointerError:
 	r.ReportRangef(r.Expr,
 		`Pointer error %q should be used as a pointer type ("case *%s:") in the type switch, not as a value type. (et:ast+)`, fullName, importName)
 }

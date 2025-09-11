@@ -1,0 +1,166 @@
+// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package detect
+
+import (
+	"log/slog"
+	"slices"
+	"strings"
+
+	"fillmore-labs.com/errortype/internal/detect"
+	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/typeutil"
+)
+
+// makeOptions returns a [options] struct with overriding [Option]s applied.
+func makeOptions(opts Options) *detect.Options {
+	o := detect.DefaultOptions()
+	opts.apply(o)
+
+	return o
+}
+
+// Option configures specific behavior of the detect [analysis.Analyzer].
+type Option interface {
+	apply(opts *detect.Options)
+	SlogAttr() slog.Attr
+}
+
+// Options is a list of [Option] values that also satisfies the [Option] interface.
+type Options []Option
+
+func (o Options) apply(opts *detect.Options) {
+	for _, opt := range o {
+		opt.apply(opts)
+	}
+}
+
+// LogValue implements [slog.LogValuer].
+func (o Options) LogValue() slog.Value {
+	as := make([]slog.Attr, 0, len(o))
+	for _, opt := range o {
+		as = append(as, opt.SlogAttr())
+	}
+
+	return slog.GroupValue(as...)
+}
+
+// SlogAttr returns a [slog.Attr] for logging.
+func (o Options) SlogAttr() slog.Attr {
+	return slog.Any("options", o)
+}
+
+// WithOverrides returns an Option that applies the provided overrides mapping,
+// allowing specific type names to be associated with custom error types.
+// The override map keys are type names, and the values are the corresponding error types
+// to use for those types during error detection.
+func WithOverrides(overrides map[Override][]string) Option {
+	return overridesOption{overrides: overrides}
+}
+
+type overridesOption struct {
+	overrides map[Override][]string
+}
+
+func (o overridesOption) apply(opts *detect.Options) {
+	or := make(map[errortypes.ErrorType][]typeutil.TypeName)
+
+	for o, v := range o.overrides {
+		var et errortypes.ErrorType
+
+		switch o {
+		case OverridePointer:
+			et = errortypes.PointerType
+		case OverrideValue:
+			et = errortypes.ValueType
+		case OverrideSuppress:
+			et = errortypes.SuppressType
+		default:
+			continue
+		}
+
+		l := slices.Grow(or[et], len(v))
+		for _, vv := range v {
+			var tn typeutil.TypeName
+			if err := tn.UnmarshalText([]byte(vv)); err != nil {
+				continue
+			}
+
+			l = append(l, tn)
+		}
+		or[et] = l
+	}
+
+	opts.AddOverrides(or)
+}
+
+func (o overridesOption) SlogAttr() slog.Attr {
+	var as []slog.Attr
+	for override, usage := range o.overrides {
+		as = append(as, slog.Attr{
+			Key:   override.String(),
+			Value: slog.StringValue(strings.Join(usage, ",")),
+		})
+	}
+
+	// go1.25: return slog.GroupAttrs("overrides", as...)
+	return slog.Attr{Key: "overrides", Value: slog.GroupValue(as...)}
+}
+
+// WithHeuristics is an [Option] to configure heuristic passes.
+func WithHeuristics(heuristics ...Heuristic) Option {
+	return heuristicsOption{heuristics: heuristics}
+}
+
+type heuristicsOption struct{ heuristics []Heuristic }
+
+func (o heuristicsOption) apply(opts *detect.Options) {
+	var combined detect.HeuristicPass
+
+	for _, heuristic := range o.heuristics {
+		switch heuristic {
+		case HeuristicOff:
+			combined = detect.HeuristicOff
+
+		case HeuristicUsage:
+			combined |= detect.HeuristicUsage
+
+		case HeuristicReceivers:
+			combined |= detect.HeuristicReceivers
+		}
+	}
+
+	opts.Heuristics = combined
+}
+
+func (o heuristicsOption) SlogAttr() slog.Attr {
+	heuristics := make([]string, 0, len(o.heuristics))
+	for _, h := range o.heuristics {
+		heuristics = append(heuristics, h.String())
+	}
+
+	return slog.String("heuristics", strings.Join(heuristics, ","))
+}
+
+// WithTrace is an [Option] to configure result output.
+func WithTrace(trace bool) Option { return traceOption{trace: trace} }
+
+type traceOption struct{ trace bool }
+
+func (o traceOption) apply(opts *detect.Options) { opts.Trace = o.trace }
+
+func (o traceOption) SlogAttr() slog.Attr { return slog.Bool("trace", o.trace) }

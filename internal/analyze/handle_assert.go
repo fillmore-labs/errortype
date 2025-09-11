@@ -18,24 +18,61 @@ package analyze
 
 import (
 	"go/ast"
+	"go/types"
 
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleTypeAssert checks for incorrect pointer/value usage of error types in type assertions.
-func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
+func (p pass) handleTypeAssert(n *ast.TypeAssertExpr, uncheckedAssert bool) {
 	if n.Type == nil {
 		return // Type switches are handled in handleTypeSwitch
 	}
 
-	if tv, ok := p.TypesInfo.Types[n.X]; !ok || !typeutil.HasErrorMethod(tv.Type) {
-		return // We are only interested in assertions on error interfaces
+	tvx, ok := p.TypesInfo.Types[n.X]
+	if !ok || !typeutil.HasErrorMethod(tvx.Type) {
+		return // We are only interested in assertions on interface that implement error.
 	}
 
-	tv := p.TypesInfo.Types[n.Type]
-	if !tv.IsType() { // should not happen
-		p.ReportErrorf(n.Type, "Expected type, got %#v", tv)
+	tv, ok := p.TypesInfo.Types[n]
+	if !ok { // should not happen
+		return
 	}
 
-	p.checkErrorUsage(tv.Type, p.AssertReporter(n.Type))
+	var typ types.Type
+	if t, ok := tv.Type.(*types.Tuple); ok {
+		if t.Len() != 2 || t.At(1).Type() != basicBool { // should not happen
+			p.ReportErrorf(n, "Unrecognized tuple structure: %v", t)
+			return
+		}
+
+		typ = t.At(0).Type()
+	} else {
+		if uncheckedAssert {
+			p.reportUnchecked(n, tvx, tv)
+		}
+
+		typ = tv.Type
+	}
+
+	p.checkErrorUsage(typ, p.AssertReporter(n.Type))
+}
+
+var basicBool = types.Typ[types.Bool]
+
+func (p pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue) {
+	ityp, isInterface := tv.Type.Underlying().(*types.Interface)
+	if isInterface && types.Implements(tvx.Type, ityp) {
+		return
+	}
+
+	// Distinguish between assertions to a concrete type vs. an interface type for the error code.
+	codeSuffix := ""
+	if isInterface {
+		codeSuffix = "+"
+	}
+
+	name := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
+
+	p.ReportRangef(n, "Asserting error to %q without checking might lead to a run-time panic. (et:auc%s)", name, codeSuffix)
 }

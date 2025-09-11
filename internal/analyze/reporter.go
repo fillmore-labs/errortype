@@ -56,9 +56,9 @@ func (p pass) ReturnReporter(e ast.Expr) report.Return {
 	return report.Return{Base: report.Base{Pass: p.Pass, Expr: e}}
 }
 
-// SwitchReporter creates a new reporter for type switches.
-func (p pass) SwitchReporter(e ast.Expr) report.Switch {
-	return report.Switch{Base: report.Base{Pass: p.Pass, Expr: e}}
+// TypeSwitchReporter creates a new reporter for type switches.
+func (p pass) TypeSwitchReporter(e ast.Expr) report.TypeSwitch {
+	return report.TypeSwitch{Base: report.Base{Pass: p.Pass, Expr: e}}
 }
 
 // GenericReporter creates a new reporter for generic functions.

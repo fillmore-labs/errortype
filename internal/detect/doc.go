@@ -20,16 +20,18 @@
 //
 // The analysis employs a series of heuristics in a specific order of precedence:
 //  1. The type has an Error() method with a pointer receiver. These error types
-//     are only usable as pointer type s.
+//     can only be used as pointer types.
 //  2. User-defined overrides from an external file, which can explicitly set an
 //     error as a pointer type, a value type, or suppress analysis.
-//  3. Variable declarations, such as compile-time assertions (`var _ error = T{}`)
+//  3. Error wrapping related methods with pointer receivers. These would not be
+//     visible from value usage.
+//  4. Variable declarations, such as compile-time assertions (`var _ error = T{}`)
 //     or sentinel errors (`var ErrSomething = &T{}`).
-//  4. An inspection of usage in function bodies, such as return statements, type
+//  5. An inspection of usage in function bodies, such as return statements, type
 //     assertions, composite literals, and type casts.
-//  5. As a final heuristic, a check for consistent receiver types (all pointer
+//  6. As a final heuristic, a check for consistent receiver types (all pointer
 //     or all value) across all methods of the error type.
 //
-// The determindes error types are passed as facts across packages and as a result
-// for the errortype analyzer to use.
+// The determined error types are passed as facts across packages for the errortype
+// analyzer to use.
 package detect

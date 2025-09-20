@@ -78,7 +78,7 @@ func TestLogValue(t *testing.T) {
 
 			var sb strings.Builder
 			logger := slog.New(slog.NewJSONHandler(&sb, nil))
-			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.SlogAttr())
+			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.LogAttr())
 
 			got := sb.String()
 			if !strings.Contains(got, tt.expected) {

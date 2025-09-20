@@ -17,13 +17,16 @@
 package analyze
 
 import (
+	"context"
 	"errors"
+	"runtime/trace"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ErrNoInspectorResult is returned when the ast inspector is missing.
@@ -32,10 +35,15 @@ var ErrNoInspectorResult = errors.New("errortype: inspector result missing")
 // ErrNoDetectTypesResult is returned when the result from the detecttypes analyzer is missing.
 var ErrNoDetectTypesResult = errors.New("errortype: detecttypes result missing")
 
-// Run executes the analysis pass using the provided options. It processes detected types,
+// run executes the analysis pass using the provided options. It processes detected types,
 // analyzes the abstract syntax tree (AST), and calculates the final result. If any step fails,
 // an error is returned. Otherwise, the computed result is returned.
-func (o *Options) Run(ap *analysis.Pass) (any, error) {
+func (o *Options) run(ap *analysis.Pass) (any, error) {
+	ctx := context.Background()
+
+	ctx, task := trace.NewTask(ctx, "errortype")
+	defer task.End()
+
 	detectedResult, ok := ap.ResultOf[o.DetectTypes].(errortypes.Result)
 	if !ok {
 		return nil, ErrNoDetectTypesResult
@@ -48,11 +56,23 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 
 	p := newPass(ap)
 
-	p.processDetectedTypes(detectedResult.Types)
+	if trace.IsEnabled() {
+		trace.Log(ctx, "pkg", typeutil.PkgName(p.Pass))
+	}
 
-	p.processAST(in, o.AstOptions)
+	p.processDetectedTypes(ctx, detectedResult.Types)
 
-	result := p.calculateResult()
+	p.processAST(ctx, in, o.AstOptions)
 
-	return result, nil
+	if o.Suggest != "" {
+		suggestions := p.calculateSuggestions()
+
+		name := typeutil.PkgName(p.Pass)
+
+		if err := o.writeSuggestions(suggestions, name); err != nil {
+			return err, nil
+		}
+	}
+
+	return any(nil), nil
 }

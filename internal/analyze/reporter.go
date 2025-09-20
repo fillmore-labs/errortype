@@ -65,3 +65,8 @@ func (p pass) TypeSwitchReporter(e ast.Expr) report.TypeSwitch {
 func (p pass) GenericReporter(e ast.Expr, fun *types.Func) report.Generic {
 	return report.Generic{Base: report.Base{Pass: p.Pass, Expr: e}, Fun: fun}
 }
+
+// VarDeclReporter creates a new reporter for variable declarations.
+func (p pass) VarDeclReporter(e ast.Expr, name string) report.VarDecl {
+	return report.VarDecl{Base: report.Base{Pass: p.Pass, Expr: e}, VarName: name}
+}

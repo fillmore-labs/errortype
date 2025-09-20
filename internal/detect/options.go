@@ -17,6 +17,8 @@
 package detect
 
 import (
+	"regexp"
+
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
@@ -30,14 +32,14 @@ type Options struct {
 	Heuristics HeuristicPass
 
 	// Trace controls result output
-	Trace bool
+	Trace *regexp.Regexp
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
 func DefaultOptions() *Options {
 	return &Options{ // Default options
 		UsageOverrides: nil,
-		Heuristics:     HeuristicUsage | HeuristicReceivers,
-		Trace:          false,
+		Heuristics:     HeuristicAll,
+		Trace:          nil,
 	}
 }

@@ -18,6 +18,7 @@ package typeutil_test
 
 import (
 	"go/ast"
+	"go/types"
 	"testing"
 
 	. "fillmore-labs.com/errortype/internal/typeutil"
@@ -106,4 +107,84 @@ func findFunc(tb testing.TB, f *ast.File, name string) *ast.FuncDecl {
 	tb.Fatalf("function %q not found in test source", name)
 
 	return nil
+}
+
+func TestHasSigs(t *testing.T) {
+	t.Parallel()
+
+	const src = `
+		func sigError() string { return "" }
+		func sigIs(error) bool { return false }
+		func sigAs(any) bool { return false }
+		func sigUnwrap() error { return nil }
+		func sigUnwrapMultiple() []error { return nil }
+
+		func sigNoParamsNoResults() {}
+		func sigWrongParam(int) bool { return false }
+		func sigWrongResult() int { return 0 }
+		func sigTooManyParams(error, error) bool { return false }
+		func sigTooManyResults() (string, string) { return "", "" }
+	`
+
+	_, pkg, _, _ := parseSource(t, src)
+
+	getSig := func(name string) *types.Signature {
+		t.Helper()
+
+		obj := pkg.Scope().Lookup(name)
+		if obj == nil {
+			t.Fatalf("function %q not found in test source", name)
+		}
+
+		fun, ok := obj.(*types.Func)
+		if !ok {
+			t.Fatalf("object %q is not a function", name)
+		}
+
+		return fun.Type().(*types.Signature)
+	}
+
+	tests := []struct {
+		name    string
+		sigName string
+		checker func(*types.Signature) bool
+		want    bool
+	}{
+		// HasErrorSig
+		{"HasErrorSig: correct", "sigError", HasErrorSig, true},
+		{"HasErrorSig: wrong result", "sigWrongResult", HasErrorSig, false},
+		{"HasErrorSig: with params", "sigIs", HasErrorSig, false},
+
+		// HasIsSig
+		{"HasIsSig: correct", "sigIs", HasIsSig, true},
+		{"HasIsSig: wrong param", "sigWrongParam", HasIsSig, false},
+		{"HasIsSig: no params", "sigError", HasIsSig, false},
+		{"HasIsSig: too many params", "sigTooManyParams", HasIsSig, false},
+
+		// HasAsSig
+		{"HasAsSig: correct", "sigAs", HasAsSig, true},
+		{"HasAsSig: wrong param", "sigWrongParam", HasAsSig, false},
+		{"HasAsSig: no params", "sigError", HasAsSig, false},
+
+		// HasUnwrapSig
+		{"HasUnwrapSig: correct", "sigUnwrap", HasUnwrapSig, true},
+		{"HasUnwrapSig: multiple correct", "sigUnwrapMultiple", HasUnwrapSig, true},
+		{"HasUnwrapSig: wrong result", "sigWrongResult", HasUnwrapSig, false},
+		{"HasUnwrapSig: with params", "sigIs", HasUnwrapSig, false},
+
+		// General negative cases
+		{"General: no params, no results", "sigNoParamsNoResults", HasErrorSig, false},
+		{"General: too many results", "sigTooManyResults", HasErrorSig, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			sig := getSig(tt.sigName)
+			if got := tt.checker(sig); got != tt.want {
+				t.Errorf("check failed: got %v, want %v", got, tt.want)
+			}
+		})
+	}
 }

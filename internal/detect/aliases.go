@@ -17,14 +17,18 @@
 package detect
 
 import (
+	"context"
 	"go/types"
+	"runtime/trace"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
 // processAliases transfers properties from aliased types to the aliases themselves.
 // Aliases do not have their own methods or properties, but inherit the behavior of the type they alias.
-func (p pass) processAliases() {
+func (p pass) processAliases(ctx context.Context) {
+	defer trace.StartRegion(ctx, "aliases").End()
+
 	for alias := range p.PropertyMap {
 		if !alias.IsAlias() {
 			continue // We are only interested in aliases.
@@ -46,7 +50,7 @@ func (p pass) processAliases() {
 
 		var property ErrorProperty
 		// Check if the original type is from the same package.
-		if tn.Pkg() == p.Pkg {
+		if p.inCurrentPkg(tn) {
 			// If the original type is in the same package, its properties
 			// have already been computed by processTypeDecls. We can copy them.
 			oldp, ok := p.GetTypeProperty(tn)
@@ -63,12 +67,15 @@ func (p pass) processAliases() {
 				continue
 			}
 
-			switch errorType {
+			switch errorType & errortypes.ExpectedMask {
 			case errortypes.PointerType:
 				property = PointerAlias
 
 			case errortypes.ValueType:
 				property = ValueAlias
+
+			default: // Undecided or suppressed
+				property = None
 			}
 		}
 

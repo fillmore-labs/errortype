@@ -16,11 +16,15 @@
 
 package analyze
 
-import "golang.org/x/tools/go/analysis"
+import (
+	"sync"
+
+	"golang.org/x/tools/go/analysis"
+)
 
 // AstOptions represents configuration flags to control the behavior of style and correctness checks for errors.
 type AstOptions struct {
-	StyleCheck bool // styleCheck controls the target style check in `errors.As`` calls
+	StyleCheck bool // styleCheck controls the target style check in `errors.As` calls
 
 	CheckIs bool // checkIs controls whether to check for `Is(error) bool` methods
 
@@ -29,11 +33,15 @@ type AstOptions struct {
 	UncheckedAssert bool // uncheckedAssert flags all uncheckd asserts on errors
 }
 
-// Options provides configuration for analysis passes, including type detection and AST-related behavior customization.
+// Options provide configurations for analysis passes, including type detection and AST-related behavior customization.
 type Options struct {
 	DetectTypes *analysis.Analyzer
 
 	AstOptions
+
+	Suggest string // Suggest appends suggestions to a file
+
+	suggestwrite sync.Mutex
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
@@ -46,5 +54,6 @@ func DefaultOptions() *Options {
 			DeepIsCheck:     false,
 			UncheckedAssert: false,
 		},
+		Suggest: "",
 	}
 }

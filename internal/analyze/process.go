@@ -17,7 +17,9 @@
 package analyze
 
 import (
+	"context"
 	"go/ast"
+	"runtime/trace"
 
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
@@ -28,11 +30,13 @@ import (
 
 // processDetectedTypes populates the initial error usage map based on the results
 // from the prerequisite `detecttypes` analyzer.
-func (p pass) processDetectedTypes(resultInfo []errortypes.ResultInfo) {
+func (p pass) processDetectedTypes(ctx context.Context, resultInfo []errortypes.ResultInfo) {
+	defer trace.StartRegion(ctx, "detectedTypes").End()
+
 	for _, detectedType := range resultInfo {
 		var usage Usage
 
-		switch detectedType.ErrorType {
+		switch detectedType.ErrorType & errortypes.ExpectedMask {
 		case errortypes.PointerType:
 			usage = PointerExpected
 
@@ -53,30 +57,45 @@ func (p pass) processDetectedTypes(resultInfo []errortypes.ResultInfo) {
 // processAST traverses the abstract syntax tree of the package being analyzed.
 // It visits nodes relevant to error usage and dispatches each to its
 // corresponding handler function.
-func (p pass) processAST(in *inspector.Inspector, opts AstOptions) {
+func (p pass) processAST(ctx context.Context, in *inspector.Inspector, opts AstOptions) {
+	defer trace.StartRegion(ctx, "AST").End()
+
 	for c := range in.Root().Preorder(
+		// keep-sorted start
 		(*ast.BinaryExpr)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.FuncDecl)(nil),
 		(*ast.FuncLit)(nil),
 		(*ast.TypeAssertExpr)(nil),
 		(*ast.TypeSwitchStmt)(nil),
+		(*ast.ValueSpec)(nil),
+		// keep-sorted end
+
 	) {
 		switch n := c.Node().(type) {
+		// keep-sorted start newline_separated=yes
 		case *ast.BinaryExpr:
+			reg := trace.StartRegion(ctx, "BinaryExpr")
+
 			p.handleBinaryExpr(n)
+			reg.End()
 
 		case *ast.CallExpr:
+			reg := trace.StartRegion(ctx, "CallExpr")
+
 			p.handleCall(n, opts)
+			reg.End()
 
 		case *ast.FuncDecl:
-			if n.Body == nil {
-				continue // Skip function declarations without a body.
+			reg := trace.StartRegion(ctx, "FuncDecl")
+
+			if n.Recv != nil {
+				p.handleMethodDecl(n, c, opts)
 			}
 
-			if err, target, ok := p.isIs(n); ok {
-				b := c.ChildAt(edge.FuncDecl_Body, -1)
-				p.handleIs(b, err, target, opts.DeepIsCheck)
+			if n.Body == nil {
+				reg.End()
+				continue // Skip function declarations without a body.
 			}
 
 			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {
@@ -84,21 +103,36 @@ func (p pass) processAST(in *inspector.Inspector, opts AstOptions) {
 				p.handleReturns(b, lastResult)
 			}
 
+			reg.End()
+
 		case *ast.FuncLit:
+			reg := trace.StartRegion(ctx, "FuncLit")
+
 			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {
 				b := c.ChildAt(edge.FuncLit_Body, -1)
 				p.handleReturns(b, lastResult)
 			}
 
-		// Nothing interesting in > 750 projects
-		// case *ast.SwitchStmt:
-		// 	p.handleSwitch(n)
+			reg.End()
 
 		case *ast.TypeAssertExpr:
+			reg := trace.StartRegion(ctx, "TypeAssert")
+
 			p.handleTypeAssert(n, opts.UncheckedAssert)
+			reg.End()
 
 		case *ast.TypeSwitchStmt:
+			reg := trace.StartRegion(ctx, "TypeSwitch")
+
 			p.handleTypeSwitch(n)
+			reg.End()
+
+		case *ast.ValueSpec:
+			reg := trace.StartRegion(ctx, "ValueSpec")
+
+			p.handleVarDecls(n)
+			reg.End()
+			// keep-sorted end
 		}
 	}
 }

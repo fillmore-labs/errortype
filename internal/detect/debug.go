@@ -23,7 +23,6 @@ import (
 	"log"
 	"strings"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -40,43 +39,15 @@ func (p pass) LogErrorf(n ast.Node, format string, args ...any) {
 }
 
 // logResults logs the determined error types for each type name in the PropertyMap.
-// It includes additional information if there is an error in the determined type.
 func (p pass) logResults() {
+	name := typeutil.PkgName(p.Pass)
+
 	qf := types.RelativeTo(p.Pkg)
 
 	for tn, errortype := range p.AllSorted {
+		typeName := types.TypeString(tn.Type(), qf)
 		determinedType := errortype.DeterminedType()
 
-		var extra string
-		if mismatch := determinedTypeCheck(tn, determinedType); mismatch != "" {
-			extra = " !!! " + mismatch + " !!!"
-		}
-
-		log.Printf("%s %s: %s (%s)%s", p.Pkg.Path(), types.TypeString(tn.Type(), qf), determinedType, errortype, extra)
+		log.Printf("%s %s: %s (%s)", name, typeName, determinedType, errortype)
 	}
-}
-
-// determinedTypeCheck verifies if the determined error type matches the possible uses.
-// It returns a string describing any mismatch or an empty string if there are no issues.
-func determinedTypeCheck(tn *types.TypeName, determinedType errortypes.ErrorType) string {
-	switch determinedType {
-	case errortypes.PointerType:
-		if !typeutil.HasErrorMethod(types.NewPointer(tn.Type())) {
-			return "missing pointer error method"
-		}
-
-	case errortypes.ValueType:
-		if !typeutil.HasErrorMethod(tn.Type()) {
-			return "missing value error method"
-		}
-
-	case errortypes.Undecided:
-		if !typeutil.HasErrorMethod(tn.Type()) {
-			return "missing value error method"
-		} else if !typeutil.HasErrorMethod(types.NewPointer(tn.Type())) {
-			return "missing pointer error method"
-		}
-	}
-
-	return ""
 }

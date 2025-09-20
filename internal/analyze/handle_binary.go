@@ -26,7 +26,7 @@ import (
 func (p pass) handleBinaryExpr(n *ast.BinaryExpr) {
 	switch n.Op {
 	case token.EQL, token.NEQ:
-		p.comparison(n, n.X, n.Y, false)
+		p.comparison(n, n.X, n.Y, true, false)
 
 	default:
 		return

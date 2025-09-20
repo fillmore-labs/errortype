@@ -19,10 +19,10 @@ Package gclplugin implements a golangci-lint plugin for [errortype].
 
 # Usage
 
-Add a file “.custom-gcl.yaml” to your source with:
+1. Add a file `.custom-gcl.yaml` to your source with:
 
 	---
-	version: v2.4.0
+	version: v2.5.0
 
 	name: golangci-lint
 	destination: .
@@ -30,40 +30,40 @@ Add a file “.custom-gcl.yaml” to your source with:
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.5
+	    version: v0.0.6
 
-then run
+2. Run `golangci-lint custom` from your project root.
 
-	golangci-lint custom
+This will create a custom `golangci-lint` executable in your project root.
 
-from your project root. You get a custom “golangci-lint” executable that can be configured in ”.golangci.yaml”:
+3. Configure the linter in `.golangci.yaml`:
 
 	---
 	version: "2"
 	linters:
-	default: none
-	enable:
-	  - errortype
-	settings:
-	  custom:
-	  errortype:
-	    type: module
-	    description: "errortype helps prevent subtle bugs in error handling."
-	    original-url: "https://fillmore-labs.com/errortype"
-	    settings:
-	      overrides:
-	        pointer:
-	          - test/a.PointerOverride
-	        value:
-	          - test/a.ValueOverride
-	        suppress:
-	          - test/a.SuppressOverride
-	      style-check: true
-	      deep-is-check: false
-	      check-is: true
-	      unchecked-assert: false
+	  default: none
+	  enable:
+	    - errortype
+	  settings:
+	    custom:
+	      errortype:
+	        type: module
+	        description: "errortype helps prevent subtle bugs in error handling."
+	        original-url: "https://fillmore-labs.com/errortype"
+	        settings:
+	          overrides:
+	            pointer:
+	              - test/a.PointerOverride
+	            value:
+	              - test/a.ValueOverride
+	            suppress:
+	              - test/a.SuppressOverride
+	          style-check: true
+	          deep-is-check: false
+	          check-is: true
+	          unchecked-assert: false
 
-and can be used like `golangci-lint`:
+4. Run the linter:
 
 	./golangci-lint run .
 

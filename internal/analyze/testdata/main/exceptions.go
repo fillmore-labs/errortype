@@ -27,7 +27,7 @@ func (m *myErr) f() (*myErr, bool) { return m, true }
 type myErrorEmbedded struct{ *myErr }
 
 func Exception1() {
-	var err error = myErrorEmbedded{&myErr{Msg: "embedded"}}
+	var err error = myErrorEmbedded{&myErr{Msg: "embedded"}} // want " \\(et:emb\\)$"
 
 	var _ error = &myErrorEmbedded{}
 
@@ -39,7 +39,7 @@ func Exception1() {
 
 	_ = errors.As(err, &embp) // want " \\(et:emb\\+\\)$"
 
-	_, _ = err.(*myErr).f() // want " \\(et:auc\\)$"
+	_, _ = err.(*myErr).f() // want " \\(et:uca\\)$"
 }
 
 type myInterface interface{ error }
@@ -49,7 +49,7 @@ func Exception2() {
 
 	_ = &myErrorEmbedded{}
 
-	var err error = emb
+	var err error = emb // want " \\(et:emb\\)$"
 
 	var myi myInterface
 
@@ -57,7 +57,7 @@ func Exception2() {
 
 	_ = err.(any)
 
-	_ = err.(interface{ Unwrap() error }) // want " \\(et:auc\\+\\)$"
+	_ = err.(interface{ Unwrap() error }) // want " \\(et:uca\\+\\)$"
 
 	_ = errors.As(err, &myi)
 }

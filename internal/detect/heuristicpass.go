@@ -18,19 +18,25 @@ package detect
 
 import (
 	"fmt"
-	"iter"
 	"strings"
+	"unicode"
 )
 
 // HeuristicPass represents a set of heuristic flags used to control various passes in the analysis process.
 type HeuristicPass uint8
 
 const (
+	// HeuristicVar represents a heuristic pass for variable declarations.
+	HeuristicVar HeuristicPass = 1 << iota
+
 	// HeuristicUsage represents a heuristic pass for general usage.
-	HeuristicUsage HeuristicPass = 1 << iota
+	HeuristicUsage
 
 	// HeuristicReceivers represents a heuristic pass for consistent method receivers.
 	HeuristicReceivers
+
+	// HeuristicAll combines all available heuristic passes into a single constant, encompassing all analysis strategies.
+	HeuristicAll HeuristicPass = 1<<iota - 1
 
 	// HeuristicOff turns off all heuristic passes.
 	HeuristicOff HeuristicPass = 0
@@ -38,6 +44,7 @@ const (
 
 var heuristicPasses = map[HeuristicPass]string{
 	HeuristicOff:       "off",
+	HeuristicVar:       "var",
 	HeuristicUsage:     "usage",
 	HeuristicReceivers: "receivers",
 }
@@ -74,12 +81,16 @@ func HeuristicsFromString(list string) (HeuristicPass, error) {
 		hasOff     bool
 	)
 
-	for h := range splitComma(list) {
+	for h := range strings.FieldsFuncSeq(list, commaOrSpace) {
 		switch h {
 		case "":
+			continue
 
 		case heuristicPasses[HeuristicOff]:
 			hasOff = true
+
+		case heuristicPasses[HeuristicVar]:
+			heuristics |= HeuristicVar
 
 		case heuristicPasses[HeuristicUsage]:
 			heuristics |= HeuristicUsage
@@ -92,26 +103,13 @@ func HeuristicsFromString(list string) (HeuristicPass, error) {
 		}
 	}
 
-	if hasOff && heuristics != 0 {
+	if hasOff && heuristics != HeuristicOff {
 		return HeuristicOff, fmt.Errorf(`heuristic %q cannot be combined with other values in %q`, HeuristicOff.String(), list)
 	}
 
 	return heuristics, nil
 }
 
-func splitComma(list string) iter.Seq[string] {
-	fields := strings.Split(list, ",")
-
-	return func(yield func(string) bool) {
-		for _, s := range fields {
-			trim := strings.TrimSpace(s)
-			if trim == "" {
-				continue
-			}
-
-			if !yield(trim) {
-				return
-			}
-		}
-	}
+func commaOrSpace(r rune) bool {
+	return r == ',' || unicode.IsSpace(r)
 }

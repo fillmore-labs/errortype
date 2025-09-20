@@ -28,7 +28,7 @@ func (myError1) Error() string {
 	return ""
 }
 
-func (myError1) As(_ error, _ any) bool {
+func (myError1) As(_ error, _ any) bool { // want " \\(et:sig\\)$"
 	return false
 }
 

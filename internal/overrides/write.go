@@ -27,27 +27,30 @@ import (
 )
 
 // Write serializes the provided overrides suggestions into YAML format and writes it to the given io.Writer.
-func Write(w io.Writer, suggestions []Override) error {
-	var errorfile errorfileType
+func Write(w io.Writer, suggestions map[errortypes.ErrorType][]typeutil.TypeName, name string) error {
+	var suggestfile errorfileType
 
-	for _, usage := range suggestions {
-		switch usage.ErrorType {
+	for errortype, s := range suggestions {
+		slices.SortFunc(s, typeutil.TypeName.Compare)
+
+		switch errortype {
 		case errortypes.PointerType:
-			errorfile.Pointer = append(errorfile.Pointer, usage.TypeName)
+			suggestfile.Pointer = s
 
 		case errortypes.ValueType:
-			errorfile.Value = append(errorfile.Value, usage.TypeName)
+			suggestfile.Value = s
 
-		default: // errortypes.SuppressType is never suggested.
-			errorfile.Inconsistent = append(errorfile.Inconsistent, usage.TypeName)
+		case errortypes.Undecided:
+			suggestfile.Inconsistent = s
 		}
 	}
 
-	slices.SortFunc(errorfile.Pointer, typeutil.TypeName.Compare)
-	slices.SortFunc(errorfile.Value, typeutil.TypeName.Compare)
-	slices.SortFunc(errorfile.Inconsistent, typeutil.TypeName.Compare)
+	_, _ = w.Write([]byte("---"))
+	if name != "" {
+		_, _ = w.Write([]byte(" # suggestions for "))
+		_, _ = w.Write([]byte(name))
+	}
+	_, _ = w.Write([]byte("\n"))
 
-	_, _ = w.Write([]byte("---\n"))
-
-	return yaml.NewEncoder(w, yaml.IndentSequence(true)).Encode(errorfile)
+	return yaml.NewEncoder(w, yaml.IndentSequence(true)).Encode(suggestfile)
 }

@@ -25,16 +25,16 @@ type Return struct {
 
 // ShouldBeValue reports a diagnostic when a value error is returned as a pointer.
 func (r Return) ShouldBeValue(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	// This case handles returning a pointer to a value-error ("return &MyValueError{}")
 	r.ReportRangef(r.Expr,
-		"Error type %q should be returned by value (\"%s{...}\"), not as a pointer. (et:ret)", fullName, importName)
+		"Error type %q should be returned by value (\"%s{...}\"), not as a pointer. (et:ret)", relativeName, importName)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is returned as a value.
 func (r Return) ShouldBePointer(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	// This case handles returning a value of a pointer-error ("return MyPointerError{}")
 	r.ReportRangef(r.Expr,
-		"Error type %q should be returned as a pointer (\"&%s{...}\"), not by value. (et:ret+)", fullName, importName)
+		"Error type %q should be returned as a pointer (\"&%s{...}\"), not by value. (et:ret+)", relativeName, importName)
 }

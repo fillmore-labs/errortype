@@ -26,22 +26,22 @@ type ErrorsAs struct {
 
 // ShouldBeValue reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	fname, varname := r.funName(), r.varName()
 
 	// errors.As(err, &p) where p is *ValueError. Target is **ValueError, but should be *ValueError.
 	r.ReportRangef(r.Expr, `Target for value error %q is a pointer-to-pointer, use a pointer to a value instead: "var %s %s; ... %s(err, &%s)". (et:err)`,
-		fullName, varname, importName, fname, varname)
+		relativeName, varname, importName, fname, varname)
 }
 
 // ShouldBePointer reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBePointer(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	fname, varname := r.funName(), r.varName()
 
 	// errors.As(err, &p) where p is PointerError. Target is *PointerError, but should be **PointerError.
 	r.ReportRangef(r.Expr, `Target for pointer error %q is a pointer-to-value, use a pointer to a pointer instead: "var %s *%s; ... %s(err, &%s)". (et:err+)`,
-		fullName, varname, importName, fname, varname)
+		relativeName, varname, importName, fname, varname)
 }
 
 // funName gets a short function name, not necessarily matching imports.

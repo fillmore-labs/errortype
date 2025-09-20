@@ -23,6 +23,8 @@ import (
 )
 
 func GoFasterErrors() {
+	_ = errors.Is(myError1{}, &myError1{}) // want "is false or undefined"
+
 	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
 
 	var (

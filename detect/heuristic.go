@@ -24,6 +24,9 @@ const (
 	// HeuristicOff turns off all heuristic passes.
 	HeuristicOff Heuristic = iota // off
 
+	// HeuristicVar represents a heuristic pass for variable declarations.
+	HeuristicVar // var
+
 	// HeuristicUsage represents a heuristic pass for general usage.
 	HeuristicUsage // usage
 

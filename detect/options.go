@@ -18,6 +18,7 @@ package detect
 
 import (
 	"log/slog"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -37,7 +38,7 @@ func makeOptions(opts Options) *detect.Options {
 // Option configures specific behavior of the detect [analysis.Analyzer].
 type Option interface {
 	apply(opts *detect.Options)
-	SlogAttr() slog.Attr
+	LogAttr() slog.Attr
 }
 
 // Options is a list of [Option] values that also satisfies the [Option] interface.
@@ -53,14 +54,14 @@ func (o Options) apply(opts *detect.Options) {
 func (o Options) LogValue() slog.Value {
 	as := make([]slog.Attr, 0, len(o))
 	for _, opt := range o {
-		as = append(as, opt.SlogAttr())
+		as = append(as, opt.LogAttr())
 	}
 
 	return slog.GroupValue(as...)
 }
 
-// SlogAttr returns a [slog.Attr] for logging.
-func (o Options) SlogAttr() slog.Attr {
+// LogAttr returns a [slog.Attr] for logging.
+func (o Options) LogAttr() slog.Attr {
 	return slog.Any("options", o)
 }
 
@@ -85,10 +86,13 @@ func (o overridesOption) apply(opts *detect.Options) {
 		switch o {
 		case OverridePointer:
 			et = errortypes.PointerType
+
 		case OverrideValue:
 			et = errortypes.ValueType
+
 		case OverrideSuppress:
 			et = errortypes.SuppressType
+
 		default:
 			continue
 		}
@@ -108,7 +112,7 @@ func (o overridesOption) apply(opts *detect.Options) {
 	opts.AddOverrides(or)
 }
 
-func (o overridesOption) SlogAttr() slog.Attr {
+func (o overridesOption) LogAttr() slog.Attr {
 	var as []slog.Attr
 	for override, usage := range o.overrides {
 		as = append(as, slog.Attr{
@@ -136,6 +140,9 @@ func (o heuristicsOption) apply(opts *detect.Options) {
 		case HeuristicOff:
 			combined = detect.HeuristicOff
 
+		case HeuristicVar:
+			combined |= detect.HeuristicVar
+
 		case HeuristicUsage:
 			combined |= detect.HeuristicUsage
 
@@ -147,7 +154,7 @@ func (o heuristicsOption) apply(opts *detect.Options) {
 	opts.Heuristics = combined
 }
 
-func (o heuristicsOption) SlogAttr() slog.Attr {
+func (o heuristicsOption) LogAttr() slog.Attr {
 	heuristics := make([]string, 0, len(o.heuristics))
 	for _, h := range o.heuristics {
 		heuristics = append(heuristics, h.String())
@@ -157,10 +164,17 @@ func (o heuristicsOption) SlogAttr() slog.Attr {
 }
 
 // WithTrace is an [Option] to configure result output.
-func WithTrace(trace bool) Option { return traceOption{trace: trace} }
+func WithTrace(trace *regexp.Regexp) Option { return traceOption{trace: trace} }
 
-type traceOption struct{ trace bool }
+type traceOption struct{ trace *regexp.Regexp }
 
 func (o traceOption) apply(opts *detect.Options) { opts.Trace = o.trace }
 
-func (o traceOption) SlogAttr() slog.Attr { return slog.Bool("trace", o.trace) }
+func (o traceOption) LogAttr() slog.Attr {
+	var re string
+	if o.trace != nil {
+		re = o.trace.String()
+	}
+
+	return slog.String("trace", re)
+}

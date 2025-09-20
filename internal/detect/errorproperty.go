@@ -30,20 +30,28 @@ type ErrorProperty int32
 
 // Properties are grouped by the heuristic that discovers them.
 const (
-	// --- Properties from Error() method receiver ---.
-
-	// PointerReceiver is set if the Error() method has a pointer receiver,
-	// e.g., `func (e *MyError) Error() string`. This is a strong indicator.
-	PointerReceiver ErrorProperty = 1 << iota
-
 	// --- Properties from user-defined overrides ---.
 
 	// SuppressOverride is set if usage checks for this type are explicitly suppressed.
-	SuppressOverride
+	SuppressOverride ErrorProperty = 1 << iota
 	// PointerOverride is set if the type is explicitly marked as a pointer type in overrides.
 	PointerOverride
 	// ValueOverride is set if the type is explicitly marked as a value type in overrides.
 	ValueOverride
+
+	// --- Properties from method receivers ---.
+
+	// PointerReceiver is set if the `Error` method has a pointer receiver,
+	// e.g., `func (e *MyError) Error() string`. This forces the error to be a pointer type.
+	PointerReceiver
+
+	// PointerMethod is set if one of the `error` methods `Unwrap`, `Is` or `As`
+	// have a pointer receiver, e.g., `func (e *MyError) Unwrap() error`.
+	PointerMethod
+
+	// Embedded is set if the `Error` method is not directly defined on the type,
+	// but embedded. This is no indicator and for diagnostics only.
+	Embedded
 
 	// --- Properties from variable declarations (e.g., `var ErrSomething = ...`) ---.
 
@@ -122,10 +130,12 @@ const (
 )
 
 var errorProperties = map[ErrorProperty]string{
-	PointerReceiver:  "PointerReceiver",
 	SuppressOverride: "SuppressOverride",
 	PointerOverride:  "PointerOverride",
 	ValueOverride:    "ValueOverride",
+	PointerReceiver:  "PointerReceiver",
+	PointerMethod:    "PointerMethod",
+	Embedded:         "Embedded",
 	PointerVar:       "PointerVar",
 	ValueVar:         "ValueVar",
 	PointerAlias:     "PointerAlias",
@@ -176,8 +186,7 @@ func (e ErrorProperty) String() string {
 // the strongest evidence to the weakest. The first category with a non-contradictory
 // signal determines the type.
 var propertyPairs = [...][2]ErrorProperty{
-	{PointerOverride, ValueOverride},   // Strongest: Explicit user override.
-	{PointerVar, ValueVar},             // Sentinel errors or `var _ error` assertions.
+	{PointerVar, ValueVar},             // Strongest: Sentinel errors or `var _ error` assertions.
 	{PointerAlias, ValueAlias},         // Aliases of imported error types.
 	{PointerReturn, ValueReturn},       // Usage in `return` statements.
 	{PointerAssert, ValueAssert},       // Usage in type assertions.
@@ -194,11 +203,19 @@ var propertyPairs = [...][2]ErrorProperty{
 // Contradictory properties (e.g., both PointerVar and ValueVar being set)
 // for a given category are ignored, and the decision moves to the next category.
 func (e ErrorProperty) DeterminedType() errortypes.ErrorType {
-	if e&SuppressOverride != 0 { // Suppression override has the highest precedence.
+	switch e & OverrideMask { // Overrides have the highest precedence.
+	case SuppressOverride:
 		return errortypes.SuppressType
-	}
 
-	if e&PointerReceiver != 0 { // Errors with pointer receivers can only be used in only one way.
+	case PointerOverride:
+		return errortypes.PointerType
+
+	case ValueOverride:
+		return errortypes.ValueType
+	}
+	// Errors with pointer receivers can only be used in only one way.
+	// Errors with an `Unwrap() error` method with pointer receiver would behave differently as values.
+	if e&(PointerReceiver|PointerMethod) != 0 {
 		return errortypes.PointerType
 	}
 

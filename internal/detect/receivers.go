@@ -17,19 +17,23 @@
 package detect
 
 import (
+	"context"
 	"go/types"
+	"runtime/trace"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func (p pass) processReceivers() {
+func (p pass) processReceivers(ctx context.Context) {
+	defer trace.StartRegion(ctx, "receivers").End()
+
 	for tn, errorType := range p.PropertyMap {
 		if errorType.DeterminedType() != errortypes.Undecided {
 			continue
 		}
 
-		if tn.Pkg() != p.Pkg {
+		if !p.inCurrentPkg(tn) {
 			continue
 		}
 

@@ -33,9 +33,11 @@ func (myError1) Error() string {
 	return ""
 }
 
-func (myError1) As(_ error, _ any) bool {
+func (myError1) As(_ error, _ any) bool { // want " \\(et:sig\\)$"
 	return false
 }
+
+var ErrPointer error = &b.ValueError{} // want " \\(et:var\\)$"
 
 func Errors() {
 	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"

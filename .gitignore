@@ -10,6 +10,7 @@
 !/.mockery.yaml
 !/.pre-commit-config.yaml
 !/.prettierrc.yaml
+!/.woodpecker/
 !/.yamlfmt
 !/.yamllint
 /bazel-*

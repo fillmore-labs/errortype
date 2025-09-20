@@ -7,12 +7,13 @@ toolchain go1.25.1
 require (
 	fillmore-labs.com/exp/errors v0.0.3
 	github.com/cockroachdb/errors v1.12.0
+	github.com/friendsofgo/errors v0.9.2
 	github.com/go-errors/errors v1.5.1
 	github.com/go-faster/errors v0.7.1
 	github.com/juju/errors v1.0.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp/errors v0.0.0-20250911091902-df9299821621
+	golang.org/x/exp/errors v0.0.0-20251002181428-27f1f14c8bb9
 	golang.org/x/net v0.44.0
 	golang.org/x/xerrors v0.0.0-20240903120638-7835f813f4da
 	gotest.tools/v3 v3.5.2

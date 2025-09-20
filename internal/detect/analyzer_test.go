@@ -21,7 +21,6 @@ import (
 	"go/ast"
 	"go/types"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -31,26 +30,42 @@ import (
 
 	. "fillmore-labs.com/errortype/internal/detect"
 	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func TestExclusionsAnalyzer(t *testing.T) {
+func TestDetectAnalyzer(t *testing.T) {
 	t.Parallel()
 
 	dir := analysistest.TestData()
 	overrides := filepath.Join(dir, "overrides.yaml")
 
-	o := DefaultOptions()
+	tests := []struct {
+		name        string
+		newAnalyzer func() *analysis.Analyzer
+		pkg         string
+	}{
+		{"errortypes", func() *analysis.Analyzer {
+			t.Helper()
 
-	if err := o.ReadOverrides(overrides); err != nil {
-		t.Fatalf("can't read overrides: %v", err)
+			o := DefaultOptions()
+			if err := o.ReadOverrides(overrides); err != nil {
+				t.Fatalf("can't read overrides: %v", err)
+			}
+
+			return newTestAnalyzer(o)
+		}, "test/a"},
 	}
-	d := newAnalyzer(o)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-	/*
-		if err := d.Flags.Set("overrides", filepath.Join(dir, "overrides.yaml")); err != nil {
-			t.Fatalf("can't set overrides flag: %v", err)
-		}
-	*/
+			analysistest.Run(t, dir, tt.newAnalyzer(), tt.pkg)
+		})
+	}
+}
+
+func newTestAnalyzer(o *Options) *analysis.Analyzer {
+	d := o.Analyzer()
 
 	testAnalyzer := &analysis.Analyzer{
 		Name: "testanalyzer",
@@ -61,39 +76,15 @@ func TestExclusionsAnalyzer(t *testing.T) {
 		Requires: []*analysis.Analyzer{inspect.Analyzer, d},
 	}
 
-	tests := []struct {
-		name     string
-		analyzer *analysis.Analyzer
-		pkg      string
-	}{
-		{"errortypes", testAnalyzer, "test/a"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
-			analysistest.Run(t, dir, tt.analyzer, tt.pkg)
-		})
-	}
-}
-
-func newAnalyzer(o *Options) *analysis.Analyzer {
-	return &analysis.Analyzer{
-		Name:             "detecttypes",
-		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
-		Run:              o.Run,
-		RunDespiteErrors: true,
-		FactTypes:        []analysis.Fact{(*errortypes.ErrorType)(nil)},
-		ResultType:       reflect.TypeFor[errortypes.Result](),
-	}
+	return testAnalyzer
 }
 
 var (
 	// ErrNoInspectorResult is returned when the ast inspector is missing.
 	ErrNoInspectorResult = errors.New("testanalyzer: inspector result missing")
 
-	// ErrNoDetecttypesResult is returned when the detecttypes result is missing.
-	ErrNoDetecttypesResult = errors.New("testanalyzer: detecttypes result missing")
+	// ErrNoDetectTypesResult is returned when the detecttypes result is missing.
+	ErrNoDetectTypesResult = errors.New("testanalyzer: detecttypes result missing")
 )
 
 func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
@@ -104,7 +95,7 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 
 	res, ok := ap.ResultOf[d].(errortypes.Result)
 	if !ok {
-		return nil, ErrNoDetecttypesResult
+		return nil, ErrNoDetectTypesResult
 	}
 
 	errorMap := make(map[*types.TypeName]errortypes.ErrorType)
@@ -112,20 +103,21 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 		errorMap[info.TypeName] = info.ErrorType
 	}
 
+	errorInterface := typeutil.UniverseError.Underlying().(*types.Interface)
+
 	for returnStmt := range inspector.All[*ast.ReturnStmt](in) {
 		for _, result := range returnStmt.Results {
 			tv, ok := ap.TypesInfo.Types[result]
 			if !ok || tv.IsNil() {
 				continue
 			}
-
 			t := tv.Type
-			if p, ok := t.(*types.Pointer); ok {
-				t = p.Elem()
+
+			if !types.Implements(t, errorInterface) {
+				continue
 			}
 
 			msg := message(t, errorMap)
-
 			ap.ReportRangef(result, "Type %q %s", t.String(), msg)
 		}
 	}
@@ -134,15 +126,8 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 }
 
 func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) string {
-	var tn *types.TypeName
-	switch t := t.(type) {
-	case *types.Named:
-		tn = t.Obj()
-
-	case *types.Alias:
-		tn = t.Obj()
-
-	default:
+	tn, _, ok := typeutil.TypeNameOf(t)
+	if !ok {
 		return "NOT A NAMED TYPE"
 	}
 
@@ -151,7 +136,7 @@ func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) st
 		return "NOT IN RESULTS"
 	}
 
-	switch typ {
+	switch typ & errortypes.ExpectedMask {
 	case errortypes.PointerType:
 		return "POINTER"
 

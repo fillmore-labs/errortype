@@ -21,7 +21,11 @@ import "go/types"
 const maxDepth = 10
 
 // ZeroSized determines whether the type t is provably zero-sized.
-func ZeroSized(typ types.Type, depth int) bool {
+func ZeroSized(typ types.Type) bool {
+	return zeroSized(typ, 0)
+}
+
+func zeroSized(typ types.Type, depth int) bool {
 	if depth > maxDepth {
 		return false
 	}
@@ -29,14 +33,14 @@ func ZeroSized(typ types.Type, depth int) bool {
 	switch u := typ.Underlying().(type) {
 	case *types.Array:
 		if u.Len() > 0 {
-			return ZeroSized(u.Elem(), depth+1)
+			return zeroSized(u.Elem(), depth+1)
 		}
 
 		return true
 
 	case *types.Struct:
-		for i := range u.NumFields() {
-			if !ZeroSized(u.Field(i).Type(), depth+1) {
+		for f := range u.Fields() {
+			if !zeroSized(f.Type(), depth+1) {
 				return false
 			}
 		}

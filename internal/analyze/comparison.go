@@ -27,60 +27,85 @@ import (
 )
 
 // comparison analyzes a comparison operation (either binary like `==` or
-// a function call like `errors.Is`) to determine if one of the operands is
-// the address of a composite literal or a new() call.
+// a function call like `errors.Is`) to detect problematic comparisons.
 //
-// It reports a diagnostic if such a comparison is found, providing additional context
-// if the comparison involves zero-sized types.
-func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
-	var (
-		typ        types.Type // The type of T in a &T{} or new(T) operand
-		canCompare bool
-		isLeft     bool     // operand detected is on the left side of the comparison
-		other      ast.Expr // isLeft ? right : left
-	)
+// It checks for two types of issues:
+// 1. Comparisons with new pointers (&T{} or new(T)) - always false
+// 2. Comparisons with non-comparable types - always false
+//
+// Reports diagnostics for such comparisons, with special handling for
+// zero-sized types and error interfaces.
+func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool) {
+	// First, check if one of the operands is a new pointer (&T{} or new(T)), checking the left first.
+	switch {
+	case p.isNewPointer(left):
+		if tv, ok := p.TypesInfo.Types[left]; ok {
+			typ, other, isLeft := tv.Type, right, true
+			p.diagNewComparison(n, typ, other, direct, checkIs, isLeft)
+		}
 
-	// Determine if one of the operands is a new literal (&T{} or new(T)), check the left first.
-	if tl, cl, ok := p.isNewOrNonComparable(left); ok {
-		typ, canCompare, other, isLeft = tl, cl, right, true
-	} else if tr, cr, ok := p.isNewOrNonComparable(right); ok {
-		typ, canCompare, other, isLeft = tr, cr, left, false
-	} else {
-		return // Not a comparison we are interested in.
+		return
+
+	case p.isNewPointer(right):
+		if tv, ok := p.TypesInfo.Types[right]; ok {
+			typ, other, isLeft := tv.Type, left, false
+			p.diagNewComparison(n, typ, other, direct, checkIs, isLeft)
+		}
+
+		return
 	}
 
+	// Check for uncomparable types
+	if tv, ok := p.TypesInfo.Types[left]; ok && !typeutil.Comparable(tv.Type) {
+		typ, other, isLeft := tv.Type, right, true
+		p.diagUncomparable(n, typ, other, direct, checkIs, isLeft)
+
+		return
+	}
+
+	if tv, ok := p.TypesInfo.Types[right]; ok && !typeutil.Comparable(tv.Type) {
+		typ, other, isLeft := tv.Type, left, false
+		p.diagUncomparable(n, typ, other, direct, checkIs, isLeft)
+
+		return
+	}
+
+	// Not a comparison we are interested in.
+}
+
+// diagNewComparison reports diagnostics for comparisons with new pointers (&T{} or new(T)).
+// These comparisons are always false since each new allocation creates a unique address.
+func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, direct, checkIs, isLeft bool) {
 	ptr, isPtr := types.Unalias(typ).(*types.Pointer)
+	if !isPtr { // should not happen
+		p.ReportErrorf(n, "Expected pointer type, got %T", typ)
+
+		return
+	}
 
 	isUndefined := false
 
-	if isPtr {
-		// Determine if the comparison is with a zero-sized type and the other operand is not nil.
-		if typeutil.ZeroSized(ptr.Elem(), 0) {
-			otherType, ok := p.TypesInfo.Types[other]
+	// Determine if the comparison is with a zero-sized type and the other operand is not nil.
+	if typeutil.ZeroSized(ptr.Elem()) {
+		if otherType, ok := p.TypesInfo.Types[other]; ok && !otherType.IsNil() {
 			// In this case, the result is undefined.
-			isUndefined = !ok || !otherType.IsNil()
+			isUndefined = true
 		}
 	}
 
 	tag := "equ"
-
-	// If the type implements the error interface, it may be a valid comparison
-	// in the context of errors.Is, which has special unwrapping rules.
-	if typeutil.HasErrorMethod(typ) {
-		if checkIs && shouldSuppressDiagnostic(typ, isLeft) {
-			return
-		}
-
+	if !direct {
 		tag = "cmp"
 	}
 
-	// Report diagnostic
-	var typeName string
-	if isPtr { // e.g. &T{} or new(T), the type is a pointer.
-		typeName = types.TypeString(ptr.Elem(), types.RelativeTo(p.Pkg))
-	} else {
-		typeName = types.TypeString(typ, types.RelativeTo(p.Pkg))
+	// If the type implements the error interface, it may be a valid comparison
+	// in the context of errors.Is, which has special unwrapping rules.
+	if checkIs && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+		return
 	}
+
+	// Report diagnostic
+	typeName := types.TypeString(ptr.Elem(), types.RelativeTo(p.Pkg))
 
 	otherStr := "<unknown>"
 
@@ -89,69 +114,87 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, checkIs bool) {
 		otherStr = sb.String()
 	}
 
-	var format string
+	var msg string
 
 	switch {
-	case !canCompare:
-		format = "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s)"
-
 	case isUndefined:
-		format = "Result of comparison of %q with address of new zero-sized variable of type %q is false or undefined. (et:%s)"
+		msg = "Result of comparison of %q with address of new zero-sized variable of type %q is false or undefined. (et:%s)"
 
 	default:
-		format = "Result of comparison of %q with address of new variable of type %q is always false. (et:%s+)"
+		msg = "Result of comparison of %q with address of new variable of type %q is always false. (et:%s+)"
 	}
 
-	p.ReportRangef(n, format, otherStr, typeName, tag)
+	p.ReportRangef(n, msg, otherStr, typeName, tag)
 }
 
-// isNewOrNonComparable checks if an expression `x` is one of the following:
+// diagUncomparable reports diagnostics for comparisons with non-comparable types.
+// These comparisons are always false or panic.
+func (p pass) diagUncomparable(n ast.Node, typ types.Type, other ast.Expr, direct, checkIs, isLeft bool) {
+	if otherType, ok := p.TypesInfo.Types[other]; ok && otherType.IsNil() {
+		return
+	}
+
+	tag := "equ"
+	if !direct {
+		tag = "cmp"
+	}
+
+	// If the type implements the error interface, it may be a valid comparison
+	// in the context of errors.Is, which has special unwrapping rules.
+	if checkIs && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+		return
+	}
+
+	// Report diagnostic
+	typeName := types.TypeString(typ, types.RelativeTo(p.Pkg))
+
+	otherStr := "<unknown>"
+
+	var sb strings.Builder
+	if format.Node(&sb, p.Fset, other) == nil {
+		otherStr = sb.String()
+	}
+
+	msg := "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
+
+	p.ReportRangef(n, msg, otherStr, typeName, tag)
+}
+
+// isNewPointer checks if an expression `x` is one of the following:
 // 1. The address of a new composite literal: `&T{...}`
 // 2. A call to the built-in `new()` function: `new(T)`
-// 3. A non-comparable composite literal: `T{...}` where T is not comparable.
-// It returns the type of the expression, a boolean indicating if the expression is comparable, and a boolean for success.
-func (p pass) isNewOrNonComparable(x ast.Expr) (typ types.Type, canCompare, ok bool) {
+// It returns the type of the expression and a boolean for success.
+func (p pass) isNewPointer(x ast.Expr) bool {
 	switch e := ast.Unparen(x).(type) {
 	case *ast.UnaryExpr:
 		if e.Op != token.AND {
-			return nil, false, false // not &...
+			return false // not &...
 		}
 
 		if _, ok := ast.Unparen(e.X).(*ast.CompositeLit); !ok {
-			return nil, false, false // not &...{}
+			return false // not &...{}
 		}
 
-		tv, ok := p.TypesInfo.Types[e]
-
-		return tv.Type, true, ok
+		return true
 
 	case *ast.CallExpr:
 		if len(e.Args) != 1 {
-			return nil, false, false // some function
+			return false // some function
 		}
 
 		fun, ok := ast.Unparen(e.Fun).(*ast.Ident)
 		if !ok || fun.Name != "new" {
-			return nil, false, false // not new(...)
+			return false // not new(...)
 		}
 
 		if _, ok := p.TypesInfo.Uses[fun].(*types.Builtin); !ok {
-			return nil, false, false // not the built-in "new"
+			return false // not the built-in "new"
 		}
 
-		tv, ok := p.TypesInfo.Types[e]
-
-		return tv.Type, true, ok
-
-	case *ast.CompositeLit:
-		if tv, ok := p.TypesInfo.Types[e.Type]; ok && !types.Comparable(tv.Type) {
-			return tv.Type, false, true
-		}
-
-		return nil, false, false
+		return true
 
 	default:
-		return nil, false, false
+		return false
 	}
 }
 

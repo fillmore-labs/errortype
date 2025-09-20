@@ -87,7 +87,7 @@ var (
 			}
 
 			typ := obj.Type()
-			if got := ZeroSized(typ, 0); got != tc.isZero {
+			if got := ZeroSized(typ); got != tc.isZero {
 				t.Errorf("ZeroSized(%q) = %v; want %v", tc.name, got, tc.isZero)
 			}
 		})

@@ -17,12 +17,12 @@
 package typeutil_test
 
 import (
+	"fmt"
 	"go/ast"
 	"go/importer"
 	"go/parser"
 	"go/token"
 	"go/types"
-	"strings"
 	"testing"
 )
 
@@ -35,13 +35,7 @@ func parseSource(tb testing.TB, src string) (*types.Info, *types.Package, *token
 		pkgname  = "test"
 	)
 
-	var sb strings.Builder
-	sb.WriteString("package ")
-	sb.WriteString(pkgname)
-	sb.WriteString("\n")
-	sb.WriteString(src)
-
-	srcFile := sb.String()
+	srcFile := fmt.Sprintf("package %s\n%s", pkgname, src)
 
 	fset := token.NewFileSet()
 	fset.AddFile(filename, -1, len(srcFile))

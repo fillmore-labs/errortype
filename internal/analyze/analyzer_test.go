@@ -18,69 +18,63 @@ package analyze_test
 
 import (
 	"path"
-	"reflect"
 	"testing"
 
-	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/analysistest"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"fillmore-labs.com/errortype/detect"
 	. "fillmore-labs.com/errortype/internal/analyze"
+	"fillmore-labs.com/errortype/internal/detect"
 )
 
-func TestAnalyzerA(t *testing.T) {
+func TestAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	o := DefaultOptions()
-	a := newAnalyzer(o)
-
 	testdata := analysistest.TestData()
+	overrides := path.Join(testdata, "overrides.yaml")
 
-	d := o.DetectTypes
-	if err := d.Flags.Set("overrides", path.Join(testdata, "overrides.yaml")); err != nil {
-		t.Fatal("can't set override file", err)
+	tests := []struct {
+		name     string
+		setupOpt func(*Options)
+		packages []string
+	}{
+		{
+			name: "test/a",
+			setupOpt: func(o *Options) {
+				do := detect.DefaultOptions()
+				if err := do.ReadOverrides(overrides); err != nil {
+					t.Fatalf("can't read overrides: %v", err)
+				}
+				o.DetectTypes = do.Analyzer()
+			},
+			packages: []string{"test/a"},
+		},
+		{
+			name: "test/b",
+			setupOpt: func(o *Options) {
+				o.CheckIs = false
+				o.DeepIsCheck = true
+				o.UncheckedAssert = true
+			},
+			packages: []string{"test/b", "test/alias", "test/main", "test/style"},
+		},
+		{
+			name: "test/c",
+			setupOpt: func(o *Options) {
+				o.StyleCheck = false
+			},
+			packages: []string{"test/c"},
+		},
 	}
 
-	analysistest.Run(t, testdata, a, "test/a")
-}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 
-func TestAnalyzerB(t *testing.T) {
-	t.Parallel()
+			o := DefaultOptions()
+			tt.setupOpt(o)
+			a := o.Analyzer()
 
-	o := DefaultOptions()
-	o.CheckIs = false
-	o.DeepIsCheck = true
-	o.UncheckedAssert = true
-	a := newAnalyzer(o)
-
-	testdata := analysistest.TestData()
-
-	analysistest.Run(t, testdata, a, "test/b", "test/alias", "test/main", "test/style")
-}
-
-func TestAnalyzerC(t *testing.T) {
-	t.Parallel()
-
-	testdata := analysistest.TestData()
-
-	o := DefaultOptions()
-	o.StyleCheck = false
-	a := newAnalyzer(o)
-
-	analysistest.Run(t, testdata, a, "test/c")
-}
-
-func newAnalyzer(o *Options) *analysis.Analyzer {
-	if o.DetectTypes == nil {
-		o.DetectTypes = detect.New()
-	}
-
-	return &analysis.Analyzer{
-		Name:       "errortype",
-		Doc:        "errortype is a Go static analysis tool that helps prevent subtle bugs in error handling.",
-		Run:        o.Run,
-		Requires:   []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
-		ResultType: reflect.TypeFor[Result](),
+			analysistest.Run(t, testdata, a, tt.packages...)
+		})
 	}
 }

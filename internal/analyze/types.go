@@ -14,6 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build go1.25
+
 package analyze
 
 import (
@@ -28,13 +30,13 @@ import (
 // the optional error comparison interface defined by `errors.Is`.
 var (
 	// errorIsInterface represents `interface{ Is(error) bool }`.
-	errorIsInterface = newErrorIsInterface(typeutil.UniverseError.Type())
+	errorIsInterface = newErrorIsInterface(typeutil.UniverseError)
 
 	// errorUnwrapInterface represents `interface{ Unwrap() error }`.
-	errorUnwrapInterface = newErrorUnwrapInterface(typeutil.UniverseError.Type())
+	errorUnwrapInterface = newErrorUnwrapInterface(typeutil.UniverseError)
 
 	// errorUnwrapArrayInterface represents `interface{ Unwrap() []error }`.
-	errorUnwrapArrayInterface = newErrorUnwrapArrayInterface(typeutil.UniverseError.Type())
+	errorUnwrapArrayInterface = newErrorUnwrapArrayInterface(typeutil.UniverseError)
 )
 
 // newErrorIsInterface constructs and returns a new [types.Interface] representing
@@ -44,8 +46,8 @@ func newErrorIsInterface(universeError types.Type) *types.Interface {
 
 	var noPkg *types.Package
 
-	params := singleVar(universeError)
-	results := singleVar(types.Typ[types.Bool])
+	params := singleVar(universeError, types.ParamVar)
+	results := singleVar(types.Typ[types.Bool], types.ResultVar)
 	sig := types.NewSignatureType(nil, nil, nil, params, results, false)
 	isFunc := types.NewFunc(token.NoPos, noPkg, isMethodName, sig)
 
@@ -59,7 +61,7 @@ func newErrorUnwrapInterface(universeError types.Type) *types.Interface {
 
 	var noPkg *types.Package
 
-	results := singleVar(universeError)
+	results := singleVar(universeError, types.ResultVar)
 	sig := types.NewSignatureType(nil, nil, nil, nil, results, false)
 	unwrapFunc := types.NewFunc(token.NoPos, noPkg, unwrapMethodName, sig)
 
@@ -73,7 +75,7 @@ func newErrorUnwrapArrayInterface(universeError types.Type) *types.Interface {
 
 	var noPkg *types.Package
 
-	results := singleVar(types.NewSlice(universeError))
+	results := singleVar(types.NewSlice(universeError), types.ResultVar)
 	sig := types.NewSignatureType(nil, nil, nil, nil, results, false)
 	unwrapFunc := types.NewFunc(token.NoPos, noPkg, unwrapMethodName, sig)
 
@@ -82,12 +84,15 @@ func newErrorUnwrapArrayInterface(universeError types.Type) *types.Interface {
 
 // singleVar constructs a [types.Tuple] containing a single unnamed variable
 // of the specified [types.Type].
-func singleVar(t types.Type) *types.Tuple {
+func singleVar(t types.Type, kind types.VarKind) *types.Tuple {
 	const noName = ""
 
 	var noPkg *types.Package
 
-	return types.NewTuple(types.NewVar(token.NoPos, noPkg, noName, t))
+	x := types.NewVar(token.NoPos, noPkg, noName, t)
+	x.SetKind(kind)
+
+	return types.NewTuple(x)
 }
 
 func interfaceOf(method *types.Func) *types.Interface {

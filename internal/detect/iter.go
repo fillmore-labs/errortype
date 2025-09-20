@@ -25,14 +25,14 @@ import (
 // iterateOverSpecs iterates over all specifications of a given type S.
 // It finds them within generic declarations (*ast.GenDecl) that match a specific token.
 func iterateOverSpecs[S ast.Spec](files []*ast.File, tok token.Token, yield func(S) bool) {
-	for g := range allDecls[*ast.GenDecl](files) {
+	for g := range allGenDecls(files) {
 		if g.Tok != tok {
-			continue
+			continue // non-matching declarations
 		}
 
 		for _, spec := range g.Specs {
 			spec, ok := spec.(S)
-			if !ok {
+			if !ok { // should not happen when tok matches S
 				continue
 			}
 
@@ -43,9 +43,9 @@ func iterateOverSpecs[S ast.Spec](files []*ast.File, tok token.Token, yield func
 	}
 }
 
-// allDecls returns an iterator over declarations of a given type D.
-func allDecls[D ast.Decl](files []*ast.File) iter.Seq[D] {
-	return func(yield func(D) bool) { iterateOverDecls(files, yield) }
+// allGenDecls returns an iterator over all generic declaration nodes.
+func allGenDecls(files []*ast.File) iter.Seq[*ast.GenDecl] {
+	return func(yield func(*ast.GenDecl) bool) { iterateOverDecls(files, yield) }
 }
 
 // iterateOverDecls iterates over declarations of a given type D.

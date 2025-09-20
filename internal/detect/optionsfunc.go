@@ -18,6 +18,7 @@ package detect
 
 import (
 	"fmt"
+	"regexp"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
@@ -69,6 +70,24 @@ func (o *Options) SetHeuristics(list string) error {
 	}
 
 	o.Heuristics = heuristics
+
+	return nil
+}
+
+// SetTrace sets the Trace field to a compiled regular expression based on the provided regex string.
+func (o *Options) SetTrace(regex string) error {
+	if regex == "" {
+		o.Trace = nil
+
+		return nil
+	}
+
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		return err
+	}
+
+	o.Trace = re
 
 	return nil
 }

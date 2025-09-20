@@ -18,6 +18,7 @@ package detect_test
 
 import (
 	"log/slog"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -55,22 +56,22 @@ func TestLogValue(t *testing.T) {
 		},
 		{
 			name:     "WithHeuristics - All",
-			option:   WithHeuristics(HeuristicUsage, HeuristicReceivers),
-			expected: `"heuristics":"usage,receivers"`,
+			option:   WithHeuristics(HeuristicVar, HeuristicUsage, HeuristicReceivers),
+			expected: `"heuristics":"var,usage,receivers"`,
 		},
 		{
 			name:     "WithTrace",
-			option:   WithTrace(true),
-			expected: `"trace":true`,
+			option:   WithTrace(regexp.MustCompile(".*")),
+			expected: `"trace":".*"`,
 		},
 		{
 			name: "Options",
 			option: Options{
 				WithOverrides(map[Override][]string{OverrideValue: {"pkg.MyType"}}),
 				WithHeuristics(HeuristicUsage),
-				WithTrace(true),
+				WithTrace(regexp.MustCompile(".*")),
 			},
-			expected: `"options":{"overrides":{"value":"pkg.MyType"},"heuristics":"usage","trace":true}`,
+			expected: `"options":{"overrides":{"value":"pkg.MyType"},"heuristics":"usage","trace":".*"}`,
 		},
 	}
 
@@ -80,7 +81,7 @@ func TestLogValue(t *testing.T) {
 
 			var sb strings.Builder
 			logger := slog.New(slog.NewJSONHandler(&sb, nil))
-			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.SlogAttr())
+			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.LogAttr())
 
 			got := sb.String()
 			if !strings.Contains(got, tt.expected) {

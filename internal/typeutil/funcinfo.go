@@ -73,25 +73,25 @@ const (
 // It is designed to be stored as a single integer value in a map for efficiency.
 //
 // The bit layout is as follows:
-//   - Bits 0-1: FuncKind (2 bits, for KindIs, KindAs, KindCmp)
+//   - Bits 0-2: FuncKind (2 bits, for KindIs, KindAs, KindEqu)
 //
 // If KindIs:
-//   - Bits 2-3: FuncType (2 bits)
+//   - Bits 3-4: FuncType (2 bits)
 //
 // If KindAs:
-//   - Bits 2-3: TargetArgIndex + 1 (4 bits, allows index from -1 to 2)
-//   - Bits 4-5: TypeParam + 1 (2 bits, allows index from -1 to 2)
+//   - Bits 3-4: TargetArgIndex + 1 (4 bits, allows index from -1 to 2)
+//   - Bits 5-6: TypeParam + 1 (2 bits, allows index from -1 to 2)
 type FuncInfo int8
 
 const (
-	kindMask = 0b11
+	kindMask = 0b111
 
-	isTypeShift = 2
+	isTypeShift = 3
 	isTypeMask  = 0b11
 
-	asTargetArgShift = 2
+	asTargetArgShift = 3
 	asTargetArgMask  = 0b11
-	asTypeParamShift = 4
+	asTypeParamShift = 5
 	asTypeParamMask  = 0b11
 
 	asIndexOffset = 1
@@ -104,6 +104,7 @@ const (
 	IsFuncType1 = FuncInfo(KindIs) | (FuncInfo(IsFunc1) << isTypeShift)
 
 	// Equal-like functions.
+	EquFuncType0 = FuncInfo(KindEqu) | (FuncInfo(IsFunc0) << isTypeShift)
 	EquFuncType1 = FuncInfo(KindEqu) | (FuncInfo(IsFunc1) << isTypeShift)
 
 	// As-like functions.

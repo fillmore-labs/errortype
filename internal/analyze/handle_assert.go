@@ -74,5 +74,5 @@ func (p pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue)
 
 	name := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
 
-	p.ReportRangef(n, "Asserting error to %q without checking might lead to a run-time panic. (et:auc%s)", name, codeSuffix)
+	p.ReportRangef(n, "Asserting error to %q without checking might lead to a run-time panic. (et:uca%s)", name, codeSuffix)
 }

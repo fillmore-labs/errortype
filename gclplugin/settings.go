@@ -53,7 +53,9 @@ func detectOptions(settings Settings) []detect.Option {
 		{settings.Overrides.Value, detect.OverrideValue},
 		{settings.Overrides.Suppress, detect.OverrideSuppress},
 	} {
-		overrides[opt.override] = opt.types
+		if len(opt.types) > 0 {
+			overrides[opt.override] = opt.types
+		}
 	}
 
 	if len(overrides) > 0 {

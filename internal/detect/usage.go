@@ -17,15 +17,19 @@
 package detect
 
 import (
+	"context"
 	"go/ast"
 	"go/types"
+	"runtime/trace"
 
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // processUsage processes all function declarations in the current package,
 // visiting their bodies to perform error usage analysis.
-func (p pass) processUsage() {
+func (p pass) processUsage(ctx context.Context) {
+	defer trace.StartRegion(ctx, "usage").End()
+
 	u := usageVisitor{pass: p}
 
 	for f := range p.AllFuncDecls {
@@ -174,6 +178,7 @@ func isErrorAs(info *types.Info, n *ast.CallExpr) ast.Expr {
 func (p pass) handleCallExpr(n *ast.CallExpr) {
 	targetArg := isErrorAs(p.TypesInfo, n)
 	if targetArg == nil { // not an errors.As-like function
+		// TODO: handle target arguments of errors.Is
 		p.walkExprs(n.Args)
 
 		if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
@@ -223,7 +228,7 @@ func (p pass) walkExprs(exprs []ast.Expr) {
 // addTypePropertyInCurrentPackage sets a property on a type if it's a known error type
 // in the current package and the property isn't yet set.
 func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property ErrorProperty) {
-	if tn.Pkg() != p.Pkg {
+	if !p.inCurrentPkg(tn) {
 		return // Only relevant for types defined in the current package
 	}
 

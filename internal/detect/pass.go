@@ -19,6 +19,7 @@ package detect
 import (
 	"go/ast"
 	"go/token"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -40,15 +41,16 @@ func newPass(ap *analysis.Pass) pass {
 	return pass{
 		Pass:        ap,
 		PropertyMap: errortypes.NewPropertyMap[ErrorProperty](),
+		StyleCheck:  false,
 	}
 }
 
-// AllTypeDecls is an iterator over all type specifications (*ast.TypeSpec) in the pass's files.
+// AllTypeDecls is an iterator over all type declarations (*ast.TypeSpec) in the pass's files.
 func (p pass) AllTypeDecls(yield func(*ast.TypeSpec) bool) {
 	iterateOverSpecs(p.Files, token.TYPE, yield)
 }
 
-// AllVarDecls is an iterator over all variable value specifications (*ast.ValueSpec) in the pass's files.
+// AllVarDecls is an iterator over all variable declarations (*ast.ValueSpec) in the pass's files.
 func (p pass) AllVarDecls(yield func(*ast.ValueSpec) bool) {
 	iterateOverSpecs(p.Files, token.VAR, yield)
 }
@@ -56,4 +58,8 @@ func (p pass) AllVarDecls(yield func(*ast.ValueSpec) bool) {
 // AllFuncDecls is an iterator over all function declarations (*ast.FuncDecl) in the pass's files.
 func (p pass) AllFuncDecls(yield func(*ast.FuncDecl) bool) {
 	iterateOverDecls(p.Files, yield)
+}
+
+func (p pass) inCurrentPkg(tn *types.TypeName) bool {
+	return tn.Pkg() == p.Pkg
 }

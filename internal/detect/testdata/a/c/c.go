@@ -27,8 +27,6 @@ type (
 	EmbeddedFunc    struct{ error }
 	EmbeddedVar     struct{ error }
 
-	LocalOverride struct{ error }
-
 	Alias = ValueDefault
 
 	PointerAlias = *PointerDefault
@@ -53,8 +51,6 @@ func NewEmbeddedVar() error  { return &EmbeddedVar{} }  // overwritten by var
 
 func NewEmbeddedDefault1() error { return EmbeddedDefault{} }  // contradictory, ignored
 func NewEmbeddedDefault2() error { return &EmbeddedDefault{} } // contradictory, ignored
-
-func NewLocalOverride() error { return &LocalOverride{} } // overwritten by local var
 
 func NewPointerDefault() any { return PointerDefault{} } // ignored, doesn't implement error
 

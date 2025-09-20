@@ -32,8 +32,6 @@ func NewValueDefault() *c.ValueDefault { return nil }
 
 func NewAny() interface{} { return nil }
 
-var _ error = c.LocalOverride{}
-
 var _ error = Interface(nil)
 
 var _ error = (*struct{ error })(nil)
@@ -51,9 +49,6 @@ func Return2() error {
 
 	case 3:
 		return &c.ValueDefault{} // want "VALUE"
-
-	case 4:
-		return &c.LocalOverride{} // want "VALUE"
 
 	default:
 		return nil

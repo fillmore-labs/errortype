@@ -32,8 +32,8 @@ type (
 	EmbeddedPAmbiguous struct{ *EmbeddedDefault }
 )
 
-func (a *AmbiguousPointer) Is(target error) bool { return errors.Is(a.error, target) }
-func (a AmbiguousValue) Unwrap() error           { return a.error }
+func (a *AmbiguousPointer) As(target any) bool { return errors.As(a.error, target) }
+func (a AmbiguousValue) Unwrap() error         { return a.error }
 
-func (a *AmbiguousAmbiguous) Is(target error) bool { return errors.Is(a.error, target) }
-func (a AmbiguousAmbiguous) Unwrap() error         { return a.error }
+func (a AmbiguousAmbiguous) As() error               { return a.error }
+func (a *AmbiguousAmbiguous) Unwrap(target any) bool { return errors.As(a.error, target) }

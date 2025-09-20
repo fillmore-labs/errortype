@@ -58,7 +58,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 		// Argument is a pointer, e.g., errors.As(err, &target), which is expected.
 		elemType := t.Elem()
 
-		// The target for errors.As can be a pointer to an interface that does not
+		// The target for errors.As can be a pointer to an interface that must not
 		// itself implement `error` (e.g., `var target interface{ Temporary() bool }`).
 		// This is a valid use case for checking for specific error capabilities.
 		if types.IsInterface(elemType) {

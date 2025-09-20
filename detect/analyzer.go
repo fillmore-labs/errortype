@@ -16,36 +16,14 @@
 
 package detect
 
-import (
-	"reflect"
-
-	"golang.org/x/tools/go/analysis"
-
-	"fillmore-labs.com/errortype/internal/errortypes"
-)
+import "golang.org/x/tools/go/analysis"
 
 // New creates a new instance of the detecttypes analyzer.
 // It detects how error types are used (as pointers or values) to provide
 // this information to other analyzers in the toolchain.
 func New(opts ...Option) *analysis.Analyzer {
-	o := makeOptions(opts)
-
-	a := &analysis.Analyzer{
-		Name:             "detecttypes",
-		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
-		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/detect",
-		Run:              o.Run,
-		RunDespiteErrors: true,
-		FactTypes:        []analysis.Fact{(*errortypes.ErrorType)(nil)},
-		ResultType:       reflect.TypeFor[errortypes.Result](),
-	}
-
-	a.Flags.BoolVar(&o.Trace, "trace", o.Trace, "trace output")
-	a.Flags.Func("overrides", "read error type overrides from this file", o.ReadOverrides)
-	a.Flags.Func("heuristics", `list of heuristics used (default: "usage,receivers", "off" to disable)`, o.SetHeuristics)
-
-	return a
+	return makeOptions(opts).Analyzer()
 }
 
-// Analyzer is a pre-configured *analysis.Analyzer for detecting error types in Go programs.
+// Analyzer is a pre-configured *[analysis.Analyzer] for detecting error types in Go programs.
 var Analyzer = New()

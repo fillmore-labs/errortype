@@ -9,13 +9,14 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[HeuristicOff-0]
-	_ = x[HeuristicUsage-1]
-	_ = x[HeuristicReceivers-2]
+	_ = x[HeuristicVar-1]
+	_ = x[HeuristicUsage-2]
+	_ = x[HeuristicReceivers-3]
 }
 
-const _Heuristic_name = "offusagereceivers"
+const _Heuristic_name = "offvarusagereceivers"
 
-var _Heuristic_index = [...]uint8{0, 3, 8, 17}
+var _Heuristic_index = [...]uint8{0, 3, 6, 11, 20}
 
 func (i Heuristic) String() string {
 	if i >= Heuristic(len(_Heuristic_index)-1) {

@@ -40,9 +40,12 @@ func (p pass) handleCall(n *ast.CallExpr, opts AstOptions) {
 		return
 	}
 
+	// TODO: Handle deprecation
+
 	switch info.Kind() {
 	case typeutil.KindIs:
 		p.handleErrorIs(n, methodExpr, info.IsType(), opts.CheckIs)
+		// TODO: check target argument type
 		return
 
 	case typeutil.KindEqu:

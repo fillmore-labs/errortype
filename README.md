@@ -5,6 +5,7 @@
 [![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql)
 [![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/main/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
 [![Go Report Card](https://goreportcard.com/badge/fillmore-labs.com/errortype)](https://goreportcard.com/report/fillmore-labs.com/errortype)
+[![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=main)](https://ci.codeberg.org/repos/15305)
 [![License](https://img.shields.io/github/license/fillmore-labs/errortype)](https://www.apache.org/licenses/LICENSE-2.0)
 
 `errortype` is a Go static analysis tool (linter) that helps prevent subtle bugs in error handling and other areas. It
@@ -69,8 +70,9 @@ Usage: `errortype [-flag] [package]`
 - **-c** `<N>`: Display N lines of context around each issue (default: -1 for no context, 0 for only the offending
   line).
 - **-test**: Analyze test files in addition to source files (default: true).
-- **-heuristics**: (Experimental) List of heuristics used (default: “usage,receivers”, “off” to disable).
-- **-trace**: (Experimental) Output information for result tracing.
+- **-heuristics**: `<list>` (Experimental) List of heuristics used (default: “var,usage,receivers”, “off” to disable).
+- **-tracetypes**: `<regex>` (Experimental) Trace error type detection in packages with names matching the regular
+  expression.
 
 ## Inconsistent Error Type Usage
 
@@ -135,7 +137,15 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
 1. **Overrides** (the highest priority): User-defined overrides (see [below](#override-file)) are applied, overriding
    any detected usage.
 
-2. **Package-Level Variable Assignments**: If present, `var _ error = ...` assignments are used as explicit declarations
+2. **`Unwrap` related methods**: If present, `Is`, `As` and `Unwrap` methods with pointer receiver would be not visible
+   from a value usage. If an error type would be used as a value, methods with pointer receivers are not in its
+   [method set](https://go.dev/ref/spec#Method_sets).
+
+   ```go
+   func (e *PointerError) Unwrap error { /* ...*/ } // Unwrap is only visible from error(&PointerError{}).
+   ```
+
+3. **Package-Level Variable Assignments**: If present, `var _ error = ...` assignments are used as explicit declarations
    of intent.
 
    ```go
@@ -144,7 +154,7 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
    var _ error = (*PointerError)(nil) // Determines PointerError is a "pointer" type.
    ```
 
-3. **Usage Within Functions**: If still undecided, the linter analyzes usage within top-level functions (in `return`
+4. **Usage Within Functions**: If still undecided, the linter analyzes usage within top-level functions (in `return`
    statements or type assertions). Consistent usage can determine the type.
 
    ```go
@@ -155,7 +165,7 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
 
    Note: This heuristic is a fallback and should not be relied upon for defining a type's contract.
 
-4. **Consistent Method Receivers** (lowest priority): As a final heuristic, if all methods on a type have a consistent
+5. **Consistent Method Receivers** (lowest priority): As a final heuristic, if all methods on a type have a consistent
    receiver (all-value or all-pointer), that style is used.
 
 ### Designing Linter-Friendly Packages
@@ -181,21 +191,8 @@ var (
 
 ### Overriding Detected Types
 
-When the linter reports types from an imported package that have ambiguous or inconsistent usage, you can guide the
-linter in two ways:
-
-1. **Local Overrides**: For a one-off fix within a single package, add a `var` block to a source file in that package.
-   This overrides the detected usage for that type _within this package only_.
-
-   ```go
-   // In your code, force a specific usage for an imported type.
-   var _ error = imported.ValueError{}
-
-   var _ error = (*imported.PointerError)(nil)
-   ```
-
-2. **Global Override File**: For project-wide overrides, use an `errortypes.yaml` file, see
-   _[“Override File”](#override-file)_.
+When the linter reports ambiguous or inconsistent usage from types of an imported package that you can not change, you
+can guide the linter with an override file, see _[“Override File”](#override-file)_.
 
 ## Pointless Comparisons
 
@@ -377,6 +374,12 @@ specific problems.
 - **`et:emb` (Embedded/Ambiguous Usage)**: The linter could not determine if an error is a pointer or value type. This
   can be resolved with an [override](#overriding-detected-types).
 
+- **`et:var` (Variable Mismatch)**: An error type is assigned incorrectly in a
+  [variable declaration](https://go.dev/ref/spec#Variable_declarations) starting with `Err` or `err`.
+
+- **`et:rcv` (Receiver Mismatch)**: An `Unwrap` related method on a value error should be implemented with a value
+  receiver, not a pointer, otherwise it wouldn't be visible.
+
 ### Pointer Comparison Issues
 
 - **`et:cmp` (Pointless Error Comparison)**: A pointer is compared against the address of a newly created value in
@@ -458,7 +461,10 @@ specific problems.
   type implementing `error`). This is also flagged by the standard Go
   [`errorsas`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas) linter.
 
-- **`et:auc` (Unchecked Type Assert)**: An unchecked type assert might lead to a run-time panic on a wrapped error.
+- **`et:sig` (Wrong Signature)**: An `Unwrap` related method has the wrong signature. This is also flagged by the
+  standard Go [`stdmethods`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods) linter.
+
+- **`et:uca` (Unchecked Type Assert)**: An unchecked type assert might lead to a run-time panic on a wrapped error.
 
   ```go
     if err.(*net.AddrError).Err == "missing port in address" { /* ... */ }
@@ -474,7 +480,7 @@ Add a file `.custom-gcl.yaml` to your source with
 
 ```yaml
 ---
-version: v2.4.0
+version: v2.5.0
 
 name: golangci-lint
 destination: .
@@ -482,7 +488,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.5
+    version: v0.0.6
 ```
 
 then run `golangci-lint custom` from your project root. You get a custom `golangci-lint` executable that can be

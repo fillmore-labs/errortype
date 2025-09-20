@@ -40,7 +40,7 @@ func (p pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp typeutil.Func
 	switch ftyp {
 	case typeutil.IsFunc0:
 		// Delegate analysis of errors.Is(..., ...) to comparison.
-		p.comparison(n, n.Args[baseArg], n.Args[baseArg+1], checkIs)
+		p.comparison(n, n.Args[baseArg], n.Args[baseArg+1], false, checkIs)
 
 	case typeutil.IsFunc1:
 		if len(n.Args) < 3+baseArg { // should not happen
@@ -49,7 +49,7 @@ func (p pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp typeutil.Func
 		}
 
 		// Delegate analysis of assert.ErrorIs(t, ..., ...) or assert.Equal(t, ..., ...) to comparison.
-		p.comparison(n, n.Args[baseArg+1], n.Args[baseArg+2], checkIs)
+		p.comparison(n, n.Args[baseArg+1], n.Args[baseArg+2], false, checkIs)
 
 	default: // should not happen
 		p.ReportErrorf(n, "Unconfigured function %d", ftyp)

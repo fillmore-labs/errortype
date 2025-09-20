@@ -24,5 +24,5 @@
 //   - Pointer: Types that should always be used as pointers (*PointerError)
 //   - Value: Types that should always be used as values (ValueError)
 //   - Suppress: Types for which error diagnostics should be disabled
-//   - Inconsistent: Types with mixed usage patterns (written to suggestion files)
+//   - Inconsistent: Types with mixed usage patterns
 package overrides

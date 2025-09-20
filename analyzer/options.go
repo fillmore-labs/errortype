@@ -35,7 +35,7 @@ func makeOptions(opts Options) *analyze.Options {
 // Option configures specific behavior of a [New] errortype [analysis.Analyzer].
 type Option interface {
 	apply(opts *analyze.Options)
-	SlogAttr() slog.Attr
+	LogAttr() slog.Attr
 }
 
 // Options is a list of [Option] values that also satisfies the [Option] interface.
@@ -51,28 +51,28 @@ func (o Options) apply(opts *analyze.Options) {
 func (o Options) LogValue() slog.Value {
 	as := make([]slog.Attr, 0, len(o))
 	for _, opt := range o {
-		as = append(as, opt.SlogAttr())
+		as = append(as, opt.LogAttr())
 	}
 
 	return slog.GroupValue(as...)
 }
 
-// SlogAttr returns a [slog.Attr] for logging.
-func (o Options) SlogAttr() slog.Attr {
+// LogAttr returns a [slog.Attr] for logging.
+func (o Options) LogAttr() slog.Attr {
 	return slog.Any("options", o)
 }
 
 // WithDetectTypes sets a custom *[analysis.Analyzer] for detecting error types.
-func WithDetectTypes(detecttypes *analysis.Analyzer) Option {
-	return detectTypesOption{detecttypes: detecttypes}
+func WithDetectTypes(detectTypes *analysis.Analyzer) Option {
+	return detectTypesOption{detectTypes: detectTypes}
 }
 
-type detectTypesOption struct{ detecttypes *analysis.Analyzer }
+type detectTypesOption struct{ detectTypes *analysis.Analyzer }
 
-func (o detectTypesOption) apply(opts *analyze.Options) { opts.DetectTypes = o.detecttypes }
+func (o detectTypesOption) apply(opts *analyze.Options) { opts.DetectTypes = o.detectTypes }
 
-func (o detectTypesOption) SlogAttr() slog.Attr {
-	return slog.String("detect", o.detecttypes.Name)
+func (o detectTypesOption) LogAttr() slog.Attr {
+	return slog.String("detect", o.detectTypes.Name)
 }
 
 // WithStyleCheck is an [Option] to configure the style check.
@@ -82,7 +82,7 @@ type styleCheckOption struct{ styleCheck bool }
 
 func (o styleCheckOption) apply(opts *analyze.Options) { opts.StyleCheck = o.styleCheck }
 
-func (o styleCheckOption) SlogAttr() slog.Attr {
+func (o styleCheckOption) LogAttr() slog.Attr {
 	return slog.Bool("styleCheck", o.styleCheck)
 }
 
@@ -97,13 +97,13 @@ type checkIsOption struct{ checkIs bool }
 
 func (o checkIsOption) apply(opts *analyze.Options) { opts.CheckIs = o.checkIs }
 
-func (o checkIsOption) SlogAttr() slog.Attr {
+func (o checkIsOption) LogAttr() slog.Attr {
 	return slog.Bool("checkIs", o.checkIs)
 }
 
 // WithDeepIsCheck is an [Option] to configure `Is` method analysis.
 // If deepIsCheck is true, the analyzer will flag every method calling `Unwrap`.
-// The default behavior is to flag only applications to `target“.
+// The default behavior is to flag only applications to `target`.
 func WithDeepIsCheck(deepIsCheck bool) Option {
 	return deepIsCheckOption{deepIsCheck: deepIsCheck}
 }
@@ -112,7 +112,7 @@ type deepIsCheckOption struct{ deepIsCheck bool }
 
 func (o deepIsCheckOption) apply(opts *analyze.Options) { opts.DeepIsCheck = o.deepIsCheck }
 
-func (o deepIsCheckOption) SlogAttr() slog.Attr {
+func (o deepIsCheckOption) LogAttr() slog.Attr {
 	return slog.Bool("deepIsCheck", o.deepIsCheck)
 }
 
@@ -125,6 +125,6 @@ type uncheckedAssertOption struct{ uncheckedAssert bool }
 
 func (o uncheckedAssertOption) apply(opts *analyze.Options) { opts.UncheckedAssert = o.uncheckedAssert }
 
-func (o uncheckedAssertOption) SlogAttr() slog.Attr {
+func (o uncheckedAssertOption) LogAttr() slog.Attr {
 	return slog.Bool("uncheckedAssert", o.uncheckedAssert)
 }

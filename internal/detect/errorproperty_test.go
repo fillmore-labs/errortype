@@ -25,16 +25,17 @@ import (
 
 func TestErrorProperty_String(t *testing.T) {
 	t.Parallel()
+	want := 25
 
-	input := ErrorProperty((1 << 24) - 1)
+	input := ErrorProperty((1 << want) - 1)
 	actual := input.String()
 
 	seen := make(map[string]struct{})
-	for _, word := range strings.Split(actual, ", ") {
+	for word := range strings.SplitSeq(actual, ", ") {
 		seen[word] = struct{}{}
 	}
 
-	if len(seen) != 24 {
-		t.Fail()
+	if len(seen) != want {
+		t.Errorf("Expected %s to have %d components, but got %d", actual, want, len(seen))
 	}
 }

@@ -17,8 +17,10 @@
 package detect
 
 import (
+	"context"
 	"go/ast"
 	"go/types"
+	"runtime/trace"
 	"strings"
 
 	"fillmore-labs.com/errortype/internal/typeutil"
@@ -35,26 +37,29 @@ import (
 //     a pointer error, while `var ErrSomething = T{}` indicates a value error.
 //
 // Discovered properties are recorded for analysis. If the type `T` is defined
-// in the current package, this property is exported as a fact. If `T` is from
-// an external package, the property is treated as a local override.
-func (p pass) processVarSpecs() {
-	for varspec := range p.AllVarDecls {
+// in the current package, this property is exported as a fact.
+//
+// If `T` is from an external package, the property is checked for consistency.
+func (p pass) processVarSpecs(ctx context.Context) {
+	defer trace.StartRegion(ctx, "varSpecs").End()
+
+	for varDecl := range p.AllVarDecls {
 		// Handle sentinel errors, e.g., `var ErrSomething = ...` where the type is inferred.
-		if varspec.Type == nil {
-			p.findSentinelErrors(varspec)
+		if varDecl.Type == nil {
+			p.findSentinelErrors(varDecl)
 
 			continue
 		}
 
 		// Handle error assertions, e.g., `var _ error = ...` where the type is explicit.
-		p.findErrorAssertions(varspec)
+		p.findErrorAssertions(varDecl)
 	}
 }
 
 // findSentinelErrors checks for sentinel error declarations (`var Err...`).
-func (p pass) findSentinelErrors(varspec *ast.ValueSpec) {
-	for i, id := range varspec.Names {
-		if len(varspec.Values) <= i {
+func (p pass) findSentinelErrors(varDecl *ast.ValueSpec) {
+	for i, id := range varDecl.Names {
+		if len(varDecl.Values) <= i {
 			break
 		}
 
@@ -62,43 +67,43 @@ func (p pass) findSentinelErrors(varspec *ast.ValueSpec) {
 			continue
 		}
 
-		value := varspec.Values[i]
+		value := varDecl.Values[i]
 
 		tv, ok := p.TypesInfo.Types[value]
 		if !ok || !typeutil.HasErrorMethod(tv.Type) {
-			continue
+			continue // Not an error type
 		}
 
-		p.recordErrorProperty(tv.Type)
+		p.recordVarProperty(tv.Type)
 	}
 }
 
 // findErrorAssertions checks for error assertion declarations (`var _ error = ...`).
-func (p pass) findErrorAssertions(varspec *ast.ValueSpec) {
-	if tv, ok := p.TypesInfo.Types[varspec.Type]; !ok || !typeutil.HasErrorMethod(tv.Type) {
+func (p pass) findErrorAssertions(varDecl *ast.ValueSpec) {
+	if tv, ok := p.TypesInfo.Types[varDecl.Type]; !ok || !typeutil.HasErrorMethod(tv.Type) {
 		return
 	}
 
-	for i, value := range varspec.Values {
+	for i, value := range varDecl.Values {
 		tv, ok := p.TypesInfo.Types[value]
 		if !ok || !tv.IsValue() { // should not happen
-			var name string
-			if len(varspec.Names) > i {
-				name = varspec.Names[i].Name
+			name := "<unknown>"
+			if len(varDecl.Names) > i {
+				name = varDecl.Names[i].Name
 			}
 
-			p.LogErrorf(value, "can't get type from value %s", name)
+			p.LogErrorf(value, "can't get value for variable %s", name)
 
 			continue
 		}
 
-		p.recordErrorProperty(tv.Type)
+		p.recordVarProperty(tv.Type)
 	}
 }
 
-// recordErrorProperty analyzes the given type to determine if it's a pointer or
-// value error and records the property.
-func (p pass) recordErrorProperty(typ types.Type) {
+// recordVarProperty analyzes the given type to determine if it's a pointer or
+// value error and records a [PointerVar] or [ValueVar] property respectively.
+func (p pass) recordVarProperty(typ types.Type) {
 	// Interfaces are not concrete error types.
 	if types.IsInterface(typ) {
 		return
@@ -117,6 +122,6 @@ func (p pass) recordErrorProperty(typ types.Type) {
 
 	// Record usage in the property map.
 	// If the type is defined in the current package, it determines usage.
-	// Otherwise, it's a local override.
-	p.AddTypeProperty(tn, errortype)
+	// Otherwise, it's ignored.
+	p.addTypePropertyInCurrentPackage(tn, errortype)
 }

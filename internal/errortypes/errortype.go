@@ -20,14 +20,34 @@ package errortypes
 type ErrorType uint8
 
 // Constants defining the possible usages of an error type.
-//
-//go:generate go tool stringer -type ErrorType -linecomment
 const (
-	Undecided    ErrorType = iota // Undecided
-	PointerType                   // Pointer
-	ValueType                     // Value
-	SuppressType                  // Suppress
+	PointerType ErrorType = 1 << iota // Pointer
+	ValueType                         // Value
+
+	SuppressType = PointerType | ValueType // Suppress
+
+	Undecided ErrorType = 0 // Undecided
+
+	ExpectedMask = PointerType | ValueType
 )
+
+func (e ErrorType) String() string {
+	switch e & ExpectedMask {
+	case Undecided:
+		return "Undecided"
+
+	case ValueType:
+		return "Value"
+
+	case PointerType:
+		return "Pointer"
+
+	case SuppressType:
+		return "Suppress"
+	}
+
+	return "<invalid>"
+}
 
 // AFact makes *ErrorType satisfy the [analysis.Fact] interface.
 // [analysis.Fact]s must be pointers to be exported as a fact.

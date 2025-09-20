@@ -29,9 +29,6 @@ const (
 	// ValueExpected indicates the error type should be used as a value ("MyError{}").
 	ValueExpected
 
-	// SuppressExpected indicates that analysis for this error type should be suppressed.
-	SuppressExpected
-
 	// PointerObserved is set when a pointer usage was observed.
 	PointerObserved
 
@@ -40,8 +37,11 @@ const (
 
 	None Usage = 0
 
+	// SuppressExpected indicates that analysis for this error type should be suppressed.
+	SuppressExpected = PointerExpected | ValueExpected
+
 	// ExpectedMask is the mask to get only ...Expected usages.
-	ExpectedMask = PointerExpected | ValueExpected | SuppressExpected
+	ExpectedMask = PointerExpected | ValueExpected
 
 	// ObservedMask is the mask to get only ...Observed usages.
 	ObservedMask = PointerObserved | ValueObserved

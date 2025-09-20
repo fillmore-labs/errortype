@@ -28,33 +28,33 @@ import (
 // was a pointer, and a boolean indicating if a type name was successfully found.
 // It returns false for anonymous types (like struct literals).
 func TypeNameOf(t types.Type) (tn *types.TypeName, isPtr, ok bool) {
-	switch typ := t.(type) {
-	case *types.Named:
-		return typ.Obj(), false, true
+	isPtr = false
 
-	case *types.Alias:
-		return typ.Obj(), false, true
+	for {
+		switch typ := t.(type) {
+		case *types.Named:
+			return typ.Obj(), isPtr, true
 
-	case *types.Pointer:
-		return handlePointer(typ)
+		case *types.Alias:
+			return typ.Obj(), isPtr, true
 
-	default:
-		// Anonymous types (struct literals, nil, etc.)
-		return nil, false, false
+		case *types.Pointer:
+			if isPtr {
+				// Double Pointer
+				return nil, isPtr, false
+			}
+
+			t = typ.Elem()
+			isPtr = true
+
+			continue
+
+		default:
+			// Anonymous types (struct literals, nil, etc.)
+			// We are also not interested in type parameters or basic types
+			return nil, isPtr, false
+		}
 	}
-}
-
-func handlePointer(p *types.Pointer) (tn *types.TypeName, isPtr, ok bool) {
-	switch elem := p.Elem().(type) {
-	case *types.Named:
-		return elem.Obj(), true, true
-
-	case *types.Alias:
-		return elem.Obj(), true, true
-	}
-
-	// Pointer to anonymous type (e.g., *struct{})
-	return nil, true, false
 }
 
 // HasErrorResult checks whether the given function result list has an error type as its last return value.
@@ -69,7 +69,7 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 	// conventionally the last one.
 	lastType := results.List[len(results.List)-1].Type
 
-	// Check if the return type is a type with an `Error() string`` method.
+	// Check if the return type is a type with an `Error() string` method.
 	if tv, ok := info.Types[lastType]; ok && types.IsInterface(tv.Type) && HasErrorMethod(tv.Type) {
 		return results.NumFields() - 1
 	}
@@ -77,10 +77,10 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 	return -1 // Not an error type
 }
 
-// HasErrorMethod checks if a given type implements the standard `error`
-// interface. Note that when T implements `error`, *T can, but must not, implement `error` too.
+// HasErrorMethod checks if a given type implements the standard `error` interface.
+// Note that when T implements `error`, *T can, but must not, implement `error` too.
 func HasErrorMethod(typ types.Type) bool {
-	if typ == UniverseError.Type() {
+	if typ == UniverseError {
 		return true
 	}
 
@@ -98,18 +98,23 @@ func HasErrorMethod(typ types.Type) bool {
 }
 
 // HasErrorSig checks whether the provided function signature is `func() string`.
-// Returns true if the signature matches, otherwise false.
 func HasErrorSig(sig *types.Signature) bool {
-	if sig.Params().Len() > 0 || sig.Results().Len() != 1 {
-		return false // Wrong signature
-	}
+	return errorSig.matchSignature(sig)
+}
 
-	restype := types.Unalias(sig.Results().At(0).Type())
-	if b, basic := restype.(*types.Basic); !basic || b.Kind() != types.String {
-		return false // Wrong result type
-	}
+// HasIsSig checks whether the provided function signature is `func(error) bool`.
+func HasIsSig(sig *types.Signature) bool {
+	return isSig.matchSignature(sig)
+}
 
-	return true
+// HasAsSig checks whether the provided function signature is `func(any) bool`.
+func HasAsSig(sig *types.Signature) bool {
+	return asSig.matchSignature(sig)
+}
+
+// HasUnwrapSig checks whether the provided function signature is `func() error`.
+func HasUnwrapSig(sig *types.Signature) bool {
+	return unwrapSig.matchSignature(sig) || unwrapMultipleSig.matchSignature(sig)
 }
 
 // HasPointerReceiver determines whether the given method signature has a pointer receiver.

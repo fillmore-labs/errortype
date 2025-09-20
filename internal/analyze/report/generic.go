@@ -26,20 +26,20 @@ type Generic struct {
 
 // ShouldBeValue reports a diagnostic when a value error is queried as a pointer.
 func (r Generic) ShouldBeValue(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	fname := r.funName()
 
 	r.ReportRangef(r.Expr,
-		`Error type %q should be queried as a value ("%s[%s]"), not a pointer. (et:ast)`, fullName, fname, importName)
+		`Error type %q should be queried as a value ("%s[%s]"), not a pointer. (et:ast)`, relativeName, fname, importName)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is queried as a value.
 func (r Generic) ShouldBePointer(tn *types.TypeName) {
-	fullName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
 	fname := r.funName()
 
 	r.ReportRangef(r.Expr,
-		`Error type %q should be queried as a pointer ("%s[*%s]"), not a value. (et:ast+)`, fullName, fname, importName)
+		`Error type %q should be queried as a pointer ("%s[*%s]"), not a value. (et:ast+)`, relativeName, fname, importName)
 }
 
 // funName gets a short function name, not necessarily matching imports.

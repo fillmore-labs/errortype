@@ -31,7 +31,7 @@ func (myError1) Error() string {
 	return ""
 }
 
-func (myError1) Is(_, err error) bool {
+func (myError1) Is(_, err error) bool { // want " \\(et:sig\\)$"
 	return errors.Is(err, nil)
 }
 

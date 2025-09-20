@@ -50,7 +50,7 @@ func TestFuncNameOf(t *testing.T) {
 		{
 			name: "simple value method call",
 			fun: func() *types.Func {
-				recv := types.NewVar(token.NoPos, pkg, "", named)
+				recv := types.NewParam(token.NoPos, pkg, "", named)
 				sig := types.NewSignatureType(recv, nil, nil, nil, nil, false)
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
@@ -60,7 +60,7 @@ func TestFuncNameOf(t *testing.T) {
 		{
 			name: "simple pointer method call",
 			fun: func() *types.Func {
-				recv := types.NewVar(token.NoPos, pkg, "", types.NewPointer(named))
+				recv := types.NewParam(token.NoPos, pkg, "", types.NewPointer(named))
 				sig := types.NewSignatureType(recv, nil, nil, nil, nil, false)
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
@@ -89,18 +89,14 @@ func TestFuncNameOf(t *testing.T) {
 			wantFuncName: "myFunc",
 		},
 		{
-			name: "method on type without package",
-			fun: func() *types.Func {
-				iface := UniverseError.Type().Underlying().(*types.Interface)
-
-				return iface.Method(0)
-			}(),
+			name:         "method on type without package",
+			fun:          func() *types.Func { return UniverseError.Underlying().(*types.Interface).Method(0) }(),
 			wantFuncName: "(error).Error",
 		},
 		{
 			name: "invalid method call",
 			fun: func() *types.Func {
-				recv := types.NewVar(token.NoPos, pkg, "", emptystruct)
+				recv := types.NewParam(token.NoPos, pkg, "", emptystruct)
 				sig := types.NewSignatureType(recv, nil, nil, nil, nil, false)
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
@@ -110,7 +106,7 @@ func TestFuncNameOf(t *testing.T) {
 		{
 			name: "invalid pointer method call",
 			fun: func() *types.Func {
-				recv := types.NewVar(token.NoPos, pkg, "", types.NewPointer(emptystruct))
+				recv := types.NewParam(token.NoPos, pkg, "", types.NewPointer(emptystruct))
 				sig := types.NewSignatureType(recv, nil, nil, nil, nil, false)
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)

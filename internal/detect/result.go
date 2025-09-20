@@ -17,9 +17,11 @@
 package detect
 
 import (
+	"context"
 	"go/types"
 	"iter"
 	"maps"
+	"runtime/trace"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -29,7 +31,9 @@ import (
 // createResult combines all determined type information into the final analyzer result.
 // It merges types from the current package and dependencies (facts) and local overrides,
 // with local overrides having the highest precedence.
-func (p pass) createResult() errortypes.Result {
+func (p pass) createResult(ctx context.Context) errortypes.Result {
+	defer trace.StartRegion(ctx, "result").End()
+
 	// Add types from dependencies (via facts).
 	facts := p.AllObjectFacts()
 	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
@@ -37,7 +41,7 @@ func (p pass) createResult() errortypes.Result {
 
 	// Iterate over all types in the current package whose pointer-ness has been determined.
 	for tn, errorType := range p.AllDetermined {
-		if tn.Pkg() == p.Pkg {
+		if p.inCurrentPkg(tn) {
 			// Export this information as a fact when the type is defined in the current package.
 			// These facts can then be consumed by analyzers running on packages dependent on this one.
 			p.ExportObjectFact(tn, &errorType)

@@ -26,7 +26,7 @@ type Interface interface{ error }
 
 func NewInterface() Interface { return nil }
 
-func NewStruct() error { return &struct{ error }{} /* want "NOT A NAMED TYPE" */ }
+func NewStruct() error { return &struct{ error }{} }
 
 func NewValueDefault() *c.ValueDefault { return nil }
 
@@ -37,20 +37,24 @@ var _ error = Interface(nil)
 var _ error = (*struct{ error })(nil)
 
 func Return2() error {
+	var err error
+
 	switch rand.Int() {
 	case 0:
-		return NewInterface() // want "NOT IN RESULTS"
+		err = NewInterface() // want "NOT IN RESULTS"
 
 	case 1:
-		return NewStruct() // want "NOT IN RESULTS"
+		err = NewStruct() // want "NOT IN RESULTS"
 
 	case 2:
-		return NewValueDefault() // want "VALUE"
+		err = NewValueDefault() // want "VALUE"
 
 	case 3:
-		return &c.ValueDefault{} // want "VALUE"
+		err = &c.ValueDefault{} // want "VALUE"
 
 	default:
-		return nil
+		err = nil
 	}
+
+	return err
 }

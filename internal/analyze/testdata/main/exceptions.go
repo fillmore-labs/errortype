@@ -29,7 +29,7 @@ type myErrorEmbedded struct{ *myErr }
 func Exception1() {
 	var err error = myErrorEmbedded{&myErr{Msg: "embedded"}} // want " \\(et:emb\\)$"
 
-	var _ error = &myErrorEmbedded{}
+	var _ error = &myErrorEmbedded{} // want " \\(et:emb\\+\\)$"
 
 	var emb myErrorEmbedded
 

@@ -25,14 +25,14 @@ import (
 // checkErrorUsage verifies that a given type `t` is used correctly (as a pointer or value)
 // based on the determined or configured usage. It reports diagnostics for mismatches
 // or for types with undetermined usage.
-func (p pass) checkErrorUsage(t types.Type, reporter UsageReporter) {
+func (p pass) checkErrorUsage(t types.Type, reporter usageReporter) {
 	if types.IsInterface(t) {
 		return // We can't analyze interfaces.
 	}
 
 	// We can only analyze named types, as anonymous types ("struct{ error }")
 	// cannot be configured.
-	tn, isPtr, ok := typeutil.TypeNameOf(t)
+	tn, ptr, ok := typeutil.TypeNameOf(t)
 	if !ok {
 		return
 	}
@@ -42,17 +42,17 @@ func (p pass) checkErrorUsage(t types.Type, reporter UsageReporter) {
 	}
 
 	// Record the observed usage and look up the expected one.
-	usage := p.recordAndLookup(tn, isPtr)
+	usage := p.recordAndLookup(tn, ptr)
 
 	// Check the actual usage against the expected usage.
 	switch usage {
 	case PointerExpected:
-		if !isPtr {
+		if !ptr {
 			reporter.ShouldBePointer(tn)
 		}
 
 	case ValueExpected:
-		if isPtr {
+		if ptr {
 			reporter.ShouldBeValue(tn)
 		}
 
@@ -63,7 +63,7 @@ func (p pass) checkErrorUsage(t types.Type, reporter UsageReporter) {
 		// The type's usage is not determined. This often happens when a struct
 		// embeds an error type without defining its own Error() method.
 		// We report this to suggest adding it to the configuration.
-		reporter.UndeterminedUsage(tn, isPtr)
+		reporter.UndeterminedUsage(tn, ptr)
 
 	default:
 		// This should not happen if the analyzer is configured correctly.
@@ -74,10 +74,10 @@ func (p pass) checkErrorUsage(t types.Type, reporter UsageReporter) {
 // recordAndLookup records the observed usage type (value or pointer) for the given
 // type name and returns the detected usage for that type, masked by AnalyzeMask.
 // It updates the errorUsages property with the observed usage before returning the result.
-func (p pass) recordAndLookup(tn *types.TypeName, isPtr bool) Usage {
+func (p pass) recordAndLookup(tn *types.TypeName, ptr bool) Usage {
 	// Record the observed ...
 	et := ValueObserved
-	if isPtr {
+	if ptr {
 		et = PointerObserved
 	}
 

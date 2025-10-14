@@ -37,7 +37,8 @@ overrides:
 style-check: true
 deep-is-check: false
 check-is: true
-unchecked-assert: false`
+unchecked-assert: false
+check-unused: false`
 
 func TestSettings(t *testing.T) {
 	t.Parallel()

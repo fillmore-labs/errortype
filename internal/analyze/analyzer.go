@@ -66,11 +66,13 @@ func (o *Options) Analyzer() *analysis.Analyzer {
 	a.Flags.BoolVar(&o.CheckIs, "check-is", o.CheckIs,
 		`suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`)
 
-	a.Flags.BoolVar(&o.DeepIsCheck, "deep-is-check", o.DeepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only on target`)
+	a.Flags.BoolVar(&o.DeepIsCheck, "deep-is-check", o.DeepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only those on target`)
 
 	a.Flags.BoolVar(&o.UncheckedAssert, "unchecked-assert", o.UncheckedAssert, `report unchecked type asserts on errors`)
 
-	a.Flags.StringVar(&o.Suggest, "suggest", o.Suggest, `append override suggestions to this file, "-" for standard output`)
+	a.Flags.BoolVar(&o.CheckUnused, "check-unused", o.CheckUnused, `report unchecked calls on errors.As-like functions`)
+
+	a.Flags.StringVar(&o.Suggest, "suggest", o.Suggest, "append suggestions to this `file`, \"-\" for standard output")
 
 	copyFlags(&o.DetectTypes.Flags, &a.Flags)
 

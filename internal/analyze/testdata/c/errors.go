@@ -70,6 +70,8 @@ func Errors() {
 	_ = xerrors.Is(func() error { // want "is false or undefined"
 		return &myErrorWithIs{}
 	}(), &myError1{})
+
+	(errors.Is(nil, &e)) // want " \\(et:unu\\+\\)"
 }
 
 func Errors2() {

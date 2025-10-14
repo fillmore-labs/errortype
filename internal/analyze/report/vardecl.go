@@ -28,14 +28,24 @@ type VarDecl struct {
 func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
 	relativeName := r.relativeNameOf(tn)
 
-	r.ReportRangef(r.Expr,
-		`Error %q should be a value (\"%s{...}\"), not a pointer. (et:var)`, r.VarName, relativeName)
+	if r.VarName == "_" {
+		r.ReportRangef(r.Expr,
+			`Error assertion should be a value (\"%s{...}\"), not a pointer. (et:var)`, relativeName)
+	} else {
+		r.ReportRangef(r.Expr,
+			`Error %q should be a value (\"%s{...}\"), not a pointer. (et:var)`, r.VarName, relativeName)
+	}
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is queried as a value.
 func (r VarDecl) ShouldBePointer(tn *types.TypeName) {
 	relativeName := r.relativeNameOf(tn)
 
-	r.ReportRangef(r.Expr,
-		`Error %q should be a pointer (\"&%s{...}\"), not a value. (et:var+)`, r.VarName, relativeName)
+	if r.VarName == "_" {
+		r.ReportRangef(r.Expr,
+			`Error assertion should be a pointer (\"&%s{...}\"), not a value. (et:var+)`, relativeName)
+	} else {
+		r.ReportRangef(r.Expr,
+			`Error %q should be a pointer (\"&%s{...}\"), not a value. (et:var+)`, r.VarName, relativeName)
+	}
 }

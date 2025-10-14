@@ -26,4 +26,6 @@ func New126(err *myIntError) {
 	_ = errors.Is(err, new(myIntError(1))) // want " \\(et:cmp\\+\\)"
 
 	_, _ = errors.AsType[*myIntError](err) // want " \\(et:ast\\)"
+
+	(errors.AsType[myIntError](err)) // want " \\(et:unu\\+\\)"
 }

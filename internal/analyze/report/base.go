@@ -32,11 +32,11 @@ type Base struct {
 }
 
 // UndeterminedUsage reports a diagnostic for an error type with undetermined usage.
-func (r Base) UndeterminedUsage(tn *types.TypeName, isPtr bool) {
+func (r Base) UndeterminedUsage(tn *types.TypeName, ptr bool) {
 	fullName := types.TypeString(tn.Type(), nil)
 
 	codeSuffix := ""
-	if isPtr {
+	if ptr {
 		codeSuffix = "+"
 	}
 
@@ -49,7 +49,7 @@ func (r Base) relativeNameOf(tn *types.TypeName) string {
 	return types.TypeString(tn.Type(), types.RelativeTo(r.Pkg))
 }
 
-func (r Base) importNameOf(tn *types.TypeName) string {
+func (r Base) shortNameOf(tn *types.TypeName) string {
 	current := r.Pkg
 
 	return types.TypeString(tn.Type(), func(pkg *types.Package) string {

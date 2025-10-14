@@ -263,7 +263,7 @@ type EmbeddedPointer struct{ *PointerError }
 func embedded() {
 	var eperr error = EmbeddedPointer{&PointerError{Msg: "embedded pointer"}}
 
-	var _ error = &EmbeddedPointer{}
+	var _ error = &EmbeddedPointer{} // want " \\(et:emb\\+\\)$"
 
 	var ok bool
 

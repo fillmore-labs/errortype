@@ -52,13 +52,9 @@ const (
 	// Embedded is set if the `Error` method is not directly defined on the type,
 	// but embedded. This is no indicator and for diagnostics only.
 	Embedded
-
-	// --- Properties from variable declarations (e.g., `var ErrSomething = ...`) ---.
-
-	// PointerVar is set for pointer usage, e.g., `var _ error = &T{}` or `var Err = &T{}`.
-	PointerVar
-	// ValueVar is set for value usage, e.g., `var _ error = T{}` or `var Err = T{}`.
-	ValueVar
+	// EmbeddedMethod is set if one of the `error` methods `Is` or `As` is not
+	// directly defined on the type, but embedded. This is no indicator and for diagnostics only.
+	EmbeddedMethod
 
 	// --- Properties from type aliases (e.g., `type T = V`) ---.
 
@@ -66,6 +62,13 @@ const (
 	PointerAlias
 	// ValueAlias is set for an alias to an imported value-type error.
 	ValueAlias
+
+	// --- Properties from variable declarations (e.g., `var ErrSomething = ...`) ---.
+
+	// PointerVar is set for pointer usage, e.g., `var _ error = &T{}` or `var Err = &T{}`.
+	PointerVar
+	// ValueVar is set for value usage, e.g., `var _ error = T{}` or `var Err = T{}`.
+	ValueVar
 
 	// --- Properties from usage in return statements ---.
 
@@ -136,10 +139,11 @@ var errorProperties = map[ErrorProperty]string{
 	PointerReceiver:  "PointerReceiver",
 	PointerMethod:    "PointerMethod",
 	Embedded:         "Embedded",
-	PointerVar:       "PointerVar",
-	ValueVar:         "ValueVar",
+	EmbeddedMethod:   "EmbeddedMethod",
 	PointerAlias:     "PointerAlias",
 	ValueAlias:       "ValueAlias",
+	PointerVar:       "PointerVar",
+	ValueVar:         "ValueVar",
 	PointerReturn:    "PointerReturn",
 	ValueReturn:      "ValueReturn",
 	PointerAssert:    "PointerAssert",
@@ -186,8 +190,8 @@ func (e ErrorProperty) String() string {
 // the strongest evidence to the weakest. The first category with a non-contradictory
 // signal determines the type.
 var propertyPairs = [...][2]ErrorProperty{
-	{PointerVar, ValueVar},             // Strongest: Sentinel errors or `var _ error` assertions.
 	{PointerAlias, ValueAlias},         // Aliases of imported error types.
+	{PointerVar, ValueVar},             // Sentinel errors or `var _ error` assertions.
 	{PointerReturn, ValueReturn},       // Usage in `return` statements.
 	{PointerAssert, ValueAssert},       // Usage in type assertions.
 	{PointerTarget, ValueTarget},       // Usage in errors.As-like functions.

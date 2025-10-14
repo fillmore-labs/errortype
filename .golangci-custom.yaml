@@ -2,7 +2,7 @@
 version: "2"
 
 run:
-  go: 1.24.7
+  go: 1.24.9
   modules-download-mode: readonly
 
 linters:
@@ -27,3 +27,4 @@ linters:
           deep-is-check: false
           check-is: true
           unchecked-assert: false
+          check-unused: false

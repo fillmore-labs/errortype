@@ -25,16 +25,16 @@ type TypeSwitch struct {
 
 // ShouldBeValue reports a diagnostic when a value error is asserted as a pointer.
 func (r TypeSwitch) ShouldBeValue(tn *types.TypeName) {
-	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
 	// case *MyValueError:
 	r.ReportRangef(r.Expr,
-		`Value error %q should be used as a value type ("case %s:") in the type switch, not as a pointer type. (et:ast)`, relativeName, importName)
+		`Value error %q should be used as a value type ("case %s:") in the type switch, not as a pointer type. (et:ast)`, relativeName, shortName)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is asserted as a value.
 func (r TypeSwitch) ShouldBePointer(tn *types.TypeName) {
-	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
 	// case MyPointerError:
 	r.ReportRangef(r.Expr,
-		`Pointer error %q should be used as a pointer type ("case *%s:") in the type switch, not as a value type. (et:ast+)`, relativeName, importName)
+		`Pointer error %q should be used as a pointer type ("case *%s:") in the type switch, not as a value type. (et:ast+)`, relativeName, shortName)
 }

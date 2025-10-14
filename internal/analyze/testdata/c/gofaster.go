@@ -41,5 +41,5 @@ import (
 func TestGoFaster(t *testing.T) {
 	var err *myError1
 
-	errors.Is(err, &myError1{}) // want "is false or undefined"
+	errors.Is(err, &myError1{}) // want "is false or undefined"  " \\(et:unu\\+\\)"
 }

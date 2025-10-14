@@ -14,27 +14,47 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build go1.25
+
 package a
 
 import (
-	"test/a/b"
-
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
+	"math/rand/v2"
+	"reflect"
 )
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+type (
+	PointerCast struct{ error }
+	ValueCast   struct{ error }
+)
 
-	var (
-		err error
-		pve *ValueError
-	)
+func IsPointerCast(err error) bool {
+	v := reflect.ValueOf(err)
+	_, ok := reflect.TypeAssert[*PointerCast](v)
 
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+	return ok
+}
 
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
+func IsValueCast(err error) bool {
+	v := reflect.ValueOf(err)
+	_, ok := reflect.TypeAssert[ValueCast](v)
 
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+	return ok
+}
+
+func ReturnL() error {
+	var err error
+
+	switch rand.Int() {
+	case 0:
+		err = PointerCast{} // want "POINTER"
+
+	case 1:
+		err = &ValueCast{} // want "VALUE"
+
+	default:
+		err = nil
+	}
+
+	return err
 }

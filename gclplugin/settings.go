@@ -28,6 +28,7 @@ type Settings struct {
 	DeepIsCheck     *bool     `json:"deep-is-check,omitzero"`
 	CheckIs         *bool     `json:"check-is,omitzero"`
 	UncheckedAssert *bool     `json:"unchecked-assert,omitzero"`
+	CheckUnused     *bool     `json:"check-unused,omitzero"`
 }
 
 // Overrides defines overrides for error types.
@@ -76,6 +77,7 @@ func errortypeOptions(settings Settings) []errortype.Option {
 		{settings.DeepIsCheck, errortype.WithDeepIsCheck},
 		{settings.CheckIs, errortype.WithCheckIs},
 		{settings.UncheckedAssert, errortype.WithUncheckedAssert},
+		{settings.CheckUnused, errortype.WithCheckUnused},
 	} {
 		if opt.v != nil {
 			opts = append(opts, opt.f(*opt.v))

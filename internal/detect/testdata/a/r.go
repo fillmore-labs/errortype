@@ -23,35 +23,39 @@ import (
 )
 
 func Return4() error {
+	var err error
+
 	switch rand.Int() {
 	case 0:
-		return c.AmbiguousPointer{} // want "POINTER"
+		err = c.AmbiguousPointer{} // want "POINTER"
 
 	case 1:
-		return c.AmbiguousValue{} // want "VALUE"
+		err = &c.AmbiguousValue{} // want "VALUE"
 
 	case 2:
-		return c.AmbiguousAmbiguous{} // want "NOT IN RESULTS"
+		err = c.AmbiguousAmbiguous{} // want "UNDECIDED"
 
 	case 3:
-		return &c.EmbeddedPointer{} // want "POINTER"
+		err = &c.EmbeddedPointer{} // want "POINTER"
 
 	case 4:
-		return c.EmbeddedValue{} // want "NOT IN RESULTS"
+		err = c.EmbeddedValue{} // want "UNDECIDED"
 
 	case 5:
-		return c.EmbeddedAmbiguous{} // want "NOT IN RESULTS"
+		err = c.EmbeddedAmbiguous{} // want "UNDECIDED"
 
 	case 6:
-		return c.EmbeddedPPointer{} // want "NOT IN RESULTS"
+		err = c.EmbeddedPPointer{} // want "UNDECIDED"
 
 	case 7:
-		return c.EmbeddedPValue{} // want "NOT IN RESULTS"
+		err = c.EmbeddedPValue{} // want "UNDECIDED"
 
 	case 8:
-		return c.EmbeddedPAmbiguous{} // want "NOT IN RESULTS"
+		err = c.EmbeddedPAmbiguous{} // want "UNDECIDED"
 
 	default:
-		return nil
+		err = nil
 	}
+
+	return err
 }

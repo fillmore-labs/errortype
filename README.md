@@ -5,7 +5,7 @@
 [![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql)
 [![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/main/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
 [![Go Report Card](https://goreportcard.com/badge/fillmore-labs.com/errortype)](https://goreportcard.com/report/fillmore-labs.com/errortype)
-[![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=main)](https://ci.codeberg.org/repos/15305)
+[![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=main)](https://ci.codeberg.org/repos/15305/branches/main)
 [![License](https://img.shields.io/github/license/fillmore-labs/errortype)](https://www.apache.org/licenses/LICENSE-2.0)
 
 `errortype` is a Go static analysis tool (linter) that helps prevent subtle bugs in error handling and other areas. It
@@ -464,6 +464,12 @@ specific problems.
 - **`et:sig` (Wrong Signature)**: An `Unwrap` related method has the wrong signature. This is also flagged by the
   standard Go [`stdmethods`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods) linter.
 
+- **`et:unu` (Unused Result)**: The result of an `errors.Is`-like function is unused.
+
+  ```go
+    errors.Is(err, &MyError{})
+  ```
+
 - **`et:uca` (Unchecked Type Assert)**: An unchecked type assert might lead to a run-time panic on a wrapped error.
 
   ```go
@@ -488,7 +494,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.6
+    version: v0.0.7
 ```
 
 then run `golangci-lint custom` from your project root. You get a custom `golangci-lint` executable that can be
@@ -518,6 +524,7 @@ linters:
           deep-is-check: false
           check-is: true
           unchecked-assert: false
+          check-unused: false
 ```
 
 and can be used like `golangci-lint`:

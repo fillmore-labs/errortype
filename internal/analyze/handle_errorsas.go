@@ -32,7 +32,7 @@ func (p pass) handleErrorsAsType(fun *types.Func, targetExpr ast.Expr) {
 		return // We are only interested in errors
 	}
 
-	reporter := p.GenericReporter(targetExpr, fun)
+	reporter := p.genericCallReporter(targetExpr, fun)
 
 	// Now, check if the error type is used correctly (pointer vs. value).
 	p.checkErrorUsage(tv.Type, reporter)
@@ -74,7 +74,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 			return
 		}
 
-		reporter := p.ErrorsAsReporter(targetArg, fun)
+		reporter := p.errorsAsReporter(targetArg, fun)
 
 		// Now, check if the error type is used correctly (pointer vs. value).
 		p.checkErrorUsage(elemType, reporter)

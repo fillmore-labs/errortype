@@ -14,27 +14,8 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package b
 
-import (
-	"test/a/b"
+type GenericError[T string | int] struct{ _ T }
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
-)
-
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
-
-	var (
-		err error
-		pve *ValueError
-	)
-
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
-
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
-
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
-}
+func (GenericError[T]) Error() string { return "" }

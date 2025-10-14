@@ -31,7 +31,7 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr, uncheckedAssert bool) {
 
 	tvx, ok := p.TypesInfo.Types[n.X]
 	if !ok || !typeutil.HasErrorMethod(tvx.Type) {
-		return // We are only interested in assertions on interface that implement error.
+		return // We are only interested in assertions on interfaces that implement error.
 	}
 
 	tv, ok := p.TypesInfo.Types[n]
@@ -55,7 +55,7 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr, uncheckedAssert bool) {
 		typ = tv.Type
 	}
 
-	p.checkErrorUsage(typ, p.AssertReporter(n.Type))
+	p.checkErrorUsage(typ, p.assertReporter(n.Type))
 }
 
 var basicBool = types.Typ[types.Bool]

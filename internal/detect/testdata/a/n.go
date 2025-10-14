@@ -14,27 +14,32 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build go1.26
+
 package a
 
 import (
-	"test/a/b"
+	"math/rand/v2"
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
+	"test/a/c"
 )
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+func ReturnN[U comparable]() error {
+	var err error
 
-	var (
-		err error
-		pve *ValueError
-	)
+	switch rand.Int() {
+	case 0:
+		err = c.GenError[U]{} // want "POINTER"
 
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+	case 1:
+		err = c.GenError[int]{} // want "POINTER"
 
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
+	case 2:
+		err = c.GenError[struct{}]{} // want "POINTER"
 
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+	default:
+		err = nil
+	}
+
+	return err
 }

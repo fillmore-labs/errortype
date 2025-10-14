@@ -19,11 +19,13 @@ package analyze
 import (
 	"go/ast"
 
+	"golang.org/x/tools/go/ast/inspector"
+
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleCall checks for incorrect pointer/value usage of error types passed to functions like errors.As.
-func (p pass) handleCall(n *ast.CallExpr, opts AstOptions) {
+func (p pass) handleCall(n *ast.CallExpr, c inspector.Cursor, opts AstOptions) {
 	if len(n.Args) == 0 {
 		return // Not interested in calls with no arguments.
 	}
@@ -45,31 +47,27 @@ func (p pass) handleCall(n *ast.CallExpr, opts AstOptions) {
 	switch info.Kind() {
 	case typeutil.KindIs:
 		p.handleErrorIs(n, methodExpr, info.IsType(), opts.CheckIs)
-		// TODO: check target argument type
-		return
 
 	case typeutil.KindEqu:
 		p.handleErrorIs(n, methodExpr, info.IsType(), false)
-		return
 
 	case typeutil.KindAs:
 		targetArgIndex, typeParam := info.AsTarget()
 
 		// Handle generic functions like `errors.AsType[T]`.
-		if typeParam >= 0 {
-			if len(typeParams) > typeParam {
-				typ := typeParams[typeParam]
-				p.handleErrorsAsType(fun, typ)
+		// Check whether enough type parameters were provided for the generic function.
+		if typeParam >= 0 && len(typeParams) > typeParam {
+			typ := typeParams[typeParam]
+			p.handleErrorsAsType(fun, typ)
 
-				return
-			}
+			break
+		}
 
-			// Not enough type parameters were provided for the generic function.
-			// If this is a generic-only function (no argument index fallback), we can't proceed.
-			if targetArgIndex < 0 {
-				return
-			}
-			// Otherwise, fall through to argument-based analysis.
+		// Argument-based analysis.
+
+		// If this is a generic-only function (no argument index fallback), we can't proceed.
+		if targetArgIndex < 0 {
+			break
 		}
 
 		if methodExpr {
@@ -82,6 +80,42 @@ func (p pass) handleCall(n *ast.CallExpr, opts AstOptions) {
 
 		p.handleErrorsAs(n, fun, targetArgIndex, opts)
 
-		return
+	case typeutil.KindType:
+		p.handleIsType(n, methodExpr, info.IsType())
+	}
+
+	if tag, ok := unusedTag(info.EvalType(), opts.CheckUnused); ok {
+		e := c.Parent()
+
+		for {
+			switch e.Node().(type) {
+			case *ast.ParenExpr:
+				e = e.Parent()
+
+				continue
+
+			case *ast.ExprStmt:
+				p.ReportRangef(n, "Result of %s is ignored (et:%s)", funcName, tag)
+			}
+
+			break
+		}
+	}
+}
+
+func unusedTag(evalType typeutil.EvalType, checkUnused bool) (string, bool) {
+	switch evalType {
+	case typeutil.MustEval:
+		return "unu+", true
+
+	case typeutil.ShouldEval:
+		if !checkUnused {
+			return "", false
+		}
+
+		return "unu", true
+
+	default:
+		return "", false
 	}
 }

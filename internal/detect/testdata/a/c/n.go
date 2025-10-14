@@ -14,27 +14,18 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+//go:build go1.26
 
-import (
-	"test/a/b"
+package c
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
-)
+import "errors"
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+type GenError[T any] struct{ _ T }
 
-	var (
-		err error
-		pve *ValueError
-	)
+func (GenError[_]) Error() string { return "" }
 
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+func IsGenErrorInt(err error) bool {
+	_, ok := errors.AsType[*GenError[int]](err)
 
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
-
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+	return ok
 }

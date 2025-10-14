@@ -14,27 +14,54 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
+//go:build go1.25
+
 package a
 
 import (
-	"test/a/b"
-
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
+	"math/rand/v2"
 )
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+type (
+	PointerLiteral1 struct{ error }
+	PointerLiteral2 struct{ error }
+	PointerLiteral3 struct{ error }
+	ValueLiteral    struct{ error }
+)
 
-	var (
-		err error
-		pve *ValueError
-	)
+func ReturnLiteral(err error) error {
+	err1 := []*PointerLiteral1{
+		{err},
+	}
 
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+	err2 := [...]*PointerLiteral1{
+		{err},
+	}
 
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
+	err3 := map[int]*PointerLiteral1{
+		1: {err},
+	}
 
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+	err4 := []ValueLiteral{
+		{err},
+	}
+
+	switch rand.Int() {
+	case 0:
+		err = err1[0] // want "POINTER"
+
+	case 1:
+		err = err2[0] // want "POINTER"
+
+	case 2:
+		err = err3[0] // want "POINTER"
+
+	case 3:
+		err = err4[0] // want "VALUE"
+
+	default:
+		err = nil
+	}
+
+	return err
 }

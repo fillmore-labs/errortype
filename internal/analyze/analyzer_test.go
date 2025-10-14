@@ -54,6 +54,7 @@ func TestAnalyzer(t *testing.T) {
 				o.CheckIs = false
 				o.DeepIsCheck = true
 				o.UncheckedAssert = true
+				o.CheckUnused = true
 			},
 			packages: []string{"test/b", "test/alias", "test/main", "test/style"},
 		},

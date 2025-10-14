@@ -61,7 +61,7 @@ func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 			}
 
 			// Perform the pointer-vs-value analysis on the case type.
-			p.checkErrorUsage(caseType.Type, p.TypeSwitchReporter(caseExpr))
+			p.checkErrorUsage(caseType.Type, p.typeSwitchReporter(caseExpr))
 		}
 	}
 }
@@ -76,6 +76,7 @@ func getTypeSwitchExpr(n *ast.TypeSwitchStmt) (ast.Expr, bool) {
 		if len(s.Rhs) > 0 {
 			typeAssert, _ = s.Rhs[0].(*ast.TypeAssertExpr)
 		}
+
 	case *ast.ExprStmt: // switch y.(type)
 		typeAssert, _ = s.X.(*ast.TypeAssertExpr)
 	}

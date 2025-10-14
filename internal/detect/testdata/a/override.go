@@ -29,21 +29,25 @@ var (
 	_ error = &ValueOverride{}
 )
 
-func Return3() error {
+func ReturnOverride() error {
+	var err error
+
 	switch rand.Int() {
 	case 0:
-		return PointerOverride{} // want "POINTER"
+		err = PointerOverride{} // want "POINTER"
 
 	case 1:
-		return ValueOverride{} // want "VALUE"
+		err = &ValueOverride{} // want "VALUE"
 
 	case 2:
-		return SuppressOverride{} // want "SUPPRESS"
+		err = SuppressOverride{} // want "SUPPRESS"
 
 	case 3:
-		return &SuppressOverride{} // want "SUPPRESS"
+		err = &SuppressOverride{} // want "SUPPRESS"
 
 	default:
-		return nil
+		err = nil
 	}
+
+	return err
 }

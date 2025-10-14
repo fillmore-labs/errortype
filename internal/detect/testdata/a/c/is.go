@@ -14,27 +14,32 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package c
 
-import (
-	"test/a/b"
-
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
+type (
+	ErrorWithIs1    struct{ error }
+	ErrorWithIs2    struct{ error }
+	ErrorWithoutIs1 struct{ error }
+	ErrorWithoutIs2 struct{ error }
 )
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
-
-	var (
-		err error
-		pve *ValueError
-	)
-
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
-
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
-
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+func (e *ErrorWithIs1) Is(err error) bool {
+	return e.error == err
 }
+
+func (e ErrorWithIs2) Is(err error) bool {
+	return e.error == err
+}
+
+func (e *ErrorWithoutIs1) Is(err1, err2 error) bool {
+	return e.error == err1
+}
+
+func (e *ErrorWithoutIs2) Is(error) string {
+	return e.error.Error()
+}
+
+func (e ErrorWithIs1) Whatever()    {}
+func (e *ErrorWithIs2) Whatever()   {}
+func (e ErrorWithoutIs1) Whatever() {}
+func (e ErrorWithoutIs2) Whatever() {}

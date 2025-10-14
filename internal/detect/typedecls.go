@@ -40,7 +40,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 			continue
 		}
 
-		fun, indirect, embedded, ok := p.LookupMethod(tn, "Error", typeutil.HasErrorSig)
+		fun, indirect, embedded, ok := typeutil.LookupMethod(tn.Type(), "Error", typeutil.HasErrorSig)
 		if !ok {
 			continue // No "Error" method
 		}
@@ -82,33 +82,23 @@ func (p pass) processTypeDecls(ctx context.Context) {
 		if ptrRecv {
 			// The `Error() string` has a pointer receiver
 			prop |= PointerReceiver
-		} else if p.HasPointerReceiverErrorMethods(tn) {
+		}
+
+		ptr, emb := p.HasErrorMethods(tn)
+		if ptr {
 			// An error wrapping related method has a pointer receiver
 			prop |= PointerMethod
+		}
+
+		if emb {
+			// An error wrapping related method is embedded
+			prop |= EmbeddedMethod
 		}
 
 		// Otherwise the type has a (possibly embedded) `Error() string` method, either with value receiver
 		// or the receiver type is not relevant because of indirection. We need to rely on heuristics.
 		p.AddTypeProperty(tn, prop)
 	}
-}
-
-// LookupMethod finds a method with the specified name in a type, checking its signature and accounting for embedding.
-// Returns the method if found, whether it was found via indirection, and a boolean indicating success.
-func (p pass) LookupMethod(tn *types.TypeName, name string, sigCheck func(*types.Signature) bool) (fun *types.Func, indirect, embedded, found bool) {
-	obj, index, indirect := types.LookupFieldOrMethod(tn.Type(), true, p.Pkg, name)
-	if obj == nil {
-		return nil, false, false, false // No method with name
-	}
-
-	fun, ok := obj.(*types.Func)
-	if !ok || !sigCheck(fun.Signature()) {
-		return nil, false, false, false // *types.Var or wrong signature
-	}
-
-	embedded = len(index) > 1
-
-	return fun, indirect, embedded, true
 }
 
 // errorMethods defines a list of error-related method names and functions to check their signature validity.
@@ -121,21 +111,25 @@ var errorMethods = [...]struct {
 	{"As", typeutil.HasAsSig},
 }
 
-// HasPointerReceiverErrorMethods inspects a type for error wrapping related methods with pointer receivers.
-func (p pass) HasPointerReceiverErrorMethods(tn *types.TypeName) bool {
-	for _, lookup := range errorMethods {
-		fun, indirect, _, ok := p.LookupMethod(tn, lookup.name, lookup.sigCheck)
+// HasErrorMethods inspects a type for error wrapping related methods, embedded or with pointer receivers.
+func (p pass) HasErrorMethods(tn *types.TypeName) (ptrRecv, embedded bool) {
+	for i, lookup := range errorMethods {
+		fun, indirect, emb, ok := typeutil.LookupMethod(tn.Type(), lookup.name, lookup.sigCheck)
 		if !ok {
 			continue // No such method with matching signature
 		}
 
 		if !indirect {
 			// The method is direct or embedded without indirections
-			if _, ptrRecv := typeutil.HasPointerReceiver(fun.Signature()); ptrRecv {
-				return true
+			if _, ptr := typeutil.HasPointerReceiver(fun.Signature()); ptr {
+				ptrRecv = true
 			}
+		}
+
+		if emb && i != 0 { // Only test `Is` and `As` for embedding
+			embedded = true
 		}
 	}
 
-	return false
+	return ptrRecv, embedded
 }

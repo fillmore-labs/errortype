@@ -30,7 +30,7 @@ Package gclplugin implements a golangci-lint plugin for [errortype].
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.6
+	    version: v0.0.7
 
 2. Run `golangci-lint custom` from your project root.
 
@@ -62,6 +62,7 @@ This will create a custom `golangci-lint` executable in your project root.
 	          deep-is-check: false
 	          check-is: true
 	          unchecked-assert: false
+	          check-unused: false
 
 4. Run the linter:
 

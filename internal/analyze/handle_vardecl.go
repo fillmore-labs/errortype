@@ -23,14 +23,14 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// handleVarDecls checks for incorrect pointer/value usage of error types in type switch cases.
+// handleVarDecls checks for incorrect pointer/value usage of error types in variable declarations.
 func (p pass) handleVarDecls(n *ast.ValueSpec) {
 	for i, id := range n.Names {
 		if len(n.Values) <= i {
 			break
 		}
 
-		if !strings.HasPrefix(id.Name, "Err") && !strings.HasPrefix(id.Name, "err") {
+		if id.Name != "_" && !strings.HasPrefix(id.Name, "Err") && !strings.HasPrefix(id.Name, "err") {
 			continue
 		}
 
@@ -41,6 +41,6 @@ func (p pass) handleVarDecls(n *ast.ValueSpec) {
 			continue // Not an error type
 		}
 
-		p.checkErrorUsage(tv.Type, p.VarDeclReporter(value, id.Name))
+		p.checkErrorUsage(tv.Type, p.varDeclReporter(value, id.Name))
 	}
 }

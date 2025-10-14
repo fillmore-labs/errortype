@@ -92,7 +92,7 @@ func FuncNameOf(fun *types.Func) FuncName {
 		return f
 	}
 
-	rtyp := types.Unalias(recv.Type()) // It's a method with a receiver.
+	rtyp := types.Unalias(recv.Type()) // It's a method.
 
 	// If it's a pointer, set the ptr flag and unwrap to the element type.
 	if p, ok := rtyp.(*types.Pointer); ok {

@@ -17,7 +17,7 @@
 package typeutil
 
 // FuncKind distinguishes between different kinds of special functions.
-type FuncKind int
+type FuncKind int8
 
 const (
 	// indicates the function is unconfigured.
@@ -31,10 +31,13 @@ const (
 
 	// KindEqu indicates a function that behaves like assert.Equal.
 	KindEqu
+
+	// KindType indicates a function that behaves like assert.IsType.
+	KindType
 )
 
 // FuncType defines a type used to classify specific function behaviors or roles in analysis and comparisons.
-type FuncType int8
+type FuncType = int8
 
 const (
 	// the unclassified state for a function type, this should not happen.
@@ -48,8 +51,8 @@ const (
 )
 
 const (
-	// the unclassified state for a function type, this should not happen.
-	_ int8 = iota
+	// The unclassified state for a function type, this should not happen.
+	_ FuncType = iota
 
 	// AsFunc0 represents a function type that performs error assertion with no additional context or parameters.
 	AsFunc0
@@ -58,7 +61,7 @@ const (
 	AsFunc1
 
 	// AssertFunc represents a function type that performs error assertion without a target parameter.
-	AssertFunc int8 = -1
+	AssertFunc FuncType = -1
 )
 
 const (
@@ -69,69 +72,70 @@ const (
 	AsTypeParamNone int8 = -1
 )
 
+// EvalType represents the need for the result of a function to be evaluated.
+type EvalType = int8
+
+const (
+	_ EvalType = iota
+
+	// MustEval represents a function type that results must be evaluated.
+	MustEval
+
+	// ShouldEval represents a function type that results should be evaluated.
+	ShouldEval
+)
+
 // FuncInfo holds packed information about special functions like errors.Is or errors.As.
-// It is designed to be stored as a single integer value in a map for efficiency.
-//
-// The bit layout is as follows:
-//   - Bits 0-2: FuncKind (2 bits, for KindIs, KindAs, KindEqu)
-//
-// If KindIs:
-//   - Bits 3-4: FuncType (2 bits)
-//
-// If KindAs:
-//   - Bits 3-4: TargetArgIndex + 1 (4 bits, allows index from -1 to 2)
-//   - Bits 5-6: TypeParam + 1 (2 bits, allows index from -1 to 2)
-type FuncInfo int8
-
-const (
-	kindMask = 0b111
-
-	isTypeShift = 3
-	isTypeMask  = 0b11
-
-	asTargetArgShift = 3
-	asTargetArgMask  = 0b11
-	asTypeParamShift = 5
-	asTypeParamMask  = 0b11
-
-	asIndexOffset = 1
-)
-
-// Pre-defined FuncInfo constants for common function configurations.
-const (
-	// Is-like functions.
-	IsFuncType0 = FuncInfo(KindIs) | (FuncInfo(IsFunc0) << isTypeShift)
-	IsFuncType1 = FuncInfo(KindIs) | (FuncInfo(IsFunc1) << isTypeShift)
-
-	// Equal-like functions.
-	EquFuncType0 = FuncInfo(KindEqu) | (FuncInfo(IsFunc0) << isTypeShift)
-	EquFuncType1 = FuncInfo(KindEqu) | (FuncInfo(IsFunc1) << isTypeShift)
-
-	// As-like functions.
-	AsFuncType0         = FuncInfo(KindAs) | (FuncInfo(AsFunc0+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParamNone+asIndexOffset) << asTypeParamShift)
-	AsFuncType1         = FuncInfo(KindAs) | (FuncInfo(AsFunc1+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParamNone+asIndexOffset) << asTypeParamShift)
-	AsFuncType0WithType = FuncInfo(KindAs) | (FuncInfo(AsFunc0+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParam0+asIndexOffset) << asTypeParamShift)
-
-	// Assert-like functions without a target parameter.
-	AssertFuncWithType = FuncInfo(KindAs) | (FuncInfo(AssertFunc+asIndexOffset) << asTargetArgShift) | (FuncInfo(AsTypeParam0+asIndexOffset) << asTypeParamShift)
-)
+type FuncInfo struct {
+	kind      FuncKind
+	targetArg FuncType
+	typeParam int8
+	eval      EvalType
+}
 
 // Kind returns the kind of the function (e.g., KindIs, KindAs).
 func (i FuncInfo) Kind() FuncKind {
-	return FuncKind(i & kindMask)
+	return i.kind
 }
 
-// IsType returns the FuncType for an errors.Is-like function.
+// IsType returns the FuncType for an `errors.Is`-like function.
 // It should only be called if Kind() is KindIs.
 func (i FuncInfo) IsType() FuncType {
-	return FuncType((i >> isTypeShift) & isTypeMask)
+	return i.targetArg
 }
 
-// AsTarget returns the TargetArgIndex and TypeParam for an errors.As-like function.
+// AsTarget returns the TargetArgIndex and TypeParam for an `errors.As`-like function.
 // It should only be called if Kind() is KindAs.
 func (i FuncInfo) AsTarget() (targetArgIndex, typeParam int) {
-	targetArgIndex = int((i>>asTargetArgShift)&asTargetArgMask) - asIndexOffset
-	typeParam = int((i>>asTypeParamShift)&asTypeParamMask) - asIndexOffset
-
-	return targetArgIndex, typeParam
+	return int(i.targetArg), int(i.typeParam)
 }
+
+// EvalType is true when the result of the function should not be ignored.
+func (i FuncInfo) EvalType() EvalType {
+	return i.eval
+}
+
+// Pre-defined FuncInfo constants for common function configurations.
+var (
+	// Is-like functions.
+	isFuncType0Ignore = FuncInfo{kind: KindIs, targetArg: IsFunc0}
+	isFuncType0Result = FuncInfo{kind: KindIs, targetArg: IsFunc0, eval: MustEval}
+	isFuncType1Ignore = FuncInfo{kind: KindIs, targetArg: IsFunc1}
+
+	// Equal-like functions.
+	equFuncType0Ignore = FuncInfo{kind: KindEqu, targetArg: IsFunc0}
+	equFuncType1Ignore = FuncInfo{kind: KindEqu, targetArg: IsFunc1}
+
+	// As-like functions.
+	asFuncType0Ignore   = FuncInfo{kind: KindAs, targetArg: AsFunc0, typeParam: AsTypeParamNone}
+	asFuncType0Result   = FuncInfo{kind: KindAs, targetArg: AsFunc0, typeParam: AsTypeParamNone, eval: ShouldEval}
+	asFuncType1Ignore   = FuncInfo{kind: KindAs, targetArg: AsFunc1, typeParam: AsTypeParamNone}
+	asFuncType0WithType = FuncInfo{kind: KindAs, targetArg: AsFunc0, typeParam: AsTypeParam0, eval: ShouldEval}
+
+	// Assert-like functions without a target parameter.
+	assertFuncWithType = FuncInfo{kind: KindAs, targetArg: AssertFunc, typeParam: AsTypeParam0, eval: MustEval}
+
+	// IsType-like functions.
+	typFuncType0Ignore = FuncInfo{kind: KindType, targetArg: IsFunc0}
+	typFuncType1Ignore = FuncInfo{kind: KindType, targetArg: IsFunc1}
+)

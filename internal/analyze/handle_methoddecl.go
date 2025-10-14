@@ -48,7 +48,7 @@ func (p pass) handleMethodDecl(n *ast.FuncDecl, c inspector.Cursor, opts AstOpti
 		return
 	}
 
-	tn, isPtr, ok := typeutil.TypeNameOf(recv.Type())
+	tn, ptr, ok := typeutil.TypeNameOf(recv.Type())
 	if !ok { // should not happen
 		return
 	}
@@ -65,7 +65,7 @@ func (p pass) handleMethodDecl(n *ast.FuncDecl, c inspector.Cursor, opts AstOpti
 		return
 	}
 
-	if isPtr && prop&ExpectedMask == ValueExpected {
+	if ptr && prop&ExpectedMask == ValueExpected {
 		p.ReportRangef(n.Recv, "Method %q should be implemented with a value receiver, not a pointer (et:rcv)", fun.Name())
 	}
 

@@ -39,8 +39,9 @@ func (p pass) createResult(ctx context.Context) errortypes.Result {
 	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
 	maps.Insert(determinedTypes, extractErrorTypes(facts))
 
-	// Iterate over all types in the current package whose pointer-ness has been determined.
-	for tn, errorType := range p.AllDetermined {
+	for tn, prop := range p.PropertyMap {
+		errorType := prop.DeterminedType()
+
 		if p.inCurrentPkg(tn) {
 			// Export this information as a fact when the type is defined in the current package.
 			// These facts can then be consumed by analyzers running on packages dependent on this one.

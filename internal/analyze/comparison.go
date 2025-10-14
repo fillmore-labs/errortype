@@ -76,8 +76,8 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool)
 // diagNewComparison reports diagnostics for comparisons with new pointers (&T{} or new(T)).
 // These comparisons are always false since each new allocation creates a unique address.
 func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, direct, checkIs, isLeft bool) {
-	ptr, isPtr := types.Unalias(typ).(*types.Pointer)
-	if !isPtr { // should not happen
+	tn, ptr := types.Unalias(typ).(*types.Pointer)
+	if !ptr { // should not happen
 		p.ReportErrorf(n, "Expected pointer type, got %T", typ)
 
 		return
@@ -86,7 +86,7 @@ func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, dire
 	isUndefined := false
 
 	// Determine if the comparison is with a zero-sized type and the other operand is not nil.
-	if typeutil.ZeroSized(ptr.Elem()) {
+	if typeutil.ZeroSized(tn.Elem()) {
 		if otherType, ok := p.TypesInfo.Types[other]; ok && !otherType.IsNil() {
 			// In this case, the result is undefined.
 			isUndefined = true
@@ -105,7 +105,7 @@ func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, dire
 	}
 
 	// Report diagnostic
-	typeName := types.TypeString(ptr.Elem(), types.RelativeTo(p.Pkg))
+	typeName := types.TypeString(tn.Elem(), types.RelativeTo(p.Pkg))
 
 	otherStr := "<unknown>"
 
@@ -211,7 +211,7 @@ func shouldSuppressDiagnostic(typ types.Type, isLeft bool) bool {
 	//    Since we do not have dynamic runtime types, we rely on heuristics and assume when
 	//    `target` could be matched by an `Is(error) bool` method of `err`, it would be the
 	//    `Is(error) bool` method of `target` and suppress the diagnostic in this case.
-	if types.Implements(typ, errorIsInterface) {
+	if typeutil.HasMethod(typ, "Is", typeutil.HasIsSig) {
 		return true
 	}
 
@@ -219,9 +219,7 @@ func shouldSuppressDiagnostic(typ types.Type, isLeft bool) bool {
 	//    and its type `*T` implements an `Unwrap` method, `errors.Is` will traverse
 	//    the unwrapped errors. The comparison might then be valid against an unwrapped error.
 	//    Thus, we suppress the diagnostic in this case.
-	if isLeft &&
-		(types.Implements(typ, errorUnwrapInterface) ||
-			types.Implements(typ, errorUnwrapArrayInterface)) {
+	if isLeft && typeutil.HasMethod(typ, "Unwrap", typeutil.HasUnwrapSig) {
 		return true
 	}
 

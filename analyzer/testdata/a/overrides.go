@@ -29,8 +29,8 @@ func (ValueOverride) Error() string { return "" }
 type SuppressOverride struct{ error }
 
 var (
-	_ error = PointerOverride{}
-	_ error = &ValueOverride{}
+	_ error = PointerOverride{} // want " \\(et:var\\+\\)$"
+	_ error = &ValueOverride{}  // want " \\(et:var\\)$"
 )
 
 func ReturnOverride() error {

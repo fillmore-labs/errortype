@@ -45,6 +45,11 @@ func TestTestify(t *testing.T) {
 	_ = assert.NotErrorAs(t, err, &pve)      // want " \\(et:err\\)$"
 	_ = assert.NotErrorAsf(t, err, &pve, "") // want " \\(et:err\\)$"
 
+	_ = assert.IsType(t, &ValueError{}, err)         // want " \\(et:ast\\)$"
+	_ = assert.IsTypef(t, &ValueError{}, err, "")    // want " \\(et:ast\\)$"
+	_ = assert.IsNotType(t, &ValueError{}, err)      // want " \\(et:ast\\)$"
+	_ = assert.IsNotTypef(t, &ValueError{}, err, "") // want " \\(et:ast\\)$"
+
 	a := assert.New(t)
 
 	_ = a.ErrorAs(err, &pve)         // want " \\(et:err\\)$"
@@ -52,6 +57,11 @@ func TestTestify(t *testing.T) {
 	_ = a.ErrorAsf(err, &pve, "")    // want " \\(et:err\\)$"
 	_ = a.NotErrorAs(err, &pve)      // want " \\(et:err\\)$"
 	_ = a.NotErrorAsf(err, &pve, "") // want " \\(et:err\\)$"
+
+	_ = a.IsType(&ValueError{}, err)         // want " \\(et:ast\\)$"
+	_ = a.IsTypef(&ValueError{}, err, "")    // want " \\(et:ast\\)$"
+	_ = a.IsNotType(&ValueError{}, err)      // want " \\(et:ast\\)$"
+	_ = a.IsNotTypef(&ValueError{}, err, "") // want " \\(et:ast\\)$"
 
 	_ = (*assert.Assertions).ErrorAs(a, err, &pve) // want " \\(et:err\\)$"
 
@@ -61,6 +71,11 @@ func TestTestify(t *testing.T) {
 	require.NotErrorAs(t, err, &pve)      // want " \\(et:err\\)$"
 	require.NotErrorAsf(t, err, &pve, "") // want " \\(et:err\\)$"
 
+	require.IsType(t, &ValueError{}, err)         // want " \\(et:ast\\)$"
+	require.IsTypef(t, &ValueError{}, err, "")    // want " \\(et:ast\\)$"
+	require.IsNotType(t, &ValueError{}, err)      // want " \\(et:ast\\)$"
+	require.IsNotTypef(t, &ValueError{}, err, "") // want " \\(et:ast\\)$"
+
 	r := require.New(t)
 
 	r.ErrorAs(err, &pve)         // want " \\(et:err\\)$"
@@ -68,6 +83,11 @@ func TestTestify(t *testing.T) {
 	r.ErrorAsf(err, &pve, "")    // want " \\(et:err\\)$"
 	r.NotErrorAs(err, &pve)      // want " \\(et:err\\)$"
 	r.NotErrorAsf(err, &pve, "") // want " \\(et:err\\)$"
+
+	r.IsType(&ValueError{}, err)         // want " \\(et:ast\\)$"
+	r.IsTypef(&ValueError{}, err, "")    // want " \\(et:ast\\)$"
+	r.IsNotType(&ValueError{}, err)      // want " \\(et:ast\\)$"
+	r.IsNotTypef(&ValueError{}, err, "") // want " \\(et:ast\\)$"
 
 	(*require.Assertions).ErrorAs(r, err, &pve) // want " \\(et:err\\)$"
 }

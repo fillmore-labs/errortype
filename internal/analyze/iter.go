@@ -30,8 +30,8 @@ import (
 // of the current function are considered.
 func AllReturns(b inspector.Cursor) iter.Seq[*ast.ReturnStmt] {
 	return func(yield func(*ast.ReturnStmt) bool) {
-		more := true // Set to `false` to stop yielding
-
+		types := []ast.Node{(*ast.FuncLit)(nil), (*ast.ReturnStmt)(nil)}
+		more := true // Captured in visit lambda, set to `false` to stop yielding
 		visit := func(c inspector.Cursor) (descend bool) {
 			switch n := c.Node().(type) {
 			case *ast.FuncLit:
@@ -46,6 +46,6 @@ func AllReturns(b inspector.Cursor) iter.Seq[*ast.ReturnStmt] {
 			return more
 		}
 
-		b.Inspect([]ast.Node{(*ast.FuncLit)(nil), (*ast.ReturnStmt)(nil)}, visit)
+		b.Inspect(types, visit)
 	}
 }

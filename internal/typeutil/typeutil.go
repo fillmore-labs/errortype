@@ -27,32 +27,30 @@ import (
 // It returns the found [types.TypeName] type, a boolean indicating if the original type
 // was a pointer, and a boolean indicating if a type name was successfully found.
 // It returns false for anonymous types (like struct literals).
-func TypeNameOf(t types.Type) (tn *types.TypeName, isPtr, ok bool) {
-	isPtr = false
+func TypeNameOf(t types.Type) (tn *types.TypeName, ptr, ok bool) {
+	ptr = false
 
 	for {
 		switch typ := t.(type) {
 		case *types.Named:
-			return typ.Obj(), isPtr, true
+			return typ.Obj(), ptr, true
 
 		case *types.Alias:
-			return typ.Obj(), isPtr, true
+			return typ.Obj(), ptr, true
 
 		case *types.Pointer:
-			if isPtr {
+			if ptr {
 				// Double Pointer
-				return nil, isPtr, false
+				return nil, ptr, false
 			}
 
 			t = typ.Elem()
-			isPtr = true
-
-			continue
+			ptr = true
 
 		default:
 			// Anonymous types (struct literals, nil, etc.)
 			// We are also not interested in type parameters or basic types
-			return nil, isPtr, false
+			return nil, ptr, false
 		}
 	}
 }
@@ -77,26 +75,6 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 	return -1 // Not an error type
 }
 
-// HasErrorMethod checks if a given type implements the standard `error` interface.
-// Note that when T implements `error`, *T can, but must not, implement `error` too.
-func HasErrorMethod(typ types.Type) bool {
-	if typ == UniverseError {
-		return true
-	}
-
-	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, "Error")
-	if obj == nil {
-		return false // Not an error type
-	}
-
-	fun, ok := obj.(*types.Func)
-	if !ok || !HasErrorSig(fun.Signature()) {
-		return false // *types.Var or wrong signature
-	}
-
-	return true
-}
-
 // HasErrorSig checks whether the provided function signature is `func() string`.
 func HasErrorSig(sig *types.Signature) bool {
 	return errorSig.matchSignature(sig)
@@ -112,14 +90,14 @@ func HasAsSig(sig *types.Signature) bool {
 	return asSig.matchSignature(sig)
 }
 
-// HasUnwrapSig checks whether the provided function signature is `func() error`.
+// HasUnwrapSig checks whether the provided function signature is `func() error` or `func() []error`.
 func HasUnwrapSig(sig *types.Signature) bool {
 	return unwrapSig.matchSignature(sig) || unwrapMultipleSig.matchSignature(sig)
 }
 
 // HasPointerReceiver determines whether the given method signature has a pointer receiver.
 // It returns true if the receiver is a pointer type, and false otherwise.
-func HasPointerReceiver(sig *types.Signature) (elem types.Type, isPtr bool) {
+func HasPointerReceiver(sig *types.Signature) (elem types.Type, ptr bool) {
 	recv := sig.Recv()
 	if recv == nil {
 		return nil, false // Not a method

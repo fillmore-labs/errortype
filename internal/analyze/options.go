@@ -24,13 +24,15 @@ import (
 
 // AstOptions represents configuration flags to control the behavior of style and correctness checks for errors.
 type AstOptions struct {
-	StyleCheck bool // styleCheck controls the target style check in `errors.As` calls
+	StyleCheck bool // StyleCheck controls the target style check in `errors.As` calls
 
-	CheckIs bool // checkIs controls whether to check for `Is(error) bool` methods
+	CheckIs bool // CheckIs controls whether to check for `Is(error) bool` methods
 
-	DeepIsCheck bool // deepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
+	DeepIsCheck bool // DeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
 
-	UncheckedAssert bool // uncheckedAssert flags all uncheckd asserts on errors
+	UncheckedAssert bool // UncheckedAssert flags all uncheckd asserts on errors
+
+	CheckUnused bool // CheckUnused flags unchecked results of `errors.As` calls
 }
 
 // Options provide configurations for analysis passes, including type detection and AST-related behavior customization.
@@ -53,6 +55,7 @@ func DefaultOptions() *Options {
 			CheckIs:         true,
 			DeepIsCheck:     false,
 			UncheckedAssert: false,
+			CheckUnused:     false,
 		},
 		Suggest: "",
 	}

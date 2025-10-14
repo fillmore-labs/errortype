@@ -105,8 +105,17 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 
 	errorInterface := typeutil.UniverseError.Underlying().(*types.Interface)
 
-	for returnStmt := range inspector.All[*ast.ReturnStmt](in) {
-		for _, result := range returnStmt.Results {
+	for caseClause := range inspector.All[*ast.CaseClause](in) {
+		if len(caseClause.Body) != 1 {
+			continue
+		}
+
+		assignStmt, ok := caseClause.Body[0].(*ast.AssignStmt)
+		if !ok {
+			continue
+		}
+
+		for _, result := range assignStmt.Rhs {
 			tv, ok := ap.TypesInfo.Types[result]
 			if !ok || tv.IsNil() {
 				continue
@@ -137,6 +146,9 @@ func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) st
 	}
 
 	switch typ & errortypes.ExpectedMask {
+	case errortypes.Undecided:
+		return "UNDECIDED"
+
 	case errortypes.PointerType:
 		return "POINTER"
 

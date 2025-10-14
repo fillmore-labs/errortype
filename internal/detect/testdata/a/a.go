@@ -29,47 +29,51 @@ type (
 )
 
 func Return() error {
+	var err error
+
 	switch rand.Int() {
 	case 0:
-		return &c.ValueDefault{} // want "VALUE"
+		err = &c.ValueDefault{} // want "VALUE"
 
 	case 1:
-		return &c.ValueFunc{} // want "VALUE"
+		err = &c.ValueFunc{} // want "VALUE"
 
 	case 2:
-		return &c.ValueVar{} // want "VALUE"
+		err = &c.ValueVar{} // want "VALUE"
 
 	case 3:
-		return &c.PointerDefault{} // want "POINTER"
+		err = &c.PointerDefault{} // want "POINTER"
 
 	case 4:
-		return &c.PointerFunc{} // want "POINTER"
+		err = c.PointerFunc{} // want "POINTER"
 
 	case 5:
-		return &c.PointerVar{} // want "POINTER"
+		err = c.PointerVar{} // want "POINTER"
 
 	case 6:
-		return &c.EmbeddedDefault{} // want "NOT IN RESULTS"
+		err = c.EmbeddedDefault{} // want "UNDECIDED"
 
 	case 7:
-		return &c.EmbeddedFunc{} // want "POINTER"
+		err = c.EmbeddedFunc{} // want "POINTER"
 
 	case 8:
-		return &c.EmbeddedVar{} // want "VALUE"
+		err = &c.EmbeddedVar{} // want "VALUE"
 
 	case 9:
-		return &c.Alias{} // want "VALUE"
+		err = &c.Alias{} // want "VALUE"
 
 	case 10:
-		return c.PointerAlias(&c.PointerDefault{}) // want "VALUE"
+		err = c.PointerAlias(&c.PointerDefault{}) // want "VALUE"
 
 	case 11:
-		return (*Alias)(&c.Alias{}) // want "VALUE"
+		err = (*Alias)(&c.Alias{}) // want "VALUE"
 
 	case 12:
-		return PointerAlias(&c.PointerDefault{}) // want "VALUE"
+		err = PointerAlias(&c.PointerDefault{}) // want "VALUE"
 
 	default:
-		return nil
+		err = nil
 	}
+
+	return err
 }

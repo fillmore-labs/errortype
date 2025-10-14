@@ -16,46 +16,31 @@
 
 package a
 
-import "math/rand/v2"
+import (
+	"math/rand/v2"
 
-type (
-	ErrorWithIs1    struct{ error }
-	ErrorWithIs2    struct{ error }
-	ErrorWithoutIs1 struct{ error }
-	ErrorWithoutIs2 struct{ error }
+	"test/a/c"
 )
 
-func (e *ErrorWithIs1) Is(err error) bool {
-	return e.error == err
-}
-
-func (e ErrorWithIs2) Is(err error) bool {
-	return e.error == err
-}
-
-func (e *ErrorWithoutIs1) Is(err1, err2 error) bool {
-	return e.error == err1
-}
-
-func (e *ErrorWithoutIs2) Is(error) string {
-	return e.error.Error()
-}
-
 func ErrorIs() error {
+	var err error
+
 	switch rand.Int() {
 	case 0:
-		return ErrorWithIs1{} // want "POINTER"
+		err = c.ErrorWithIs1{} // want "POINTER"
 
 	case 1:
-		return ErrorWithIs2{} // want "VALUE"
+		err = c.ErrorWithIs2{} // want "UNDECIDED"
 
 	case 2:
-		return ErrorWithoutIs1{} // want "VALUE"
+		err = c.ErrorWithoutIs1{} // want "UNDECIDED"
 
 	case 3:
-		return ErrorWithoutIs2{} // want "VALUE"
+		err = c.ErrorWithoutIs2{} // want "UNDECIDED"
 
 	default:
-		return nil
+		err = nil
 	}
+
+	return err
 }

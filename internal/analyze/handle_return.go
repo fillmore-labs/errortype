@@ -38,6 +38,6 @@ func (p pass) handleReturns(b inspector.Cursor, lastResult int) {
 			continue // nil is fine.
 		}
 
-		p.checkErrorUsage(resType.Type, p.ReturnReporter(res))
+		p.checkErrorUsage(resType.Type, p.returnReporter(res))
 	}
 }

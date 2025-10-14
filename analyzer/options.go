@@ -128,3 +128,16 @@ func (o uncheckedAssertOption) apply(opts *analyze.Options) { opts.UncheckedAsse
 func (o uncheckedAssertOption) LogAttr() slog.Attr {
 	return slog.Bool("uncheckedAssert", o.uncheckedAssert)
 }
+
+// WithCheckUnused is an [Option] to configure diagnosis of unchecked results of `errors.As` calls.
+func WithCheckUnused(checkUnused bool) Option {
+	return checkUnusedOption{checkUnused: checkUnused}
+}
+
+type checkUnusedOption struct{ checkUnused bool }
+
+func (o checkUnusedOption) apply(opts *analyze.Options) { opts.CheckUnused = o.checkUnused }
+
+func (o checkUnusedOption) LogAttr() slog.Attr {
+	return slog.Bool("checkUnused", o.checkUnused)
+}

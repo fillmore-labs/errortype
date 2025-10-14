@@ -16,34 +16,36 @@
 
 package report
 
-import "go/types"
+import (
+	"go/types"
+)
 
-// Generic reports diagnostics related to generic function calls.
-type Generic struct {
+// GenericCall reports diagnostics related to generic function calls.
+type GenericCall struct {
 	Base
 	Fun *types.Func
 }
 
 // ShouldBeValue reports a diagnostic when a value error is queried as a pointer.
-func (r Generic) ShouldBeValue(tn *types.TypeName) {
-	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+func (r GenericCall) ShouldBeValue(tn *types.TypeName) {
+	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
 	fname := r.funName()
 
 	r.ReportRangef(r.Expr,
-		`Error type %q should be queried as a value ("%s[%s]"), not a pointer. (et:ast)`, relativeName, fname, importName)
+		`Error type %q should be queried as a value ("%s[%s]"), not a pointer. (et:ast)`, relativeName, fname, shortName)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is queried as a value.
-func (r Generic) ShouldBePointer(tn *types.TypeName) {
-	relativeName, importName := r.relativeNameOf(tn), r.importNameOf(tn)
+func (r GenericCall) ShouldBePointer(tn *types.TypeName) {
+	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
 	fname := r.funName()
 
 	r.ReportRangef(r.Expr,
-		`Error type %q should be queried as a pointer ("%s[*%s]"), not a value. (et:ast+)`, relativeName, fname, importName)
+		`Error type %q should be queried as a pointer ("%s[*%s]"), not a value. (et:ast+)`, relativeName, fname, shortName)
 }
 
 // funName gets a short function name, not necessarily matching imports.
-func (r Generic) funName() string {
+func (r GenericCall) funName() string {
 	if pkg := r.Fun.Pkg(); pkg != nil {
 		return pkg.Name() + "." + r.Fun.Name()
 	}

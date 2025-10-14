@@ -19,6 +19,7 @@ package detect
 import (
 	"context"
 	"go/ast"
+	"go/token"
 	"go/types"
 	"runtime/trace"
 
@@ -30,35 +31,52 @@ import (
 func (p pass) processUsage(ctx context.Context) {
 	defer trace.StartRegion(ctx, "usage").End()
 
-	u := usageVisitor{pass: p}
-
 	for f := range p.AllFuncDecls {
-		if f.Body == nil {
-			continue
-		}
-
-		u.lastResult = typeutil.HasErrorResult(p.TypesInfo, f.Type.Results)
-
-		ast.Walk(u, f.Body)
+		p.walkFunctionBody(f)
 	}
+}
+
+// walkFunctionBody walks the function body with a usage visitor to analyze error usage.
+func (p pass) walkFunctionBody(f *ast.FuncDecl) {
+	if f.Body == nil {
+		return
+	}
+
+	v := usageVisitor{
+		pass:       p,
+		lastResult: typeutil.HasErrorResult(p.TypesInfo, f.Type.Results),
+		inExpr:     false,
+	}
+	ast.Walk(v, f.Body)
 }
 
 type usageVisitor struct {
 	pass
 	lastResult int
+	inExpr     bool // true when visiting expressions in assignment/return contexts
+}
+
+// walkExprs applies the visitor in expression context to each expression in the given list.
+// This is used to analyze expressions in assignment, return, or declaration contexts.
+func (v usageVisitor) walkExprs(exprs ...ast.Expr) {
+	v.inExpr = true
+
+	for _, expr := range exprs {
+		ast.Walk(v, expr)
+	}
 }
 
 func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 	switch n := node.(type) {
 	case *ast.AssignStmt:
 		// Analyze the right-hand side of `:=` and `=` assignments.
-		v.walkExprs(n.Rhs)
+		v.walkExprs(n.Rhs...)
 
 		return nil // Expressions handled, stop descending.
 
 	case *ast.ValueSpec:
 		// Analyze initial values in `var` declarations.
-		v.walkExprs(n.Values)
+		v.walkExprs(n.Values...)
 
 		return nil // Expressions handled, stop descending.
 
@@ -69,10 +87,9 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 
 	case *ast.SendStmt:
 		// Analyze the value sent to a channel.
-		a := assignVisitor{pass: v.pass}
-		ast.Walk(a, n.Value)
+		v.walkExprs(n.Value)
 
-		return nil // Expression handled, stop descending.
+		return nil // Expressions handled, stop descending.
 
 	case *ast.FuncLit:
 		// A function literal defines a new function.
@@ -80,16 +97,57 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 		u := usageVisitor{
 			pass:       v.pass,
 			lastResult: typeutil.HasErrorResult(v.TypesInfo, n.Type.Results),
+			inExpr:     false,
 		}
 
-		ast.Walk(u, n.Body)
-
-		return nil // Expression handled, stop descending.
+		return u
 
 	case *ast.CallExpr:
+		if tv, ok := v.TypesInfo.Types[n.Fun]; ok && tv.IsType() {
+			// Type cast, e.g., type MyError string; MyError("error").
+			v.handleCast(tv.Type)
+
+			return nil
+		}
+
 		v.handleCallExpr(n)
 
 		return nil // Expressions handled, stop descending.
+
+	case *ast.UnaryExpr:
+		if !v.inExpr || n.Op != token.AND {
+			return v // Continue for other unary expressions.
+		}
+
+		// Handle address-of operator in expression context, e.g., &MyError{}.
+		cl, ok := ast.Unparen(n.X).(*ast.CompositeLit)
+		if !ok {
+			return v
+		}
+
+		v.handleCompositeLit(cl, true)
+
+		return nil // Handled, stop descending.
+
+	case *ast.CompositeLit:
+		if !v.inExpr {
+			return v // Continue if not in expression context.
+		}
+
+		// Handle value literals in expression context, e.g., MyError{}.
+		v.handleCompositeLit(n, false)
+
+		return nil // Handled, stop descending.
+
+	case *ast.TypeAssertExpr:
+		if !v.inExpr {
+			return v // Continue if not in expression context.
+		}
+
+		// Handle type assertions in expression context, e.g., err.(MyError).
+		v.handleTypeAssert(n)
+
+		return nil // Handled, stop descending.
 
 	case ast.Expr:
 		// We have handled all expression contexts we are interested in.
@@ -105,9 +163,101 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 	}
 }
 
+// handleTypeAssert processes a type assertion expression, e.g., v.(T).
+func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
+	if n.Type == nil {
+		return // This is a type switch, not an assertion.
+	}
+
+	tv, ok := p.TypesInfo.Types[n.Type]
+	if !ok {
+		return // !ok means errors in type parsing
+	}
+
+	if !tv.IsType() {
+		p.LogErrorf(n.Type, "Expected type in assertion, got %#v", tv)
+
+		return
+	}
+
+	// We can only analyze named types.
+	tn, ptr, ok := typeutil.TypeNameOf(tv.Type)
+	if !ok {
+		return
+	}
+
+	prop := ValueAssert
+	if ptr {
+		prop = PointerAssert
+	}
+
+	p.addTypePropertyInCurrentPackage(tn, prop)
+}
+
+// handleCast processes a type conversion, e.g., T(v).
+func (p pass) handleCast(typ types.Type) {
+	// We can only analyze named types.
+	tn, ptr, ok := typeutil.TypeNameOf(typ)
+	if !ok {
+		return
+	}
+
+	prop := ValueCast
+	if ptr {
+		prop = PointerCast
+	}
+
+	p.addTypePropertyInCurrentPackage(tn, prop)
+}
+
+// handleCompositeLit processes a composite literal, e.g., T{} or &T{}.
+func (p pass) handleCompositeLit(n *ast.CompositeLit, isAddrOf bool) {
+	if n.Type == nil {
+		return // Within a composite literal of array, slice, or map
+	}
+
+	tv := p.TypesInfo.Types[n.Type]
+	if !tv.IsType() {
+		p.LogErrorf(n.Type, "Expected type in composite literal, got %#v", tv)
+
+		return
+	}
+
+	var (
+		tn             *types.TypeName
+		ptr, namedType bool
+	)
+
+	switch t := tv.Type.(type) {
+	case *types.Slice:
+		tn, ptr, namedType = typeutil.TypeNameOf(t.Elem())
+
+	case *types.Array:
+		tn, ptr, namedType = typeutil.TypeNameOf(t.Elem())
+
+	case *types.Map:
+		tn, ptr, namedType = typeutil.TypeNameOf(t.Elem())
+
+	default:
+		tn, _, namedType = typeutil.TypeNameOf(t)
+		ptr = isAddrOf
+	}
+
+	if !namedType {
+		return // Not a named type.
+	}
+
+	property := ValueLiteral
+	if ptr {
+		property = PointerLiteral
+	}
+
+	p.addTypePropertyInCurrentPackage(tn, property)
+}
+
 // handleReturn processes returned values, T{} or &T{}.
 func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
-	v.walkExprs(ret.Results)
+	v.walkExprs(ret.Results...)
 
 	if v.lastResult < 0 || len(ret.Results) <= v.lastResult {
 		return
@@ -124,40 +274,47 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 		v.LogErrorf(ret, "Expected returned value in %d , got %#v", v.lastResult, resType)
 	}
 
-	tn, isPtr, ok := typeutil.TypeNameOf(resType.Type)
+	tn, ptr, ok := typeutil.TypeNameOf(resType.Type)
 	if !ok {
 		return // Not a named type.
 	}
 
 	property := ValueReturn
-	if isPtr {
+	if ptr {
 		property = PointerReturn
 	}
 
 	v.addTypePropertyInCurrentPackage(tn, property)
 }
 
-// isErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
+// handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
 // It returns the target argument, or nil if the function is not of interest.
-func isErrorAs(info *types.Info, n *ast.CallExpr) ast.Expr {
-	fun, _, methodExpr, ok := typeutil.FuncOf(info, n.Fun)
+func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
+	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n.Fun)
 	if !ok {
-		return nil // Could not resolve function, might be a func variable.
+		return nil, false // Could not resolve function, might be a func variable.
 	}
 
-	// Check if the function is one we analyze (e.g., errors.As).
 	// errorsAs maps a function name to the index of its "target" argument.
 	funcName := typeutil.FuncNameOf(fun)
 
-	target, ok := typeutil.KnownFuncs[funcName]
-	if !ok || target.Kind() != typeutil.KindAs {
-		return nil // Not a function we are interested in.
+	asfunc, ok := typeutil.KnownFuncs[funcName]
+	if !ok || asfunc.Kind() != typeutil.KindAs {
+		return nil, false // Not a function we are interested in.
 	}
 
-	targetArgIndex, _ := target.AsTarget()
+	targetArgIndex, typeParam := asfunc.AsTarget()
+	if typeParam >= 0 { // Handle generic functions like `errors.AsType[T]`.
+		if len(typeParams) > typeParam {
+			typ := typeParams[typeParam]
+			if tv, ok := p.TypesInfo.Types[typ]; ok && tv.IsType() && typeutil.HasErrorMethod(tv.Type) {
+				return tv.Type, ok
+			}
+		}
+	}
 
 	if targetArgIndex < 0 {
-		return nil
+		return nil, false
 	}
 
 	if methodExpr {
@@ -169,59 +326,54 @@ func isErrorAs(info *types.Info, n *ast.CallExpr) ast.Expr {
 	}
 
 	if len(n.Args) <= targetArgIndex {
-		return nil // Maybe called with the result of a multivalued function
+		return nil, true // Maybe called with the result of a multivalued function
 	}
 
-	return n.Args[targetArgIndex]
-}
-
-func (p pass) handleCallExpr(n *ast.CallExpr) {
-	targetArg := isErrorAs(p.TypesInfo, n)
-	if targetArg == nil { // not an errors.As-like function
-		// TODO: handle target arguments of errors.Is
-		p.walkExprs(n.Args)
-
-		if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
-			u := usageVisitor{
-				pass:       p,
-				lastResult: typeutil.HasErrorResult(p.TypesInfo, f.Type.Results),
-			}
-
-			ast.Walk(u, f.Body)
-		}
-
-		return
-	}
+	targetArg := n.Args[targetArgIndex]
 
 	typ, ok := p.TypesInfo.Types[targetArg]
 	if !ok {
-		return // !ok means errors in type parsing
+		return nil, true // !ok means errors in type parsing
 	}
 
 	ptr, ok := typ.Type.Underlying().(*types.Pointer)
 	if !ok {
+		return nil, true
+	}
+
+	return ptr.Elem(), true
+}
+
+func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
+	if target, ok := v.handleErrorAs(n); ok {
+		tn, ptr, ok := typeutil.TypeNameOf(target)
+		if !ok {
+			return // Not a named type.
+		}
+
+		property := ValueTarget
+		if ptr {
+			property = PointerTarget
+		}
+
+		v.addTypePropertyInCurrentPackage(tn, property)
+
 		return
 	}
 
-	tn, isPtr, ok := typeutil.TypeNameOf(ptr.Elem())
-	if !ok {
-		return // Not a named type.
-	}
+	// not an `errors.As`-like function
+	v.walkExprs(n.Args...)
 
-	property := ValueTarget
-	if isPtr {
-		property = PointerTarget
-	}
+	// TODO: handle target arguments of `errors.Is`
 
-	p.addTypePropertyInCurrentPackage(tn, property)
-}
+	if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
+		u := usageVisitor{
+			pass:       v.pass,
+			lastResult: typeutil.HasErrorResult(v.TypesInfo, f.Type.Results),
+			inExpr:     false,
+		}
 
-// walkExprs applies the assignVisitor to each expression in the given list.
-// This is used to analyze expressions in assignment, return, or declaration contexts.
-func (p pass) walkExprs(exprs []ast.Expr) {
-	a := assignVisitor{pass: p}
-	for _, expr := range exprs {
-		ast.Walk(a, expr)
+		ast.Walk(u, f.Body)
 	}
 }
 

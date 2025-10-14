@@ -110,13 +110,13 @@ func (p pass) recordVarProperty(typ types.Type) {
 	}
 
 	// We need a named type to associate the property with. This skips anonymous structs and other unnamed types.
-	tn, isPtr, ok := typeutil.TypeNameOf(typ)
+	tn, ptr, ok := typeutil.TypeNameOf(typ)
 	if !ok {
 		return // struct { embedded } or nil
 	}
 
 	errortype := ValueVar
-	if isPtr {
+	if ptr {
 		errortype = PointerVar
 	}
 

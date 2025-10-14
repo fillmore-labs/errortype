@@ -83,7 +83,7 @@ func (p pass) processAST(ctx context.Context, in *inspector.Inspector, opts AstO
 		case *ast.CallExpr:
 			reg := trace.StartRegion(ctx, "CallExpr")
 
-			p.handleCall(n, opts)
+			p.handleCall(n, c, opts)
 			reg.End()
 
 		case *ast.FuncDecl:

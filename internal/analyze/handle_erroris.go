@@ -39,6 +39,10 @@ func (p pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp typeutil.Func
 
 	switch ftyp {
 	case typeutil.IsFunc0:
+		if len(n.Args) < 2+baseArg { // should not happen
+			p.ReportErrorf(n, "Got only %d arguments, expected at least %d", len(n.Args), 3+baseArg)
+			return
+		}
 		// Delegate analysis of errors.Is(..., ...) to comparison.
 		p.comparison(n, n.Args[baseArg], n.Args[baseArg+1], false, checkIs)
 

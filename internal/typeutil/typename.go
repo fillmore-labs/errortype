@@ -18,6 +18,7 @@ package typeutil
 
 import (
 	"bytes"
+	"fmt"
 	"go/types"
 	"strings"
 )
@@ -65,30 +66,36 @@ func (t TypeName) Compare(other TypeName) int {
 	return strings.Compare(t.Name, other.Name)
 }
 
-// MarshalText implements encoding.TextMarshaler.
+// MarshalText implements [encoding.TextMarshaler].
 func (t TypeName) MarshalText() ([]byte, error) {
-	var buf bytes.Buffer
-	if t.Path != "" {
-		buf.WriteString(t.Path)
-		buf.WriteByte('.')
-	}
-
-	buf.WriteString(t.Name)
-
-	return buf.Bytes(), nil
+	return t.AppendText(nil)
 }
 
-// UnmarshalText implements encoding.TextUnmarshaler.
+// AppendText implements [encoding.TextAppender].
+func (t TypeName) AppendText(buf []byte) ([]byte, error) {
+	if t.Path != "" {
+		buf = append(buf, t.Path...)
+		buf = append(buf, '.')
+	}
+
+	buf = append(buf, t.Name...)
+
+	return buf, nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
 func (t *TypeName) UnmarshalText(text []byte) error {
 	if lastDotIndex := bytes.LastIndexByte(text, '.'); lastDotIndex >= 0 {
 		t.Path = string(text[:lastDotIndex])
 		t.Name = string(text[lastDotIndex+1:])
-
-		return nil
+	} else {
+		t.Path = ""
+		t.Name = string(text)
 	}
 
-	t.Path = ""
-	t.Name = string(text)
+	if t.Name == "" {
+		return fmt.Errorf("invalid type name %q", string(text))
+	}
 
 	return nil
 }

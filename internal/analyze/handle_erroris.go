@@ -19,7 +19,7 @@ package analyze
 import (
 	"go/ast"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/knownfuncs"
 )
 
 // handleErrorIs processes function calls like `errors.Is` or assertion functions
@@ -27,7 +27,7 @@ import (
 //
 // It checks if the function is one of the targeted comparison functions
 // and delegates the analysis of its arguments to comparison.
-func (p pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp typeutil.FuncType, checkIs bool) {
+func (p Pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp knownfuncs.FuncType, direct bool) {
 	if len(n.Args) < 2 { // Other function or multivalued argument
 		return
 	}
@@ -38,22 +38,22 @@ func (p pass) handleErrorIs(n *ast.CallExpr, methodExpr bool, ftyp typeutil.Func
 	}
 
 	switch ftyp {
-	case typeutil.IsFunc0:
+	case knownfuncs.IsFunc0:
 		if len(n.Args) < 2+baseArg { // should not happen
 			p.ReportErrorf(n, "Got only %d arguments, expected at least %d", len(n.Args), 3+baseArg)
 			return
 		}
 		// Delegate analysis of errors.Is(..., ...) to comparison.
-		p.comparison(n, n.Args[baseArg], n.Args[baseArg+1], false, checkIs)
+		p.comparison(n, n.Args[baseArg], n.Args[baseArg+1], direct)
 
-	case typeutil.IsFunc1:
+	case knownfuncs.IsFunc1:
 		if len(n.Args) < 3+baseArg { // should not happen
 			p.ReportErrorf(n, "Got only %d arguments, expected at least %d", len(n.Args), 3+baseArg)
 			return
 		}
 
 		// Delegate analysis of assert.ErrorIs(t, ..., ...) or assert.Equal(t, ..., ...) to comparison.
-		p.comparison(n, n.Args[baseArg+1], n.Args[baseArg+2], false, checkIs)
+		p.comparison(n, n.Args[baseArg+1], n.Args[baseArg+2], direct)
 
 	default: // should not happen
 		p.ReportErrorf(n, "Unconfigured function %d", ftyp)

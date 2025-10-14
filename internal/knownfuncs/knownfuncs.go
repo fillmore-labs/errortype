@@ -14,11 +14,22 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package typeutil
+package knownfuncs
 
-// KnownFuncs maps function metadata (FuncName) to a packed integer containing
+import "go/types"
+
+// FuncInfoOf maps a *[types.Func] of a know function to a packed integer containing
 // information about the function's behavior (e.g., if it's like errors.Is or errors.As).
-var KnownFuncs = map[FuncName]FuncInfo{
+func FuncInfoOf(fun *types.Func) (FuncInfo, bool) {
+	name := FuncNameOf(fun)
+	info, ok := _knownFuncs[name]
+
+	return info, ok
+}
+
+// _knownFuncs maps function metadata (FuncName) to a packed integer containing
+// information about the function's behavior (e.g., if it's like errors.Is or errors.As).
+var _knownFuncs = map[FuncName]FuncInfo{
 	// errors.Is-like functions
 	{Path: "errors", Name: "Is"}:                                                                          isFuncType0Result,
 	{Path: "golang.org/x/exp/errors", Name: "Is"}:                                                         isFuncType0Result,

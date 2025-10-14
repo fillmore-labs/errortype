@@ -21,13 +21,14 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/internal/detect/properties"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // processTypeDecls analyzes all type declarations in the current package, identifying types
 // that implement the error interface either directly or via embedding.
 //
-// For each such type, it determines whether the "Error" method has a pointer or value receiver,
+// For each such type, it determines whether the "Error" method has a pointer or value receiver
 // and records this property in the propertyMap. Types that are interfaces are skipped.
 func (p pass) processTypeDecls(ctx context.Context) {
 	defer trace.StartRegion(ctx, "typeDecls").End()
@@ -46,9 +47,10 @@ func (p pass) processTypeDecls(ctx context.Context) {
 		}
 
 		// Type has a `Error() string` method
-		prop := None
+
+		var prop properties.ErrorProperty
 		if embedded {
-			prop |= Embedded
+			prop |= properties.Embedded
 		}
 
 		switch u := tn.Type().Underlying().(type) {
@@ -57,20 +59,20 @@ func (p pass) processTypeDecls(ctx context.Context) {
 
 		case *types.Struct:
 			if typeutil.ZeroSized(u) {
-				prop |= ZeroSized
+				prop |= properties.ZeroSized
 			}
 
 		case *types.Pointer:
-			// The type is an alias of a pointer to type with an `Error() string` method.
+			// The type is an alias of a pointer to a type with an `Error() string` method.
 			// This should be rare.
-			prop |= PointerDef
+			prop |= properties.PointerDef
 			if typeutil.ZeroSized(u.Elem()) {
-				prop |= ZeroSized
+				prop |= properties.ZeroSized
 			}
 
 		default:
 			// Non-Struct error types are often value types
-			prop |= NonStruct
+			prop |= properties.NonStruct
 		}
 
 		ptrRecv := false
@@ -81,28 +83,28 @@ func (p pass) processTypeDecls(ctx context.Context) {
 
 		if ptrRecv {
 			// The `Error() string` has a pointer receiver
-			prop |= PointerReceiver
+			prop |= properties.PointerReceiver
 		}
 
 		ptr, emb := p.HasErrorMethods(tn)
 		if ptr {
-			// An error wrapping related method has a pointer receiver
-			prop |= PointerMethod
+			// An error-wrapping-related method has a pointer receiver
+			prop |= properties.PointerMethod
 		}
 
 		if emb {
-			// An error wrapping related method is embedded
-			prop |= EmbeddedMethod
+			// An error-wrapping-related method is embedded
+			prop |= properties.EmbeddedMethod
 		}
 
 		// Otherwise the type has a (possibly embedded) `Error() string` method, either with value receiver
 		// or the receiver type is not relevant because of indirection. We need to rely on heuristics.
-		p.AddTypeProperty(tn, prop)
+		p.DetectedTypes[tn] |= prop
 	}
 }
 
-// errorMethods defines a list of error-related method names and functions to check their signature validity.
-var errorMethods = [...]struct {
+// _errorMethods defines a list of error-related method names and functions to check their signature validity.
+var _errorMethods = [...]struct {
 	name     string
 	sigCheck func(*types.Signature) bool
 }{
@@ -111,9 +113,9 @@ var errorMethods = [...]struct {
 	{"As", typeutil.HasAsSig},
 }
 
-// HasErrorMethods inspects a type for error wrapping related methods, embedded or with pointer receivers.
+// HasErrorMethods inspects a type for error-wrapping related methods, embedded or with pointer receivers.
 func (p pass) HasErrorMethods(tn *types.TypeName) (ptrRecv, embedded bool) {
-	for i, lookup := range errorMethods {
+	for i, lookup := range _errorMethods {
 		fun, indirect, emb, ok := typeutil.LookupMethod(tn.Type(), lookup.name, lookup.sigCheck)
 		if !ok {
 			continue // No such method with matching signature

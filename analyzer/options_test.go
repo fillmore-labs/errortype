@@ -31,7 +31,7 @@ func TestLogValue(t *testing.T) {
 
 	testAnalyzer := &analysis.Analyzer{Name: "test-detect"}
 
-	testCases := []struct {
+	testCases := [...]struct {
 		name     string
 		option   Option
 		expected string
@@ -62,13 +62,19 @@ func TestLogValue(t *testing.T) {
 			expected: `"uncheckedAssert":false`,
 		},
 		{
+			name:     "WithCheckUnused",
+			option:   WithCheckUnused(true),
+			expected: `"checkUnused":true`,
+		},
+		{
 			name: "Options",
 			option: Options{
 				WithDetectTypes(testAnalyzer),
 				WithStyleCheck(true),
 				WithCheckIs(false),
+				WithCheckUnused(true),
 			},
-			expected: `"options":{"detect":"test-detect","styleCheck":true,"checkIs":false}}`,
+			expected: `"options":{"detect":"test-detect","styleCheck":true,"checkIs":false,"checkUnused":true}}`,
 		},
 	}
 
@@ -80,8 +86,7 @@ func TestLogValue(t *testing.T) {
 			logger := slog.New(slog.NewJSONHandler(&sb, nil))
 			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.LogAttr())
 
-			got := sb.String()
-			if !strings.Contains(got, tt.expected) {
+			if got := sb.String(); !strings.Contains(got, tt.expected) {
 				t.Errorf("Expected %s to contain %s", got, tt.expected)
 			}
 		})

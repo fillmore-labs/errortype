@@ -27,7 +27,7 @@ import (
 func TestHasErrorResult(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name      string
 		src       string
 		funcName  string
@@ -54,9 +54,9 @@ func TestHasErrorResult(t *testing.T) {
 		{
 			name: "multiple returns, last is custom value error",
 			src: `
-type MyError struct{}
-func (e MyError) Error() string { return "my error" }
-func customError() (int, interface { error }) { return 0, MyError{} }`,
+type myError struct{}
+func (e myError) Error() string { return "my error" }
+func customError() (int, interface { error }) { return 0, myError{} }`,
 			funcName:  "customError",
 			wantIndex: 1,
 		},
@@ -81,9 +81,7 @@ func customError() (int, interface { error }) { return 0, MyError{} }`,
 			info, _, _, f := parseSource(t, tt.src)
 			funcDecl := findFunc(t, f, tt.funcName)
 
-			index := HasErrorResult(info, funcDecl.Type.Results)
-
-			if index != tt.wantIndex {
+			if index := ErrorResultIndex(info, funcDecl.Type.Results); index != tt.wantIndex {
 				t.Errorf("HasErrorResult() index = %v, want %v", index, tt.wantIndex)
 			}
 		})
@@ -128,10 +126,11 @@ func TestHasSigs(t *testing.T) {
 
 	_, pkg, _, _ := parseSource(t, src)
 
-	getSig := func(name string) *types.Signature {
+	scope := pkg.Scope()
+	sigOf := func(name string) *types.Signature {
 		t.Helper()
 
-		obj := pkg.Scope().Lookup(name)
+		obj := scope.Lookup(name)
 		if obj == nil {
 			t.Fatalf("function %q not found in test source", name)
 		}
@@ -144,7 +143,7 @@ func TestHasSigs(t *testing.T) {
 		return fun.Type().(*types.Signature)
 	}
 
-	tests := []struct {
+	tests := [...]struct {
 		name    string
 		sigName string
 		checker func(*types.Signature) bool
@@ -181,7 +180,7 @@ func TestHasSigs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			sig := getSig(tt.sigName)
+			sig := sigOf(tt.sigName)
 			if got := tt.checker(sig); got != tt.want {
 				t.Errorf("check failed: got %v, want %v", got, tt.want)
 			}

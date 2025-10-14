@@ -21,23 +21,19 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// errorfileType represents the configuration for error type overrides in files.
+// Overrides associates an error type with a list of fully qualified type names.
+type Overrides = map[errortypes.ErrorType][]typeutil.TypeName
+
+// errorFileType represents the configuration for error type overrides in files.
 //
 // It categorizes type names into four groups.
-type errorfileType struct {
+type errorFileType struct {
 	// Types that should be treated as pointer errors.
 	Pointer []typeutil.TypeName `yaml:"pointer,omitempty"`
 	// Types that should be treated as value errors.
 	Value []typeutil.TypeName `yaml:"value,omitempty"`
 	// Types for which error type checks should be suppressed - never written.
 	Suppress []typeutil.TypeName `yaml:"suppress,omitempty"`
-	//  Types that have inconsistent error type usage - ignored on read.
+	// Types that have inconsistent error type usage - ignored on read.
 	Inconsistent []typeutil.TypeName `yaml:"inconsistent,omitempty"`
-}
-
-// Override represents a mapping between a Go type and its associated error type.
-// It combines a TypeName with an ErrorType for error handling customization.
-type Override struct {
-	typeutil.TypeName
-	errortypes.ErrorType
 }

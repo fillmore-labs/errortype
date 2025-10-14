@@ -18,7 +18,6 @@ package report
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -59,23 +58,4 @@ func (r Base) shortNameOf(tn *types.TypeName) string {
 
 		return pkg.Name()
 	})
-}
-
-// varName gets the target variable name when it is the expression "&name", a generic "target" otherwise.
-func (r Base) varName() string {
-	if id, ok := r.varID(); ok {
-		return id.Name
-	}
-
-	return "target"
-}
-
-func (r Base) varID() (*ast.Ident, bool) {
-	if e, ok := ast.Unparen(r.Expr).(*ast.UnaryExpr); ok && e.Op == token.AND {
-		id, ok := ast.Unparen(e.X).(*ast.Ident)
-
-		return id, ok
-	}
-
-	return nil, false
 }

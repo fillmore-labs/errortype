@@ -26,7 +26,7 @@ import (
 func TestComparable(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name string
 		typ  types.Type
 		want bool

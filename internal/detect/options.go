@@ -16,20 +16,15 @@
 
 package detect
 
-import (
-	"regexp"
+import "regexp"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
-	"fillmore-labs.com/errortype/internal/typeutil"
-)
-
-// Options defines configuration settings for type analysis, including heuristic passes, usage overrides, and tracing.
+// Options define configuration settings for type analysis, including heuristic passes, usage overrides, and tracing.
 type Options struct {
 	// UsageOverrides stores the usage configuration for error types, read from a file.
-	UsageOverrides map[typeutil.TypeName]errortypes.ErrorType
+	UsageOverrides
 
 	// Heuristics controls heuristic passes
-	Heuristics HeuristicPass
+	Heuristics
 
 	// Trace controls result output
 	Trace *regexp.Regexp

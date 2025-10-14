@@ -19,8 +19,9 @@ const _Heuristic_name = "offvarusagereceivers"
 var _Heuristic_index = [...]uint8{0, 3, 6, 11, 20}
 
 func (i Heuristic) String() string {
-	if i >= Heuristic(len(_Heuristic_index)-1) {
+	idx := int(i) - 0
+	if i < 0 || idx >= len(_Heuristic_index)-1 {
 		return "Heuristic(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Heuristic_name[_Heuristic_index[i]:_Heuristic_index[i+1]]
+	return _Heuristic_name[_Heuristic_index[idx]:_Heuristic_index[idx+1]]
 }

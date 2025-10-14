@@ -22,47 +22,57 @@ import (
 )
 
 // FuncOf iteratively unwraps an expression to find the underlying function declaration.
-func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Expr, methodExpr, ok bool) {
-	var tp []ast.Expr
-
-	for {
+func FuncOf(info *types.Info, n *ast.CallExpr) (fun *types.Func, typeParams []ast.Expr, methodExpr, ok bool) {
+	for ex := n.Fun; ; {
 		switch e := ex.(type) {
 		case *ast.Ident:
 			fun, ok = info.Uses[e].(*types.Func)
 
-			return fun, tp, false, ok
+			return fun, typeParams, false, ok
 
 		case *ast.SelectorExpr:
-			fun, ok = info.Uses[e.Sel].(*types.Func) // types.Checker calls recordUse for e.Sel from recordSelection.
-			if !ok {
-				return nil, nil, false, false // struct field selector
-			}
-
 			if sel, isSel := info.Selections[e]; isSel {
-				return fun, tp, sel.Kind() == types.MethodExpr, ok
+				switch sel.Kind() {
+				case types.MethodVal:
+					methodExpr = false
+
+				case types.MethodExpr:
+					methodExpr = true
+
+				default: // types.FieldVal, struct field selector
+					return nil, nil, false, false
+				}
+
+				fun = sel.Obj().(*types.Func)
+
+				return fun, typeParams, methodExpr, true
 			}
 
-			return fun, tp, false, ok // e.Sel is an identifier qualified by e.X
+			if fun, ok = info.Uses[e.Sel].(*types.Func); ok { // e.Sel is an identifier qualified by e.X
+				return fun, typeParams, false, true
+			}
+
+			return nil, nil, false, false // Not a function
 
 		case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
-			if tp != nil { // should not happen, duplicate type parameters
+			if typeParams != nil { // should not happen, duplicate type parameters
 				return nil, nil, false, false
 			}
 
-			tp = []ast.Expr{e.Index}
-			if !checkTypeParameters(info, tp) {
+			typeParams = []ast.Expr{e.Index}
+			if !checkTypeParameters(info, typeParams) {
 				return nil, nil, false, false // No type, but an array/slice index.
 			}
 
 			ex = e.X // Unwrap to the function identifier.
 
 		case *ast.IndexListExpr: // Generic function instantiation with multiple type parameters ("myFunc[T, U]").
-			if tp != nil { // should not happen, duplicate type parameters
+			if typeParams != nil { // should not happen, duplicate type parameters
 				return nil, nil, false, false
 			}
 
-			tp = e.Indices
-			if !checkTypeParameters(info, tp) { // should not happen
+			typeParams = e.Indices
+			if !checkTypeParameters(info, typeParams) { // should not happen
 				return nil, nil, false, false
 			}
 
@@ -71,7 +81,7 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 		case *ast.ParenExpr: // Parenthesized expression ("(myFunc)")
 			ex = e.X // Unwrap to the inner expression.
 
-		default: // The expression does not resolve to a function identifier (could be a function pointer).
+		default: // Function variable, pointer, or other non-declarative function reference.
 			return nil, nil, false, false
 		}
 	}
@@ -84,8 +94,7 @@ func FuncOf(info *types.Info, ex ast.Expr) (fun *types.Func, typeParams []ast.Ex
 // If any expression is not a type, it returns false.
 func checkTypeParameters(info *types.Info, indices []ast.Expr) bool {
 	for _, index := range indices {
-		typeParam := info.Types[index]
-		if !typeParam.IsType() { // Must be a type parameter, not an array/slice index.
+		if !info.Types[index].IsType() { // Must be a type parameter, not an array/slice index.
 			return false
 		}
 	}

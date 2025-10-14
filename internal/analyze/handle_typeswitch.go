@@ -23,9 +23,9 @@ import (
 )
 
 // handleTypeSwitch checks for incorrect pointer/value usage of error types in type switch cases.
-func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
+func (p Pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 	// expr must be of interface type, but we don't check
-	expr, ok := getTypeSwitchExpr(n)
+	expr, ok := typeSwitchExpr(n)
 	if !ok { // should not happen
 		p.ReportErrorf(n, "Cannot analyze type switch: unable to determine switch expression")
 		return
@@ -60,15 +60,15 @@ func (p pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 				continue
 			}
 
-			// Perform the pointer-vs-value analysis on the case type.
-			p.checkErrorUsage(caseType.Type, p.typeSwitchReporter(caseExpr))
+			// Perform the pointer-vs.-value analysis on the case type.
+			p.checkTypeSwitch(caseType.Type, caseExpr)
 		}
 	}
 }
 
-// getTypeSwitchExpr extracts the expression being type-switched on from an *ast.TypeSwitchStmt.
+// typeSwitchExpr extracts the expression being type-switched on from an *ast.TypeSwitchStmt.
 // It handles both "switch x := y.(type)" and "switch y.(type)" forms.
-func getTypeSwitchExpr(n *ast.TypeSwitchStmt) (ast.Expr, bool) {
+func typeSwitchExpr(n *ast.TypeSwitchStmt) (ast.Expr, bool) {
 	var typeAssert *ast.TypeAssertExpr
 
 	switch s := n.Assign.(type) {

@@ -21,7 +21,7 @@ import "golang.org/x/tools/go/ast/inspector"
 // handleReturns identifies function return parameters that are of type error
 // and then inspects all return statements within the function body to check
 // for incorrect error type usage.
-func (p pass) handleReturns(b inspector.Cursor, lastResult int) {
+func (p Pass) handleReturns(b inspector.Cursor, lastResult int) {
 	for retStmt := range AllReturns(b) {
 		if len(retStmt.Results) <= lastResult {
 			continue // Skip return statements with differing arity
@@ -38,6 +38,6 @@ func (p pass) handleReturns(b inspector.Cursor, lastResult int) {
 			continue // nil is fine.
 		}
 
-		p.checkErrorUsage(resType.Type, p.returnReporter(res))
+		p.checkReturn(resType.Type, res)
 	}
 }

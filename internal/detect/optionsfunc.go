@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ReadOverrides reads error type usage overrides from the specified file.
@@ -43,12 +41,12 @@ func (o *Options) ReadOverrides(fileName string) error {
 }
 
 // AddOverrides merges the given overrides into the UsageOverrides map.
-func (o *Options) AddOverrides(overrides map[errortypes.ErrorType][]typeutil.TypeName) {
+func (o *Options) AddOverrides(or overrides.Overrides) {
 	if o.UsageOverrides == nil {
-		o.UsageOverrides = make(map[typeutil.TypeName]errortypes.ErrorType)
+		o.UsageOverrides = make(UsageOverrides)
 	}
 
-	for typ, names := range overrides {
+	for typ, names := range or {
 		for _, name := range names {
 			o.UsageOverrides[name] = typ
 		}

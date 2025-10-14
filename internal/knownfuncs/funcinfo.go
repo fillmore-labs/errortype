@@ -14,13 +14,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package typeutil
+package knownfuncs
 
 // FuncKind distinguishes between different kinds of special functions.
 type FuncKind int8
 
 const (
-	// indicates the function is unconfigured.
+	// Indicates the function is unconfigured.
 	_ FuncKind = iota
 
 	// KindIs indicates a function that behaves like errors.Is.
@@ -40,7 +40,7 @@ const (
 type FuncType = int8
 
 const (
-	// the unclassified state for a function type, this should not happen.
+	// The unclassified state for a function type, this should not happen.
 	_ FuncType = iota
 
 	// IsFunc0 represents a function type that performs error comparison with no additional context or parameters.

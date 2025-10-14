@@ -24,6 +24,7 @@ import (
 
 	"fillmore-labs.com/errortype/internal/detect"
 	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -78,12 +79,12 @@ type overridesOption struct {
 }
 
 func (o overridesOption) apply(opts *detect.Options) {
-	or := make(map[errortypes.ErrorType][]typeutil.TypeName)
+	or := make(overrides.Overrides)
 
-	for o, v := range o.overrides {
+	for typ, names := range o.overrides {
 		var et errortypes.ErrorType
 
-		switch o {
+		switch typ {
 		case OverridePointer:
 			et = errortypes.PointerType
 
@@ -97,10 +98,10 @@ func (o overridesOption) apply(opts *detect.Options) {
 			continue
 		}
 
-		l := slices.Grow(or[et], len(v))
-		for _, vv := range v {
+		l := slices.Grow(or[et], len(names))
+		for _, name := range names {
 			var tn typeutil.TypeName
-			if err := tn.UnmarshalText([]byte(vv)); err != nil {
+			if err := tn.UnmarshalText([]byte(name)); err != nil {
 				continue
 			}
 
@@ -133,7 +134,7 @@ func WithHeuristics(heuristics ...Heuristic) Option {
 type heuristicsOption struct{ heuristics []Heuristic }
 
 func (o heuristicsOption) apply(opts *detect.Options) {
-	var combined detect.HeuristicPass
+	var combined detect.Heuristics
 
 	for _, heuristic := range o.heuristics {
 		switch heuristic {

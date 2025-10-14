@@ -26,20 +26,18 @@ import (
 )
 
 // handleErrorsAsType checks for incorrect pointer/value usage of error types passed to functions like `errors.AsType[T]`.
-func (p pass) handleErrorsAsType(fun *types.Func, targetExpr ast.Expr) {
+func (p Pass) handleErrorsAsType(fun *types.Func, targetExpr ast.Expr) {
 	tv, ok := p.TypesInfo.Types[targetExpr]
 	if !ok || !typeutil.HasErrorMethod(tv.Type) {
 		return // We are only interested in errors
 	}
 
-	reporter := p.genericCallReporter(targetExpr, fun)
-
 	// Now, check if the error type is used correctly (pointer vs. value).
-	p.checkErrorUsage(tv.Type, reporter)
+	p.checkGenericCall(tv.Type, targetExpr, fun)
 }
 
 // handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
-func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int, opts AstOptions) {
+func (p Pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int) {
 	if targetArgIndex >= len(n.Args) {
 		return // Not enough arguments, e.g. called with return values of another function.
 	}
@@ -51,9 +49,7 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 		p.ReportErrorf(targetArg, "Expected argument value, got %#v", tv)
 	}
 
-	targetType := tv.Type
-
-	switch t := targetType.Underlying().(type) {
+	switch targetType := tv.Type; t := targetType.Underlying().(type) {
 	case *types.Pointer:
 		// Argument is a pointer, e.g., errors.As(err, &target), which is expected.
 		elemType := t.Elem()
@@ -74,14 +70,8 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 			return
 		}
 
-		reporter := p.errorsAsReporter(targetArg, fun)
-
 		// Now, check if the error type is used correctly (pointer vs. value).
-		p.checkErrorUsage(elemType, reporter)
-
-		if opts.StyleCheck {
-			reporter.CheckStyle(elemType)
-		}
+		p.checkErrorsAs(elemType, targetArg, fun)
 
 	case *types.Interface:
 		// The correctness depends on the dynamic type held by the interface, which we cannot check statically.
@@ -96,13 +86,13 @@ func (p pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 
 	default:
 		// The argument to an `errors.As`-like function must be a pointer or an interface.
-		argStr := "<invalid>"
+		target := "<invalid>"
 
 		var sb strings.Builder
 		if format.Node(&sb, p.Fset, targetArg) == nil {
-			argStr = sb.String()
+			target = sb.String()
 		}
 
-		p.ReportRangef(targetArg, "Target argument in %s must be a pointer or an interface, got %q (type %s). (et:arg)", fun.Name(), argStr, targetType)
+		p.ReportRangef(targetArg, "Target argument in %s must be a pointer or an interface, got %q (type %s). (et:arg)", fun.Name(), target, targetType)
 	}
 }

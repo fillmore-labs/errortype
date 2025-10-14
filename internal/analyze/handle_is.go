@@ -23,14 +23,15 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
+	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleIs identifies calls of errors.Is inside Is(error) methods.
-func (p pass) handleIs(b inspector.Cursor, recv, target *ast.Ident, deepIsCheck bool) {
+func (p Pass) handleIs(b inspector.Cursor, recv, target *ast.Ident) {
 	targetVar, ok := p.TypesInfo.Defs[target].(*types.Var)
 	if !ok { // should not happen
-		p.ReportErrorf(b.Node(), "Can't determine parameter %v", target)
+		p.ReportErrorf(target, "Can't determine parameter %v", target)
 		return
 	}
 
@@ -40,14 +41,12 @@ func (p pass) handleIs(b inspector.Cursor, recv, target *ast.Ident, deepIsCheck 
 			continue
 		}
 
-		fun, _, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, node.Fun)
+		fun, _, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, node)
 		if !ok {
 			continue // Could not resolve the calls function, might be a func variable.
 		}
 
-		funcName := typeutil.FuncNameOf(fun)
-
-		info, ok := typeutil.KnownFuncs[funcName]
+		info, ok := knownfuncs.FuncInfoOf(fun)
 		if !ok {
 			continue
 		}
@@ -55,22 +54,22 @@ func (p pass) handleIs(b inspector.Cursor, recv, target *ast.Ident, deepIsCheck 
 		var errArgIndex int
 
 		switch info.Kind() {
-		case typeutil.KindIs:
+		case knownfuncs.KindIs:
 			switch info.IsType() {
-			case typeutil.IsFunc0:
+			case knownfuncs.IsFunc0:
 				errArgIndex = 0
 
-			case typeutil.IsFunc1:
+			case knownfuncs.IsFunc1:
 				errArgIndex = 1
 
 			default:
 				continue
 			}
 
-		case typeutil.KindEqu:
+		case knownfuncs.KindEqu:
 			continue
 
-		case typeutil.KindAs:
+		case knownfuncs.KindAs:
 			errArgIndex, _ = info.AsTarget()
 			errArgIndex--
 		}
@@ -88,12 +87,11 @@ func (p pass) handleIs(b inspector.Cursor, recv, target *ast.Ident, deepIsCheck 
 		}
 
 		arg := node.Args[errArgIndex]
-		id, isIdent := ast.Unparen(arg).(*ast.Ident)
 
 		codeSuffix := ""
-		if isIdent && p.isTargetArg(id, target, targetVar) {
+		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.isTargetArg(id, target, targetVar) {
 			codeSuffix = "+"
-		} else if !deepIsCheck {
+		} else if !p.DeepIsCheck() {
 			continue
 		}
 
@@ -103,7 +101,7 @@ func (p pass) handleIs(b inspector.Cursor, recv, target *ast.Ident, deepIsCheck 
 }
 
 // isTargetArg determines whether arg is an identifier that refers to the target variable.
-func (p pass) isTargetArg(id, target *ast.Ident, targetVar *types.Var) bool {
+func (p Pass) isTargetArg(id, target *ast.Ident, targetVar *types.Var) bool {
 	// arg resolves to the target variable.
 	return id.Name == target.Name && p.TypesInfo.Uses[id] == targetVar
 }

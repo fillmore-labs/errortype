@@ -26,24 +26,13 @@ import (
 	. "fillmore-labs.com/errortype/gclplugin"
 )
 
-var yamlsettings = `---
-overrides:
-  pointer:
-    - test/a.PointerOverride
-  value:
-    - test/a.ValueOverride
-  suppress:
-    - test/a.SuppressOverride
-style-check: true
-deep-is-check: false
-check-is: true
-unchecked-assert: false
-check-unused: false`
+//go:embed settings_test.yaml
+var _yamlsettings string
 
 func TestSettings(t *testing.T) {
 	t.Parallel()
 
-	rawSettings := decodeSettings(t, yamlsettings)
+	rawSettings := decodeSettings(t, _yamlsettings)
 
 	r, err := New(rawSettings)
 	if err != nil {
@@ -54,8 +43,7 @@ func TestSettings(t *testing.T) {
 		t.Error("expected typesinfo load mode")
 	}
 
-	_, err = r.BuildAnalyzers()
-	if err != nil {
+	if _, err := r.BuildAnalyzers(); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -63,12 +51,11 @@ func TestSettings(t *testing.T) {
 func TestBrokenSettings(t *testing.T) {
 	t.Parallel()
 
-	rawSettings := decodeSettings(t, "unknown: false")
+	rawSettings := decodeSettings(t, "---\nunknown: false")
 
 	want := "unknown field"
 
-	_, err := New(rawSettings)
-	if err == nil || !strings.Contains(err.Error(), want) {
+	if _, err := New(rawSettings); err == nil || !strings.Contains(err.Error(), want) {
 		t.Fatalf("expected error with %q, got %v", want, err)
 	}
 }

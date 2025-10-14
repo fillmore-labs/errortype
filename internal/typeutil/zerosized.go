@@ -26,21 +26,30 @@ func ZeroSized(typ types.Type) bool {
 }
 
 func zeroSized(typ types.Type, depth int) bool {
-	if depth > maxDepth {
-		return false
-	}
-
 	switch u := typ.Underlying().(type) {
 	case *types.Array:
-		if u.Len() > 0 {
-			return zeroSized(u.Elem(), depth+1)
+		if u.Len() == 0 {
+			return true
 		}
 
-		return true
+		if depth++; depth > maxDepth {
+			return false
+		}
+
+		return zeroSized(u.Elem(), depth)
 
 	case *types.Struct:
-		for f := range u.Fields() {
-			if !zeroSized(f.Type(), depth+1) {
+		n := u.NumFields()
+		if n == 0 {
+			return true
+		}
+
+		if depth++; depth > maxDepth {
+			return false
+		}
+
+		for i := range n {
+			if !zeroSized(u.Field(i).Type(), depth) {
 				return false
 			}
 		}

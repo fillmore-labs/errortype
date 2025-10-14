@@ -5,9 +5,9 @@ when:
 
 matrix:
   GO_VERSION:
-    - "tip-20251011"
-    - "1.25.3"
-    - "1.24.9"
+    - "tip-20251115"
+    - "1.25.4"
+    - "1.24.10"
 
 steps:
   - name: test
@@ -15,6 +15,7 @@ steps:
     environment:
       GOTOOLCHAIN: local
     commands:
+      - go telemetry on
       - go mod download && (cd ./internal/analyze/testdata && go mod download)
       - echo "🔨 Testing on $(go version):"
       - go test ./...

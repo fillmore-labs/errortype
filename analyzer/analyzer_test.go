@@ -24,7 +24,6 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	. "fillmore-labs.com/errortype/analyzer"
-	"fillmore-labs.com/errortype/detect"
 )
 
 func TestAnalyzer(t *testing.T) {
@@ -32,27 +31,21 @@ func TestAnalyzer(t *testing.T) {
 
 	testdata := analysistest.TestData()
 
-	detectTypes := func() Option {
-		t.Helper()
-
-		overridefile := path.Join(testdata, "overrides.yaml")
-
-		d := detect.New()
-
-		if err := d.Flags.Set("overrides", overridefile); err != nil {
-			t.Fatal("can't set override file", err)
-		}
-
-		return WithDetectTypes(d)
-	}
-
-	tests := []struct {
+	tests := [...]struct {
 		name     string
 		patterns []string
 		options  Options
 		flags    func(*flag.FlagSet)
 	}{
-		{"a with flags", []string{"test/a"}, []Option{detectTypes()}, nil},
+		{"a with flags", []string{"test/a"}, nil, func(f *flag.FlagSet) {
+			t.Helper()
+
+			overridefile := path.Join(testdata, "overrides.yaml")
+
+			if err := f.Set("overrides", overridefile); err != nil {
+				t.Fatal("can't set overrides", err)
+			}
+		}},
 		{"b", []string{"test/b", "test/style"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true)}, nil},
 		{"b with flags", []string{"test/b", "test/style"}, nil, func(f *flag.FlagSet) {
 			t.Helper()

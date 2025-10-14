@@ -16,9 +16,7 @@
 
 package report
 
-import (
-	"go/types"
-)
+import "go/types"
 
 // GenericCall reports diagnostics related to generic function calls.
 type GenericCall struct {

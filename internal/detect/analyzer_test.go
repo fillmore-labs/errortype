@@ -18,6 +18,7 @@ package detect_test
 
 import (
 	"errors"
+	"fmt"
 	"go/ast"
 	"go/types"
 	"path/filepath"
@@ -39,7 +40,7 @@ func TestDetectAnalyzer(t *testing.T) {
 	dir := analysistest.TestData()
 	overrides := filepath.Join(dir, "overrides.yaml")
 
-	tests := []struct {
+	tests := [...]struct {
 		name        string
 		newAnalyzer func() *analysis.Analyzer
 		pkg         string
@@ -79,31 +80,26 @@ func newTestAnalyzer(o *Options) *analysis.Analyzer {
 	return testAnalyzer
 }
 
-var (
-	// ErrNoInspectorResult is returned when the ast inspector is missing.
-	ErrNoInspectorResult = errors.New("testanalyzer: inspector result missing")
-
-	// ErrNoDetectTypesResult is returned when the detecttypes result is missing.
-	ErrNoDetectTypesResult = errors.New("testanalyzer: detecttypes result missing")
-)
+// ErrResultMissing is returned when the result from an analyzer is missing.
+var ErrResultMissing = errors.New("analyzer result missing")
 
 func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, ErrNoInspectorResult
+		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
 	}
 
 	res, ok := ap.ResultOf[d].(errortypes.Result)
 	if !ok {
-		return nil, ErrNoDetectTypesResult
+		return nil, fmt.Errorf("errortype: %s: %w", d.Name, ErrResultMissing)
 	}
 
-	errorMap := make(map[*types.TypeName]errortypes.ErrorType)
+	errorMap := make(map[*types.TypeName]errortypes.ErrorType, len(res.Types))
 	for _, info := range res.Types {
 		errorMap[info.TypeName] = info.ErrorType
 	}
 
-	errorInterface := typeutil.UniverseError.Underlying().(*types.Interface)
+	errorInterface := types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
 
 	for caseClause := range inspector.All[*ast.CaseClause](in) {
 		if len(caseClause.Body) != 1 {
@@ -146,7 +142,7 @@ func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) st
 	}
 
 	switch typ & errortypes.ExpectedMask {
-	case errortypes.Undecided:
+	case errortypes.UndecidedType:
 		return "UNDECIDED"
 
 	case errortypes.PointerType:

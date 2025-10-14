@@ -37,6 +37,7 @@ linters:
     - intrange
     - mirror
     - misspell
+    - modernize
     - nlreturn
     - nolintlint
     - paralleltest
@@ -52,19 +53,19 @@ linters:
     - thelper
     - tparallel
     - unconvert
-    - unparam
     - unused
     - usestdlibvars
     - usetesting
-    - wastedassign
     - wsl_v5
     # keep-sorted end
   settings:
     # keep-sorted start
     errcheck:
       exclude-functions:
-        - (*os.File).Close
         - (io/fs.File).Close
+        - (*os.File).Close
+        - (*github.com/goccy/go-yaml.Encoder).Close
+      verbose: true
     goheader:
       values:
         const:
@@ -140,10 +141,6 @@ linters:
         # keep-sorted end
   exclusions:
     rules:
-      - path: _test\.go$
-        linters:
-          - govet
-        text: "lostcancel"
       - path: ^main\.go$
         linters:
           - gocheckcompilerdirectives

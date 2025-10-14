@@ -24,9 +24,9 @@ import (
 	"fillmore-labs.com/errortype/internal/analyze"
 )
 
-// makeOptions returns a [analyze.Options] struct with overriding [Options] applied.
-func makeOptions(opts Options) *analyze.Options {
-	o := analyze.DefaultOptions()
+// makeOptions returns a [analyze.RunOptions] struct with overriding [Options] applied.
+func makeOptions(opts Options) *analyze.RunOptions {
+	o := analyze.DefaultRunOptions()
 	opts.apply(o)
 
 	return o
@@ -34,14 +34,14 @@ func makeOptions(opts Options) *analyze.Options {
 
 // Option configures specific behavior of a [New] errortype [analysis.Analyzer].
 type Option interface {
-	apply(opts *analyze.Options)
+	apply(opts *analyze.RunOptions)
 	LogAttr() slog.Attr
 }
 
 // Options is a list of [Option] values that also satisfies the [Option] interface.
 type Options []Option
 
-func (o Options) apply(opts *analyze.Options) {
+func (o Options) apply(opts *analyze.RunOptions) {
 	for _, opt := range o {
 		opt.apply(opts)
 	}
@@ -69,7 +69,7 @@ func WithDetectTypes(detectTypes *analysis.Analyzer) Option {
 
 type detectTypesOption struct{ detectTypes *analysis.Analyzer }
 
-func (o detectTypesOption) apply(opts *analyze.Options) { opts.DetectTypes = o.detectTypes }
+func (o detectTypesOption) apply(opts *analyze.RunOptions) { opts.DetectTypes = o.detectTypes }
 
 func (o detectTypesOption) LogAttr() slog.Attr {
 	return slog.String("detect", o.detectTypes.Name)
@@ -80,7 +80,9 @@ func WithStyleCheck(styleCheck bool) Option { return styleCheckOption{styleCheck
 
 type styleCheckOption struct{ styleCheck bool }
 
-func (o styleCheckOption) apply(opts *analyze.Options) { opts.StyleCheck = o.styleCheck }
+func (o styleCheckOption) apply(opts *analyze.RunOptions) {
+	opts.SetOption(analyze.OptionStyleCheck, o.styleCheck)
+}
 
 func (o styleCheckOption) LogAttr() slog.Attr {
 	return slog.Bool("styleCheck", o.styleCheck)
@@ -95,7 +97,9 @@ func WithCheckIs(checkIs bool) Option { return checkIsOption{checkIs: checkIs} }
 
 type checkIsOption struct{ checkIs bool }
 
-func (o checkIsOption) apply(opts *analyze.Options) { opts.CheckIs = o.checkIs }
+func (o checkIsOption) apply(opts *analyze.RunOptions) {
+	opts.SetOption(analyze.OptionCheckIs, o.checkIs)
+}
 
 func (o checkIsOption) LogAttr() slog.Attr {
 	return slog.Bool("checkIs", o.checkIs)
@@ -110,7 +114,9 @@ func WithDeepIsCheck(deepIsCheck bool) Option {
 
 type deepIsCheckOption struct{ deepIsCheck bool }
 
-func (o deepIsCheckOption) apply(opts *analyze.Options) { opts.DeepIsCheck = o.deepIsCheck }
+func (o deepIsCheckOption) apply(opts *analyze.RunOptions) {
+	opts.SetOption(analyze.OptionDeepIsCheck, o.deepIsCheck)
+}
 
 func (o deepIsCheckOption) LogAttr() slog.Attr {
 	return slog.Bool("deepIsCheck", o.deepIsCheck)
@@ -123,7 +129,9 @@ func WithUncheckedAssert(uncheckedAssert bool) Option {
 
 type uncheckedAssertOption struct{ uncheckedAssert bool }
 
-func (o uncheckedAssertOption) apply(opts *analyze.Options) { opts.UncheckedAssert = o.uncheckedAssert }
+func (o uncheckedAssertOption) apply(opts *analyze.RunOptions) {
+	opts.SetOption(analyze.OptionUncheckedAssert, o.uncheckedAssert)
+}
 
 func (o uncheckedAssertOption) LogAttr() slog.Attr {
 	return slog.Bool("uncheckedAssert", o.uncheckedAssert)
@@ -136,7 +144,9 @@ func WithCheckUnused(checkUnused bool) Option {
 
 type checkUnusedOption struct{ checkUnused bool }
 
-func (o checkUnusedOption) apply(opts *analyze.Options) { opts.CheckUnused = o.checkUnused }
+func (o checkUnusedOption) apply(opts *analyze.RunOptions) {
+	opts.SetOption(analyze.OptionCheckUnused, o.checkUnused)
+}
 
 func (o checkUnusedOption) LogAttr() slog.Attr {
 	return slog.Bool("checkUnused", o.checkUnused)

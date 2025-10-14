@@ -55,9 +55,9 @@ func TypeNameOf(t types.Type) (tn *types.TypeName, ptr, ok bool) {
 	}
 }
 
-// HasErrorResult checks whether the given function result list has an error type as its last return value.
+// ErrorResultIndex checks whether the given function result list has an error type as its last return value.
 // Returns the index of the error result or -1 when not found.
-func HasErrorResult(info *types.Info, results *ast.FieldList) int {
+func ErrorResultIndex(info *types.Info, results *ast.FieldList) int {
 	// We are only interested in functions with return values.
 	if results == nil || len(results.List) == 0 {
 		return -1 // No result
@@ -73,26 +73,6 @@ func HasErrorResult(info *types.Info, results *ast.FieldList) int {
 	}
 
 	return -1 // Not an error type
-}
-
-// HasErrorSig checks whether the provided function signature is `func() string`.
-func HasErrorSig(sig *types.Signature) bool {
-	return errorSig.matchSignature(sig)
-}
-
-// HasIsSig checks whether the provided function signature is `func(error) bool`.
-func HasIsSig(sig *types.Signature) bool {
-	return isSig.matchSignature(sig)
-}
-
-// HasAsSig checks whether the provided function signature is `func(any) bool`.
-func HasAsSig(sig *types.Signature) bool {
-	return asSig.matchSignature(sig)
-}
-
-// HasUnwrapSig checks whether the provided function signature is `func() error` or `func() []error`.
-func HasUnwrapSig(sig *types.Signature) bool {
-	return unwrapSig.matchSignature(sig) || unwrapMultipleSig.matchSignature(sig)
 }
 
 // HasPointerReceiver determines whether the given method signature has a pointer receiver.

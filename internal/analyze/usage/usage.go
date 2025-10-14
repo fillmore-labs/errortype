@@ -14,9 +14,12 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package usage
 
-import "fillmore-labs.com/errortype/internal/errortypes"
+import (
+	"fillmore-labs.com/errortype/internal/bitflag"
+	"fillmore-labs.com/errortype/internal/errortypes"
+)
 
 // Usage represents the expected and observed usage of an error type.
 type Usage uint8
@@ -47,6 +50,24 @@ const (
 	ObservedMask = PointerObserved | ValueObserved
 )
 
+var _usages = [...]string{
+	posPointerExpected: "PointerExpected",
+	posValueExpected:   "ValueExpected",
+	posPointerObserved: "PointerObserved",
+	posValueObserved:   "ValueObserved",
+}
+
+const (
+	posPointerExpected = 3 - iota
+	posValueExpected
+	posPointerObserved
+	posValueObserved
+)
+
+func (u Usage) String() string {
+	return bitflag.ToString(u, _usages[:], "None")
+}
+
 // DeterminedType analyzes the usage pattern of the Usage value and determines
 // if there is an observed usage type (consistent pointer, consistent value, or mixed)
 // that differs from the expected analysis type. It returns the determined
@@ -70,5 +91,5 @@ func (u Usage) DeterminedType() errortypes.ErrorType {
 		}
 	}
 
-	return errortypes.Undecided
+	return errortypes.UndecidedType
 }

@@ -14,8 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package errortypes provides utilities for managing properties of Go types in the context
-// of error type analysis. It defines abstractions for associating property flags with types,
-// storing and updating these properties, and iterating over types whose properties have been
-// unambiguously determined.
+// Package errortypes defines the types used to represent error type usage patterns
+// detected during static analysis.
 package errortypes

@@ -26,7 +26,7 @@ const (
 	// OverridePointer represents the override class for pointer types.
 	OverridePointer // pointer
 
-	// OverrideValue represents an override class specifying value type for customization or configuration within detection logic.
+	// OverrideValue represents the override class for value types.
 	OverrideValue // value
 
 	// OverrideSuppress represents an override to suppress specific error type usage detection.

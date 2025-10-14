@@ -23,17 +23,18 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 
+	"fillmore-labs.com/errortype/internal/analyze/usage"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-var errorMethods = map[string]func(*types.Signature) bool{
+var _errorMethods = map[string]func(*types.Signature) bool{
 	"Is":     typeutil.HasIsSig,
 	"Unwrap": typeutil.HasUnwrapSig,
 	"As":     typeutil.HasAsSig,
 }
 
-func (p pass) handleMethodDecl(n *ast.FuncDecl, c inspector.Cursor, opts AstOptions) {
-	sigCheck, ok := errorMethods[n.Name.Name]
+func (p Pass) handleMethodDecl(c inspector.Cursor, n *ast.FuncDecl) {
+	sigCheck, ok := _errorMethods[n.Name.Name]
 	if !ok {
 		return // Not an error related function
 	}
@@ -53,7 +54,7 @@ func (p pass) handleMethodDecl(n *ast.FuncDecl, c inspector.Cursor, opts AstOpti
 		return
 	}
 
-	prop, ok := p.errorUsages.GetTypeProperty(tn)
+	prop, ok := p.ErrorUsage[tn]
 	if !ok {
 		return // not an error type
 	}
@@ -65,19 +66,31 @@ func (p pass) handleMethodDecl(n *ast.FuncDecl, c inspector.Cursor, opts AstOpti
 		return
 	}
 
-	if ptr && prop&ExpectedMask == ValueExpected {
+	if ptr && prop&usage.ExpectedMask == usage.ValueExpected {
 		p.ReportRangef(n.Recv, "Method %q should be implemented with a value receiver, not a pointer (et:rcv)", fun.Name())
 	}
 
-	if n.Name.Name == "Is" && n.Body != nil {
-		recv, hasReceiver := singleField(n.Recv)
-		target, hasParameter := singleField(n.Type.Params)
+	p.checkForIsDecl(c, n)
+}
 
-		if hasReceiver && hasParameter {
-			b := c.ChildAt(edge.FuncDecl_Body, -1)
-			p.handleIs(b, recv, target, opts.DeepIsCheck)
-		}
+// checkForIsDecl checks for an "Is" method declaration and hands over to body analysis.
+func (p Pass) checkForIsDecl(c inspector.Cursor, n *ast.FuncDecl) {
+	if n.Name.Name != "Is" || n.Body == nil {
+		return
 	}
+
+	recv, hasReceiver := singleField(n.Recv)
+	if !hasReceiver { // should not happen, checked before
+		return
+	}
+
+	target, hasParameter := singleField(n.Type.Params)
+	if !hasParameter { // should not happen, checked before
+		return
+	}
+
+	b := c.ChildAt(edge.FuncDecl_Body, -1)
+	p.handleIs(b, recv, target)
 }
 
 // singleField checks if a field list contains exactly one field, which itself has at most one name.
@@ -86,8 +99,7 @@ func singleField(f *ast.FieldList) (name *ast.Ident, ok bool) {
 		return nil, false
 	}
 
-	field := f.List[0]
-	if len(field.Names) == 1 {
+	if field := f.List[0]; len(field.Names) == 1 {
 		return field.Names[0], true
 	}
 

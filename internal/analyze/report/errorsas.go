@@ -16,7 +16,14 @@
 
 package report
 
-import "go/types"
+import (
+	"fmt"
+	"go/ast"
+	"go/token"
+	"go/types"
+
+	"golang.org/x/tools/go/analysis"
+)
 
 // ErrorsAs reports diagnostics related to targets in errors.As like functions.
 type ErrorsAs struct {
@@ -26,22 +33,56 @@ type ErrorsAs struct {
 
 // ShouldBeValue reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
-	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
-	fname, varname := r.funName(), r.varName()
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.funName()
+
+	var (
+		varName string
+		related []analysis.RelatedInformation
+	)
+
+	if id, ok := r.varID(); ok {
+		varName = id.Name
+		if obj, ok := r.TypesInfo.Uses[id]; ok {
+			related = append(related, analysis.RelatedInformation{
+				Pos:     obj.Pos(),
+				Message: fmt.Sprintf("Use a value instead: \"var %s %s\"", varName, shortName),
+			})
+		}
+	} else {
+		varName = "target"
+	}
 
 	// errors.As(err, &p) where p is *ValueError. Target is **ValueError, but should be *ValueError.
-	r.ReportRangef(r.Expr, `Target for value error %q is a pointer-to-pointer, use a pointer to a value instead: "var %s %s; ... %s(err, &%s)". (et:err)`,
-		relativeName, varname, shortName, fname, varname)
+	msg := fmt.Sprintf(`Target for value error %q is a pointer-to-pointer, use a pointer to a value instead: "var %s %s; ... %s(err, &%s)". (et:err)`,
+		relativeName, varName, shortName, fName, varName)
+	r.Report(analysis.Diagnostic{Pos: r.Expr.Pos(), End: r.Expr.End(), Message: msg, Related: related})
 }
 
 // ShouldBePointer reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBePointer(tn *types.TypeName) {
-	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
-	fname, varname := r.funName(), r.varName()
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.funName()
+
+	var (
+		varName string
+		related []analysis.RelatedInformation
+	)
+
+	if id, ok := r.varID(); ok {
+		varName = id.Name
+		if obj, ok := r.TypesInfo.Uses[id]; ok {
+			related = append(related, analysis.RelatedInformation{
+				Pos:     obj.Pos(),
+				Message: fmt.Sprintf("Use a pointer instead: \"var %s *%s\"", varName, shortName),
+			})
+		}
+	} else {
+		varName = "target"
+	}
 
 	// errors.As(err, &p) where p is PointerError. Target is *PointerError, but should be **PointerError.
-	r.ReportRangef(r.Expr, `Target for pointer error %q is a pointer-to-value, use a pointer to a pointer instead: "var %s *%s; ... %s(err, &%s)". (et:err+)`,
-		relativeName, varname, shortName, fname, varname)
+	msg := fmt.Sprintf(`Target for pointer error %q is a pointer-to-value, use a pointer to a pointer instead: "var %s *%s; ... %s(err, &%s)". (et:err+)`,
+		relativeName, varName, shortName, fName, varName)
+	r.Report(analysis.Diagnostic{Pos: r.Expr.Pos(), End: r.Expr.End(), Message: msg, Related: related})
 }
 
 // funName gets a short function name, not necessarily matching imports.
@@ -51,4 +92,15 @@ func (r ErrorsAs) funName() string {
 	}
 
 	return r.Fun.Name()
+}
+
+// varID gets the target variable identifier when it is the expression "&name".
+func (r ErrorsAs) varID() (*ast.Ident, bool) {
+	if e, ok := ast.Unparen(r.Expr).(*ast.UnaryExpr); ok && e.Op == token.AND {
+		id, ok := ast.Unparen(e.X).(*ast.Ident)
+
+		return id, ok
+	}
+
+	return nil, false
 }

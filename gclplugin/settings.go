@@ -41,48 +41,61 @@ type Overrides struct {
 	Suppress []string `json:"suppress,omitempty"`
 }
 
-func detectOptions(settings Settings) []detect.Option {
-	var opts []detect.Option
-
-	overrides := make(map[detect.Override][]string)
-
-	for _, opt := range []struct {
-		types    []string
-		override detect.Override
-	}{
-		{settings.Overrides.Pointer, detect.OverridePointer},
-		{settings.Overrides.Value, detect.OverrideValue},
-		{settings.Overrides.Suppress, detect.OverrideSuppress},
-	} {
-		if len(opt.types) > 0 {
-			overrides[opt.override] = opt.types
-		}
+// detectOptions converts Settings into [detect.Options] for the detect analyzer.
+// It processes override configurations and returns them in the appropriate format.
+func detectOptions(settings Settings) detect.Options {
+	override := overrideOption(settings.Overrides)
+	if len(override) == 0 {
+		return nil
 	}
 
-	if len(overrides) > 0 {
-		opts = append(opts, detect.WithOverrides(overrides))
-	}
-
-	return opts
+	return detect.Options{detect.WithOverrides(override)}
 }
 
-func errortypeOptions(settings Settings) []errortype.Option {
-	var opts []errortype.Option
-
-	for _, opt := range []struct {
-		v *bool
-		f func(bool) errortype.Option
+// overrideOption transforms the [Overrides] struct into a map format expected by
+// the detect package. It only includes overrides that have non-empty type lists.
+func overrideOption(overrides Overrides) map[detect.Override][]string {
+	overrideConfigs := [...]struct {
+		override detect.Override
+		types    []string
 	}{
-		{settings.StyleCheck, errortype.WithStyleCheck},
-		{settings.DeepIsCheck, errortype.WithDeepIsCheck},
-		{settings.CheckIs, errortype.WithCheckIs},
-		{settings.UncheckedAssert, errortype.WithUncheckedAssert},
-		{settings.CheckUnused, errortype.WithCheckUnused},
-	} {
-		if opt.v != nil {
-			opts = append(opts, opt.f(*opt.v))
+		{detect.OverridePointer, overrides.Pointer},
+		{detect.OverrideValue, overrides.Value},
+		{detect.OverrideSuppress, overrides.Suppress},
+	}
+
+	override := make(map[detect.Override][]string, 3)
+
+	for _, opt := range overrideConfigs {
+		if len(opt.types) > 0 {
+			override[opt.override] = opt.types
 		}
 	}
 
-	return opts
+	return override
+}
+
+// errortypeOptions converts [Settings] into [errortype.Options] for the errortype analyzer.
+// It processes boolean settings and applies them only when explicitly set (non-nil).
+func errortypeOptions(settings Settings) errortype.Options {
+	optionConfigs := [...]struct {
+		f func(bool) errortype.Option
+		v *bool
+	}{
+		{errortype.WithStyleCheck, settings.StyleCheck},
+		{errortype.WithDeepIsCheck, settings.DeepIsCheck},
+		{errortype.WithCheckIs, settings.CheckIs},
+		{errortype.WithUncheckedAssert, settings.UncheckedAssert},
+		{errortype.WithCheckUnused, settings.CheckUnused},
+	}
+
+	var options errortype.Options
+
+	for _, opt := range optionConfigs {
+		if opt.v != nil {
+			options = append(options, opt.f(*opt.v))
+		}
+	}
+
+	return options
 }

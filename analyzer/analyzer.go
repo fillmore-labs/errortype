@@ -27,7 +27,16 @@ import (
 // for integrating the analyzer into other tools. For command-line use, the
 // pre-configured [Analyzer] variable is typically sufficient.
 func New(opts ...Option) *analysis.Analyzer {
-	return makeOptions(opts).Analyzer()
+	o := makeOptions(opts)
+	if o.DetectTypes == nil {
+		o.DetectTypes = detect.New()
+	}
+
+	a := o.Analyzer()
+
+	registerFlags(o, &a.Flags)
+
+	return a
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting and enforcing consistent error type usage in Go programs.

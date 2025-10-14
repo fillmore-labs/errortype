@@ -14,14 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package typeutil_test
+package knownfuncs_test
 
 import (
 	"go/token"
 	"go/types"
 	"testing"
 
-	. "fillmore-labs.com/errortype/internal/typeutil"
+	. "fillmore-labs.com/errortype/internal/knownfuncs"
 )
 
 func TestFuncNameOf(t *testing.T) {
@@ -33,7 +33,7 @@ func TestFuncNameOf(t *testing.T) {
 	emptystruct := types.NewStruct(nil, nil)
 	named := types.NewNamed(typeName, emptystruct, nil)
 
-	tests := []struct {
+	tests := [...]struct {
 		name         string
 		fun          *types.Func
 		wantFuncName string
@@ -89,8 +89,10 @@ func TestFuncNameOf(t *testing.T) {
 			wantFuncName: "myFunc",
 		},
 		{
-			name:         "method on type without package",
-			fun:          func() *types.Func { return UniverseError.Underlying().(*types.Interface).Method(0) }(),
+			name: "method on type without package",
+			fun: func() *types.Func {
+				return types.Universe.Lookup("error").Type().Underlying().(*types.Interface).Method(0)
+			}(),
 			wantFuncName: "(error).Error",
 		},
 		{
@@ -119,8 +121,7 @@ func TestFuncNameOf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			name := FuncNameOf(tt.fun)
-			if name.String() != tt.wantFuncName {
+			if name := FuncNameOf(tt.fun); name.String() != tt.wantFuncName {
 				t.Errorf("FuncNameOf() = %q, want %q", name, tt.wantFuncName)
 			}
 		})

@@ -37,7 +37,7 @@ go install fillmore-labs.com/errortype@latest
 
 #### Eget
 
-[Install `eget`](https://github.com/zyedidia/eget?tab=readme-ov-file#how-to-get-eget), then
+[Install `eget`](https://github.com/zyedidia/eget#how-to-get-eget), then
 
 ```console
 eget fillmore-labs/errortype
@@ -165,8 +165,8 @@ The linter determines an error type's intended use _(pointer vs. value)_ by anal
 
    Note: This heuristic is a fallback and should not be relied upon for defining a type's contract.
 
-5. **Consistent Method Receivers** (lowest priority): As a final heuristic, if all methods on a type have a consistent
-   receiver (all-value or all-pointer), that style is used.
+5. **Consistent Method Receivers** (the lowest priority): As a final heuristic, if all methods on a type have a
+   consistent receiver (all-value or all-pointer), that style is used.
 
 ### Designing Linter-Friendly Packages
 
@@ -191,7 +191,7 @@ var (
 
 ### Overriding Detected Types
 
-When the linter reports ambiguous or inconsistent usage from types of an imported package that you can not change, you
+When the linter reports ambiguous or inconsistent usage from types of an imported package that you cannot change, you
 can guide the linter with an override file, see _[“Override File”](#override-file)_.
 
 ## Pointless Comparisons
@@ -392,6 +392,8 @@ specific problems.
   }
   ```
 
+  See also [“Pointless Comparisons”](#pointless-comparisons).
+
   **Fix**: Use `errors.As` to check if an error is of a certain type. If you need to check for a specific sentinel error
   instance, define it as a package-level variable and compare against that.
 
@@ -486,7 +488,7 @@ Add a file `.custom-gcl.yaml` to your source with
 
 ```yaml
 ---
-version: v2.5.0
+version: v2.6.2
 
 name: golangci-lint
 destination: .
@@ -494,7 +496,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.7
+    version: v0.0.8
 ```
 
 then run `golangci-lint custom` from your project root. You get a custom `golangci-lint` executable that can be

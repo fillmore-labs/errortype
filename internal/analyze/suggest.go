@@ -17,49 +17,35 @@
 package analyze
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func (p pass) calculateSuggestions() map[errortypes.ErrorType][]typeutil.TypeName {
-	suggestions := make(map[errortypes.ErrorType][]typeutil.TypeName)
-
-	for tn, typ := range p.errorUsages.AllDetermined {
-		if typ == errortypes.SuppressType {
-			continue
-		}
-
-		suggestions[typ] = append(suggestions[typ], typeutil.NewTypeName(tn))
-	}
-
-	return suggestions
-}
-
-func (o *Options) writeSuggestions(suggestions map[errortypes.ErrorType][]typeutil.TypeName, name string) error {
+func (o *RunOptions) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) error {
 	if o.Suggest == "" || len(suggestions) == 0 {
 		return nil
 	}
+
+	o.suggestwrite.Lock()
+	defer o.suggestwrite.Unlock()
 
 	var out *os.File
 	if o.Suggest == "-" {
 		out = os.Stdout
 	} else {
-		o.suggestwrite.Lock()
-		defer o.suggestwrite.Unlock()
+		var err error
 
-		suggest, err := os.OpenFile(filepath.Clean(o.Suggest), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o666) //nolint:gosec
+		out, err = os.OpenFile(filepath.Clean(o.Suggest), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o666) //nolint:gosec
 		if err != nil {
 			return fmt.Errorf("can't write suggestion file: %w", err)
 		}
 
-		defer suggest.Close()
-		out = suggest
+		defer out.Close()
 	}
 
-	return overrides.Write(out, suggestions, name)
+	return overrides.Write(ctx, out, suggestions, pkgPath)
 }

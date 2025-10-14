@@ -23,6 +23,8 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/internal/detect/properties"
+	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -44,7 +46,7 @@ func (p pass) walkFunctionBody(f *ast.FuncDecl) {
 
 	v := usageVisitor{
 		pass:       p,
-		lastResult: typeutil.HasErrorResult(p.TypesInfo, f.Type.Results),
+		lastResult: typeutil.ErrorResultIndex(p.TypesInfo, f.Type.Results),
 		inExpr:     false,
 	}
 	ast.Walk(v, f.Body)
@@ -96,7 +98,7 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 		// We inspect its body for how it returns error types.
 		u := usageVisitor{
 			pass:       v.pass,
-			lastResult: typeutil.HasErrorResult(v.TypesInfo, n.Type.Results),
+			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, n.Type.Results),
 			inExpr:     false,
 		}
 
@@ -186,9 +188,9 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 		return
 	}
 
-	prop := ValueAssert
+	prop := properties.ValueAssert
 	if ptr {
-		prop = PointerAssert
+		prop = properties.PointerAssert
 	}
 
 	p.addTypePropertyInCurrentPackage(tn, prop)
@@ -202,9 +204,9 @@ func (p pass) handleCast(typ types.Type) {
 		return
 	}
 
-	prop := ValueCast
+	prop := properties.ValueCast
 	if ptr {
-		prop = PointerCast
+		prop = properties.PointerCast
 	}
 
 	p.addTypePropertyInCurrentPackage(tn, prop)
@@ -247,9 +249,9 @@ func (p pass) handleCompositeLit(n *ast.CompositeLit, isAddrOf bool) {
 		return // Not a named type.
 	}
 
-	property := ValueLiteral
+	property := properties.ValueLiteral
 	if ptr {
-		property = PointerLiteral
+		property = properties.PointerLiteral
 	}
 
 	p.addTypePropertyInCurrentPackage(tn, property)
@@ -279,9 +281,9 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 		return // Not a named type.
 	}
 
-	property := ValueReturn
+	property := properties.ValueReturn
 	if ptr {
-		property = PointerReturn
+		property = properties.PointerReturn
 	}
 
 	v.addTypePropertyInCurrentPackage(tn, property)
@@ -290,16 +292,13 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 // handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
 // It returns the target argument, or nil if the function is not of interest.
 func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
-	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n.Fun)
+	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n)
 	if !ok {
 		return nil, false // Could not resolve function, might be a func variable.
 	}
 
-	// errorsAs maps a function name to the index of its "target" argument.
-	funcName := typeutil.FuncNameOf(fun)
-
-	asfunc, ok := typeutil.KnownFuncs[funcName]
-	if !ok || asfunc.Kind() != typeutil.KindAs {
+	asfunc, ok := knownfuncs.FuncInfoOf(fun)
+	if !ok || asfunc.Kind() != knownfuncs.KindAs {
 		return nil, false // Not a function we are interested in.
 	}
 
@@ -307,6 +306,7 @@ func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
 	if typeParam >= 0 { // Handle generic functions like `errors.AsType[T]`.
 		if len(typeParams) > typeParam {
 			typ := typeParams[typeParam]
+
 			if tv, ok := p.TypesInfo.Types[typ]; ok && tv.IsType() && typeutil.HasErrorMethod(tv.Type) {
 				return tv.Type, ok
 			}
@@ -351,9 +351,9 @@ func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
 			return // Not a named type.
 		}
 
-		property := ValueTarget
+		property := properties.ValueTarget
 		if ptr {
-			property = PointerTarget
+			property = properties.PointerTarget
 		}
 
 		v.addTypePropertyInCurrentPackage(tn, property)
@@ -369,7 +369,7 @@ func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
 	if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
 		u := usageVisitor{
 			pass:       v.pass,
-			lastResult: typeutil.HasErrorResult(v.TypesInfo, f.Type.Results),
+			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, f.Type.Results),
 			inExpr:     false,
 		}
 
@@ -379,14 +379,12 @@ func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
 
 // addTypePropertyInCurrentPackage sets a property on a type if it's a known error type
 // in the current package and the property isn't yet set.
-func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property ErrorProperty) {
+func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property properties.ErrorProperty) {
 	if !p.inCurrentPkg(tn) {
 		return // Only relevant for types defined in the current package
 	}
 
-	old, ok := p.GetTypeProperty(tn)
-
-	if ok && old&property != property { // known, but property isn't set.
-		p.SetTypeProperty(tn, old|property)
+	if old, ok := p.DetectedTypes[tn]; ok && old&property != property { // known, but property isn't set.
+		p.DetectedTypes[tn] |= property
 	}
 }

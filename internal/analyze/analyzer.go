@@ -17,9 +17,6 @@
 package analyze
 
 import (
-	"flag"
-	"log"
-
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
@@ -48,7 +45,7 @@ for most error types but may require a configuration file for ambiguous cases.`
 )
 
 // Analyzer creates an instance of the errortype analyzer.
-func (o *Options) Analyzer() *analysis.Analyzer {
+func (o *RunOptions) Analyzer() *analysis.Analyzer {
 	if o.DetectTypes == nil {
 		o.DetectTypes = detect.DefaultOptions().Analyzer()
 	}
@@ -61,30 +58,5 @@ func (o *Options) Analyzer() *analysis.Analyzer {
 		Requires: []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
 	}
 
-	a.Flags.BoolVar(&o.StyleCheck, "style-check", o.StyleCheck, "check for confusing uses of errors.As")
-
-	a.Flags.BoolVar(&o.CheckIs, "check-is", o.CheckIs,
-		`suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`)
-
-	a.Flags.BoolVar(&o.DeepIsCheck, "deep-is-check", o.DeepIsCheck, `diagnose all "Unwrap" functions in "Is" methods, not only those on target`)
-
-	a.Flags.BoolVar(&o.UncheckedAssert, "unchecked-assert", o.UncheckedAssert, `report unchecked type asserts on errors`)
-
-	a.Flags.BoolVar(&o.CheckUnused, "check-unused", o.CheckUnused, `report unchecked calls on errors.As-like functions`)
-
-	a.Flags.StringVar(&o.Suggest, "suggest", o.Suggest, "append suggestions to this `file`, \"-\" for standard output")
-
-	copyFlags(&o.DetectTypes.Flags, &a.Flags)
-
 	return a
-}
-
-func copyFlags(from, to *flag.FlagSet) {
-	from.VisitAll(func(f *flag.Flag) {
-		if to.Lookup(f.Name) != nil {
-			log.Fatalf("Duplicate flag: %s", f.Name)
-		}
-
-		to.Var(f.Value, f.Name, f.Usage)
-	})
 }

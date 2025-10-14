@@ -27,7 +27,7 @@ import (
 func TestTypeName_String(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name     string
 		typeName TypeName
 		want     string
@@ -62,7 +62,7 @@ func TestTypeName_String(t *testing.T) {
 func TestTypeName_Compare(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name  string
 		p1    TypeName
 		p2    TypeName
@@ -130,7 +130,7 @@ func TestNewTypeName(t *testing.T) {
 		return types.NewTypeName(token.NoPos, pkg, typeName, nil)
 	}
 
-	tests := []struct {
+	tests := [...]struct {
 		name string
 		tn   *types.TypeName
 		want TypeName
@@ -160,7 +160,7 @@ func TestNewTypeName(t *testing.T) {
 func TestTypeName_MarshalText(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name     string
 		typeName TypeName
 		want     string
@@ -201,22 +201,23 @@ func TestTypeName_MarshalText(t *testing.T) {
 func TestTypeName_UnmarshalText(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name    string
-		text    []byte
+		text    string
 		want    TypeName
 		wantErr bool
 	}{
-		{"with path", []byte("example.com/pkg/path.MyType"), TypeName{Path: "example.com/pkg/path", Name: "MyType"}, false},
-		{"without path", []byte("error"), TypeName{Path: "", Name: "error"}, false},
-		{"built-in type", []byte("types.TypeName"), TypeName{Path: "types", Name: "TypeName"}, false},
+		{"with path", "example.com/pkg/path.MyType", TypeName{Path: "example.com/pkg/path", Name: "MyType"}, false},
+		{"without path", "error", TypeName{Path: "", Name: "error"}, false},
+		{"built-in type", "types.TypeName", TypeName{Path: "types", Name: "TypeName"}, false},
+		{"empty", "types.", TypeName{Path: "types", Name: ""}, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
 			var tn TypeName
-			if err := tn.UnmarshalText(tt.text); (err != nil) != tt.wantErr {
+			if err := tn.UnmarshalText([]byte(tt.text)); (err != nil) != tt.wantErr {
 				t.Fatalf("UnmarshalText() error = %v, wantErr %v", err, tt.wantErr)
 			}
 

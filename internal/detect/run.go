@@ -18,6 +18,7 @@ package detect
 
 import (
 	"context"
+	"log"
 	"runtime/trace"
 
 	"golang.org/x/tools/go/analysis"
@@ -42,7 +43,7 @@ func (o *Options) run(ap *analysis.Pass) (any, error) {
 	p := newPass(ap)
 
 	if trace.IsEnabled() {
-		trace.Log(ctx, "pkg", typeutil.PkgName(p.Pass))
+		trace.Log(ctx, "pkg", typeutil.PkgPath(p.Pass))
 	}
 
 	// Process type declarations in the current package.
@@ -53,17 +54,17 @@ func (o *Options) run(ap *analysis.Pass) (any, error) {
 		p.processOverrides(o.UsageOverrides)
 	}
 
-	if o.Heuristics&HeuristicVar != 0 && p.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicVar != 0 && p.DetectedTypes.HasUndeterminedErrors() {
 		// Process variable declarations, identifying properties for local types.
 		p.processVarSpecs(ctx)
 	}
 
-	if o.Heuristics&HeuristicUsage != 0 && p.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicUsage != 0 && p.DetectedTypes.HasUndeterminedErrors() {
 		// Process error value usage in the current package.
 		p.processUsage(ctx)
 	}
 
-	if o.Heuristics&HeuristicReceivers != 0 && p.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicReceivers != 0 && p.DetectedTypes.HasUndeterminedErrors() {
 		// Last resort.
 		p.processReceivers(ctx)
 	}
@@ -72,7 +73,7 @@ func (o *Options) run(ap *analysis.Pass) (any, error) {
 	p.processAliases(ctx)
 
 	if o.Trace != nil && o.Trace.MatchString(p.Pkg.Path()) {
-		p.logResults()
+		p.logResults(ctx, log.Default())
 	}
 
 	// Export determined properties for types in the current package as facts for downstream packages.

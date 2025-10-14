@@ -19,19 +19,20 @@ package analyze
 import (
 	"go/ast"
 
+	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleIsType processes type assertion functions that check if an error implements a specific type.
 // It handles functions with signatures like `assert.IsType`.
-func (p pass) handleIsType(n *ast.CallExpr, methodExpr bool, ftyp typeutil.FuncType) {
+func (p Pass) handleIsType(n *ast.CallExpr, methodExpr bool, ftyp knownfuncs.FuncType) {
 	var typeArg int
 
 	switch ftyp {
-	case typeutil.IsFunc0: // suite.IsType(typeArg, targetArg, ...)
+	case knownfuncs.IsFunc0: // suite.IsType(typeArg, targetArg, ...)
 		typeArg = 0
 
-	case typeutil.IsFunc1: // assert.IsType(t, typeArg, targetArg, ...)
+	case knownfuncs.IsFunc1: // assert.IsType(t, typeArg, targetArg, ...)
 		typeArg = 1
 
 	default: // should not happen
@@ -49,11 +50,9 @@ func (p pass) handleIsType(n *ast.CallExpr, methodExpr bool, ftyp typeutil.FuncT
 		return // Multivalued argument or incorrect call
 	}
 
-	targetExpr := n.Args[typeArg+1]
-	targetType, ok := p.TypesInfo.Types[targetExpr]
-
 	// Only analyze if the target implements the error interface
-	if !ok || !typeutil.HasErrorMethod(targetType.Type) {
+	targetExpr := n.Args[typeArg+1]
+	if targetType, ok := p.TypesInfo.Types[targetExpr]; !ok || !typeutil.HasErrorMethod(targetType.Type) {
 		return
 	}
 
@@ -65,5 +64,5 @@ func (p pass) handleIsType(n *ast.CallExpr, methodExpr bool, ftyp typeutil.FuncT
 	}
 
 	// Check if the type is correctly asserted
-	p.checkErrorUsage(assertedType.Type, p.assertReporter(typeExpr))
+	p.checkAssert(assertedType.Type, typeExpr)
 }

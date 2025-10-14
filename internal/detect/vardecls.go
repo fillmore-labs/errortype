@@ -23,6 +23,7 @@ import (
 	"runtime/trace"
 	"strings"
 
+	"fillmore-labs.com/errortype/internal/detect/properties"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -52,6 +53,7 @@ func (p pass) processVarSpecs(ctx context.Context) {
 		}
 
 		// Handle error assertions, e.g., `var _ error = ...` where the type is explicit.
+		// It also handles sentinel errors with explicit types, e.g., `var ErrSomething error = ...`.
 		p.findErrorAssertions(varDecl)
 	}
 }
@@ -79,19 +81,20 @@ func (p pass) findSentinelErrors(varDecl *ast.ValueSpec) {
 }
 
 // findErrorAssertions checks for error assertion declarations (`var _ error = ...`).
+// It also handles sentinel errors with explicit types, e.g., `var ErrSomething error = ...`.
 func (p pass) findErrorAssertions(varDecl *ast.ValueSpec) {
 	if tv, ok := p.TypesInfo.Types[varDecl.Type]; !ok || !typeutil.HasErrorMethod(tv.Type) {
+		return
+	}
+
+	if len(varDecl.Values) > len(varDecl.Names) { // should not happen
 		return
 	}
 
 	for i, value := range varDecl.Values {
 		tv, ok := p.TypesInfo.Types[value]
 		if !ok || !tv.IsValue() { // should not happen
-			name := "<unknown>"
-			if len(varDecl.Names) > i {
-				name = varDecl.Names[i].Name
-			}
-
+			name := varDecl.Names[i].Name
 			p.LogErrorf(value, "can't get value for variable %s", name)
 
 			continue
@@ -115,9 +118,9 @@ func (p pass) recordVarProperty(typ types.Type) {
 		return // struct { embedded } or nil
 	}
 
-	errortype := ValueVar
+	errortype := properties.ValueVar
 	if ptr {
-		errortype = PointerVar
+		errortype = properties.PointerVar
 	}
 
 	// Record usage in the property map.

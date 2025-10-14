@@ -22,14 +22,14 @@ import (
 	"golang.org/x/tools/go/analysis"
 )
 
-// PkgName returns the package path of the given [analysis.Pass], appending “(test)” if it belongs to a test package.
-func PkgName(p *analysis.Pass) string {
-	name := p.Pkg.Path()
+// PkgPath returns the package path of the given [analysis.Pass], appending “(test)” if it belongs to a test package.
+func PkgPath(p *analysis.Pass) string {
+	pkgPath := p.Pkg.Path()
 	if IsTest(p) {
-		name += " (test)"
+		pkgPath += " (test)"
 	}
 
-	return name
+	return pkgPath
 }
 
 // IsTest determines if the given package is a test package, either external or containing test files.
@@ -40,8 +40,12 @@ func IsTest(p *analysis.Pass) bool {
 
 	// Check if any files in the package are test files
 	for _, file := range p.Files {
-		pos := p.Fset.Position(file.Pos())
-		if strings.HasSuffix(pos.Filename, "_test.go") {
+		pos := file.Pos()
+		if !pos.IsValid() {
+			continue
+		}
+
+		if position := p.Fset.PositionFor(pos, false); strings.HasSuffix(position.Filename, "_test.go") {
 			return true
 		}
 	}

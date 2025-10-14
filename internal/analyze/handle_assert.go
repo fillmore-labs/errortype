@@ -24,7 +24,7 @@ import (
 )
 
 // handleTypeAssert checks for incorrect pointer/value usage of error types in type assertions.
-func (p pass) handleTypeAssert(n *ast.TypeAssertExpr, uncheckedAssert bool) {
+func (p Pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 	if n.Type == nil {
 		return // Type switches are handled in handleTypeSwitch
 	}
@@ -40,27 +40,28 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr, uncheckedAssert bool) {
 	}
 
 	var typ types.Type
+
 	if t, ok := tv.Type.(*types.Tuple); ok {
-		if t.Len() != 2 || t.At(1).Type() != basicBool { // should not happen
+		if t.Len() != 2 || t.At(1).Type() != _basicBool { // should not happen
 			p.ReportErrorf(n, "Unrecognized tuple structure: %v", t)
 			return
 		}
 
 		typ = t.At(0).Type()
 	} else {
-		if uncheckedAssert {
+		if p.UncheckedAssert() {
 			p.reportUnchecked(n, tvx, tv)
 		}
 
 		typ = tv.Type
 	}
 
-	p.checkErrorUsage(typ, p.assertReporter(n.Type))
+	p.checkAssert(typ, n.Type)
 }
 
-var basicBool = types.Typ[types.Bool]
+var _basicBool = types.Typ[types.Bool]
 
-func (p pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue) {
+func (p Pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue) {
 	ityp, isInterface := tv.Type.Underlying().(*types.Interface)
 	if isInterface && types.Implements(tvx.Type, ityp) {
 		return

@@ -22,7 +22,12 @@ import "golang.org/x/tools/go/analysis"
 // It detects how error types are used (as pointers or values) to provide
 // this information to other analyzers in the toolchain.
 func New(opts ...Option) *analysis.Analyzer {
-	return makeOptions(opts).Analyzer()
+	o := makeOptions(opts)
+	a := o.Analyzer()
+
+	registerFlags(o, &a.Flags)
+
+	return a
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting error types in Go programs.

@@ -38,9 +38,5 @@ func (o *Options) Analyzer() *analysis.Analyzer {
 		ResultType:       reflect.TypeFor[errortypes.Result](),
 	}
 
-	a.Flags.Func("overrides", "read error type overrides from this `file`", o.ReadOverrides)
-	a.Flags.Func("heuristics", "`list` of heuristics used (default: \"var,usage,receivers\", \"off\" to disable)", o.SetHeuristics)
-	a.Flags.Func("tracetypes", "information of error type detection in packages matching this `regex`", o.SetTrace)
-
 	return a
 }

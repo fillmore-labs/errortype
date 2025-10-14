@@ -15,14 +15,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /*
-Package gclplugin implements a golangci-lint plugin for [errortype].
+Package gclplugin provides golangci-lint plugin integration for the [errortype] analyzer.
 
 # Usage
 
 1. Add a file `.custom-gcl.yaml` to your source with:
 
 	---
-	version: v2.5.0
+	version: v2.6.2
 
 	name: golangci-lint
 	destination: .
@@ -30,7 +30,7 @@ Package gclplugin implements a golangci-lint plugin for [errortype].
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.7
+	    version: v0.0.8
 
 2. Run `golangci-lint custom` from your project root.
 

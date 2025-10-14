@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package typeutil
+package knownfuncs
 
 import (
 	"go/types"
@@ -74,7 +74,7 @@ func (f FuncName) String() string {
 	return sb.String()
 }
 
-// FuncNameOf extracts the name components of a given *types.Func.
+// FuncNameOf extracts the name components of a given *[types.Func].
 // It populates a FuncName struct, which is simplified and canonicalized
 // from fun.Fullname() and can then be used as a map index or to get a
 // string representation.

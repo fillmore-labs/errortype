@@ -18,10 +18,12 @@ package analyze
 
 import (
 	"go/ast"
-	"go/format"
+	"go/printer"
 	"go/token"
 	"go/types"
 	"strings"
+
+	"golang.org/x/tools/go/analysis"
 
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
@@ -35,13 +37,13 @@ import (
 //
 // Reports diagnostics for such comparisons, with special handling for
 // zero-sized types and error interfaces.
-func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool) {
+func (p Pass) comparison(n analysis.Range, left, right ast.Expr, direct bool) {
 	// First, check if one of the operands is a new pointer (&T{} or new(T)), checking the left first.
 	switch {
 	case p.isNewPointer(left):
 		if tv, ok := p.TypesInfo.Types[left]; ok {
 			typ, other, isLeft := tv.Type, right, true
-			p.diagNewComparison(n, typ, other, direct, checkIs, isLeft)
+			p.diagNewComparison(n, typ, other, direct, isLeft)
 		}
 
 		return
@@ -49,7 +51,7 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool)
 	case p.isNewPointer(right):
 		if tv, ok := p.TypesInfo.Types[right]; ok {
 			typ, other, isLeft := tv.Type, left, false
-			p.diagNewComparison(n, typ, other, direct, checkIs, isLeft)
+			p.diagNewComparison(n, typ, other, direct, isLeft)
 		}
 
 		return
@@ -58,14 +60,14 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool)
 	// Check for uncomparable types
 	if tv, ok := p.TypesInfo.Types[left]; ok && !typeutil.Comparable(tv.Type) {
 		typ, other, isLeft := tv.Type, right, true
-		p.diagUncomparable(n, typ, other, direct, checkIs, isLeft)
+		p.diagUncomparable(n, typ, other, direct, isLeft)
 
 		return
 	}
 
 	if tv, ok := p.TypesInfo.Types[right]; ok && !typeutil.Comparable(tv.Type) {
 		typ, other, isLeft := tv.Type, left, false
-		p.diagUncomparable(n, typ, other, direct, checkIs, isLeft)
+		p.diagUncomparable(n, typ, other, direct, isLeft)
 
 		return
 	}
@@ -75,7 +77,7 @@ func (p pass) comparison(n ast.Node, left, right ast.Expr, direct, checkIs bool)
 
 // diagNewComparison reports diagnostics for comparisons with new pointers (&T{} or new(T)).
 // These comparisons are always false since each new allocation creates a unique address.
-func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, direct, checkIs, isLeft bool) {
+func (p Pass) diagNewComparison(n analysis.Range, typ types.Type, other ast.Expr, direct, isLeft bool) {
 	tn, ptr := types.Unalias(typ).(*types.Pointer)
 	if !ptr { // should not happen
 		p.ReportErrorf(n, "Expected pointer type, got %T", typ)
@@ -100,20 +102,11 @@ func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, dire
 
 	// If the type implements the error interface, it may be a valid comparison
 	// in the context of errors.Is, which has special unwrapping rules.
-	if checkIs && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+	if !direct && p.CheckIs() && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
 		return
 	}
 
 	// Report diagnostic
-	typeName := types.TypeString(tn.Elem(), types.RelativeTo(p.Pkg))
-
-	otherStr := "<unknown>"
-
-	var sb strings.Builder
-	if format.Node(&sb, p.Fset, other) == nil {
-		otherStr = sb.String()
-	}
-
 	var msg string
 
 	switch {
@@ -124,12 +117,15 @@ func (p pass) diagNewComparison(n ast.Node, typ types.Type, other ast.Expr, dire
 		msg = "Result of comparison of %q with address of new variable of type %q is always false. (et:%s+)"
 	}
 
-	p.ReportRangef(n, msg, otherStr, typeName, tag)
+	otherName := p.exprToString(other)
+	typeName := types.TypeString(tn.Elem(), types.RelativeTo(p.Pkg))
+
+	p.ReportRangef(n, msg, otherName, typeName, tag)
 }
 
 // diagUncomparable reports diagnostics for comparisons with non-comparable types.
 // These comparisons are always false or panic.
-func (p pass) diagUncomparable(n ast.Node, typ types.Type, other ast.Expr, direct, checkIs, isLeft bool) {
+func (p Pass) diagUncomparable(n analysis.Range, typ types.Type, other ast.Expr, direct, isLeft bool) {
 	if otherType, ok := p.TypesInfo.Types[other]; ok && otherType.IsNil() {
 		return
 	}
@@ -141,30 +137,34 @@ func (p pass) diagUncomparable(n ast.Node, typ types.Type, other ast.Expr, direc
 
 	// If the type implements the error interface, it may be a valid comparison
 	// in the context of errors.Is, which has special unwrapping rules.
-	if checkIs && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+	if !direct && p.CheckIs() && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
 		return
 	}
 
 	// Report diagnostic
+	msg := "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
+	otherName := p.exprToString(other)
 	typeName := types.TypeString(typ, types.RelativeTo(p.Pkg))
 
-	otherStr := "<unknown>"
+	p.ReportRangef(n, msg, otherName, typeName, tag)
+}
 
+var _config = printer.Config{Mode: printer.RawFormat}
+
+func (p Pass) exprToString(expr ast.Expr) string {
 	var sb strings.Builder
-	if format.Node(&sb, p.Fset, other) == nil {
-		otherStr = sb.String()
+	if _config.Fprint(&sb, p.Fset, expr) != nil {
+		return "<unknown>"
 	}
 
-	msg := "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
-
-	p.ReportRangef(n, msg, otherStr, typeName, tag)
+	return sb.String()
 }
 
 // isNewPointer checks if an expression `x` is one of the following:
 // 1. The address of a new composite literal: `&T{...}`
 // 2. A call to the built-in `new()` function: `new(T)`
 // It returns the type of the expression and a boolean for success.
-func (p pass) isNewPointer(x ast.Expr) bool {
+func (p Pass) isNewPointer(x ast.Expr) bool {
 	switch e := ast.Unparen(x).(type) {
 	case *ast.UnaryExpr:
 		if e.Op != token.AND {

@@ -24,43 +24,17 @@ import (
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// processDetectedTypes populates the initial error usage map based on the results
-// from the prerequisite `detecttypes` analyzer.
-func (p pass) processDetectedTypes(ctx context.Context, resultInfo []errortypes.ResultInfo) {
-	defer trace.StartRegion(ctx, "detectedTypes").End()
-
-	for _, detectedType := range resultInfo {
-		var usage Usage
-
-		switch detectedType.ErrorType & errortypes.ExpectedMask {
-		case errortypes.PointerType:
-			usage = PointerExpected
-
-		case errortypes.ValueType:
-			usage = ValueExpected
-
-		case errortypes.SuppressType:
-			usage = SuppressExpected
-
-		default:
-			continue
-		}
-
-		p.errorUsages[detectedType.TypeName] = usage
-	}
-}
-
-// processAST traverses the abstract syntax tree of the package being analyzed.
+// ProcessAST traverses the abstract syntax tree of the package being analyzed.
 // It visits nodes relevant to error usage and dispatches each to its
 // corresponding handler function.
-func (p pass) processAST(ctx context.Context, in *inspector.Inspector, opts AstOptions) {
+func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
 	defer trace.StartRegion(ctx, "AST").End()
 
-	for c := range in.Root().Preorder(
+	root := in.Root()
+	for c := range root.Preorder(
 		// keep-sorted start
 		(*ast.BinaryExpr)(nil),
 		(*ast.CallExpr)(nil),
@@ -72,67 +46,63 @@ func (p pass) processAST(ctx context.Context, in *inspector.Inspector, opts AstO
 		// keep-sorted end
 
 	) {
+		var reg *trace.Region
+
 		switch n := c.Node().(type) {
 		// keep-sorted start newline_separated=yes
 		case *ast.BinaryExpr:
-			reg := trace.StartRegion(ctx, "BinaryExpr")
+			reg = trace.StartRegion(ctx, "BinaryExpr")
 
 			p.handleBinaryExpr(n)
-			reg.End()
 
 		case *ast.CallExpr:
-			reg := trace.StartRegion(ctx, "CallExpr")
+			reg = trace.StartRegion(ctx, "CallExpr")
 
-			p.handleCall(n, c, opts)
-			reg.End()
+			p.handleCall(c, n)
 
 		case *ast.FuncDecl:
-			reg := trace.StartRegion(ctx, "FuncDecl")
+			reg = trace.StartRegion(ctx, "FuncDecl")
 
 			if n.Recv != nil {
-				p.handleMethodDecl(n, c, opts)
+				p.handleMethodDecl(c, n)
 			}
 
 			if n.Body == nil {
-				reg.End()
-				continue // Skip function declarations without a body.
+				break // Skip function declarations without a body.
 			}
 
-			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {
+			if lastResult := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); lastResult >= 0 {
 				b := c.ChildAt(edge.FuncDecl_Body, -1)
 				p.handleReturns(b, lastResult)
 			}
 
-			reg.End()
-
 		case *ast.FuncLit:
-			reg := trace.StartRegion(ctx, "FuncLit")
+			reg = trace.StartRegion(ctx, "FuncLit")
 
-			if lastResult := typeutil.HasErrorResult(p.TypesInfo, n.Type.Results); lastResult >= 0 {
+			if lastResult := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); lastResult >= 0 {
 				b := c.ChildAt(edge.FuncLit_Body, -1)
 				p.handleReturns(b, lastResult)
 			}
 
-			reg.End()
-
 		case *ast.TypeAssertExpr:
-			reg := trace.StartRegion(ctx, "TypeAssert")
+			reg = trace.StartRegion(ctx, "TypeAssert")
 
-			p.handleTypeAssert(n, opts.UncheckedAssert)
-			reg.End()
+			p.handleTypeAssert(n)
 
 		case *ast.TypeSwitchStmt:
-			reg := trace.StartRegion(ctx, "TypeSwitch")
+			reg = trace.StartRegion(ctx, "TypeSwitch")
 
 			p.handleTypeSwitch(n)
-			reg.End()
 
 		case *ast.ValueSpec:
-			reg := trace.StartRegion(ctx, "ValueSpec")
+			reg = trace.StartRegion(ctx, "ValueSpec")
 
 			p.handleVarDecls(n)
-			reg.End()
 			// keep-sorted end
+		}
+
+		if reg != nil {
+			reg.End()
 		}
 	}
 }

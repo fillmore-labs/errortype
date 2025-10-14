@@ -14,28 +14,35 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package detect_test
+package analyze
 
 import (
-	"strings"
-	"testing"
+	"context"
+	"sync"
 
-	. "fillmore-labs.com/errortype/internal/detect"
+	"golang.org/x/tools/go/analysis"
 )
 
-func TestErrorProperty_String(t *testing.T) {
-	t.Parallel()
-	want := 25
+// RunOptions provide configurations for analysis passes, including type detection and AST-related behavior customization.
+type RunOptions struct {
+	Options
 
-	input := ErrorProperty((1 << want) - 1)
-	actual := input.String()
+	DetectTypes *analysis.Analyzer
 
-	seen := make(map[string]struct{})
-	for word := range strings.SplitSeq(actual, ", ") {
-		seen[word] = struct{}{}
-	}
+	// Suggest appends suggestions to a file
+	Suggest string
 
-	if len(seen) != want {
-		t.Errorf("Expected %s to have %d components, but got %d", actual, want, len(seen))
+	Context context.Context
+
+	suggestwrite sync.Mutex
+}
+
+// DefaultRunOptions returns a [RunOptions] struct initialized with default values.
+func DefaultRunOptions() *RunOptions {
+	return &RunOptions{ // Default options
+		Options:     DefaultOptions,
+		DetectTypes: nil,
+		Suggest:     "",
+		Context:     context.Background(),
 	}
 }

@@ -16,47 +16,79 @@
 
 package analyze
 
-import (
-	"sync"
+import "fillmore-labs.com/errortype/internal/bitflag"
 
-	"golang.org/x/tools/go/analysis"
+// Options represent configuration flags to control the behavior of style and correctness checks for errors.
+type Options uint8
+
+const (
+	// OptionCheckIs controls whether to check for `Is(error) bool` methods.
+	OptionCheckIs Options = 1 << posOptionCheckIs
+	// OptionCheckUnused flags unchecked results of `errors.As` calls.
+	OptionCheckUnused = 1 << posOptionCheckUnused
+	// OptionDeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
+	OptionDeepIsCheck = 1 << posOptionDeepIsCheck
+	// OptionStyleCheck controls the target style check in `errors.As` calls.
+	OptionStyleCheck = 1 << posOptionStyleCheck
+	// OptionUncheckedAssert flags all unchecked asserts on errors.
+	OptionUncheckedAssert = 1 << posOptionUncheckedAssert
+
+	// DefaultOptions is the default configuration for error analysis.
+	DefaultOptions = OptionCheckIs | OptionStyleCheck
 )
 
-// AstOptions represents configuration flags to control the behavior of style and correctness checks for errors.
-type AstOptions struct {
-	StyleCheck bool // StyleCheck controls the target style check in `errors.As` calls
-
-	CheckIs bool // CheckIs controls whether to check for `Is(error) bool` methods
-
-	DeepIsCheck bool // DeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target
-
-	UncheckedAssert bool // UncheckedAssert flags all uncheckd asserts on errors
-
-	CheckUnused bool // CheckUnused flags unchecked results of `errors.As` calls
+var _options = [...]string{
+	posOptionCheckIs:         "checkIs",
+	posOptionCheckUnused:     "checkUnused",
+	posOptionDeepIsCheck:     "deepIsCheck",
+	posOptionStyleCheck:      "styleCheck",
+	posOptionUncheckedAssert: "uncheckedAssert",
 }
 
-// Options provide configurations for analysis passes, including type detection and AST-related behavior customization.
-type Options struct {
-	DetectTypes *analysis.Analyzer
+const (
+	posOptionCheckIs = 4 - iota
+	posOptionCheckUnused
+	posOptionDeepIsCheck
+	posOptionStyleCheck
+	posOptionUncheckedAssert
+)
 
-	AstOptions
-
-	Suggest string // Suggest appends suggestions to a file
-
-	suggestwrite sync.Mutex
+func (o Options) String() string {
+	return bitflag.ToString(o, _options[:], "none")
 }
 
-// DefaultOptions returns a [Options] struct initialized with default values.
-func DefaultOptions() *Options {
-	return &Options{ // Default options
-		DetectTypes: nil,
-		AstOptions: AstOptions{
-			StyleCheck:      true,
-			CheckIs:         true,
-			DeepIsCheck:     false,
-			UncheckedAssert: false,
-			CheckUnused:     false,
-		},
-		Suggest: "",
+// CheckIs controls whether to check for `Is(error) bool` methods.
+func (o Options) CheckIs() bool {
+	return o&OptionCheckIs != 0
+}
+
+// CheckUnused flags unchecked results of `errors.As` calls.
+func (o Options) CheckUnused() bool {
+	return o&OptionCheckUnused != 0
+}
+
+// DeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
+func (o Options) DeepIsCheck() bool {
+	return o&OptionDeepIsCheck != 0
+}
+
+// StyleCheck controls the target style check in `errors.As` calls.
+func (o Options) StyleCheck() bool {
+	return o&OptionStyleCheck != 0
+}
+
+// UncheckedAssert flags all unchecked asserts on errors.
+func (o Options) UncheckedAssert() bool {
+	return o&OptionUncheckedAssert != 0
+}
+
+// SetOption modifies the state of a specific option flag in the Options configuration
+// based on the provided boolean value. The flag parameter should be a single option
+// constant (e.g., [OptionCheckIs], [OptionStyleCheck]).
+func (o *Options) SetOption(flag Options, v bool) {
+	if v {
+		*o |= flag
+	} else {
+		*o &^= flag
 	}
 }

@@ -20,64 +20,54 @@ import (
 	"fmt"
 	"strings"
 	"unicode"
+
+	"fillmore-labs.com/errortype/internal/bitflag"
 )
 
-// HeuristicPass represents a set of heuristic flags used to control various passes in the analysis process.
-type HeuristicPass uint8
+// Heuristics represents a set of heuristic flags used to control various passes in the analysis process.
+type Heuristics uint8
 
 const (
 	// HeuristicVar represents a heuristic pass for variable declarations.
-	HeuristicVar HeuristicPass = 1 << iota
+	HeuristicVar Heuristics = 1 << posHeuristicVar
 
 	// HeuristicUsage represents a heuristic pass for general usage.
-	HeuristicUsage
+	HeuristicUsage Heuristics = 1 << posHeuristicUsage
 
 	// HeuristicReceivers represents a heuristic pass for consistent method receivers.
-	HeuristicReceivers
+	HeuristicReceivers Heuristics = 1 << posHeuristicReceivers
 
 	// HeuristicAll combines all available heuristic passes into a single constant, encompassing all analysis strategies.
-	HeuristicAll HeuristicPass = 1<<iota - 1
+	HeuristicAll = HeuristicVar | HeuristicUsage | HeuristicReceivers
 
 	// HeuristicOff turns off all heuristic passes.
-	HeuristicOff HeuristicPass = 0
+	HeuristicOff Heuristics = 0
 )
 
-var heuristicPasses = map[HeuristicPass]string{
-	HeuristicOff:       "off",
-	HeuristicVar:       "var",
-	HeuristicUsage:     "usage",
-	HeuristicReceivers: "receivers",
+const (
+	posHeuristicVar = 2 - iota
+	posHeuristicUsage
+	posHeuristicReceivers
+)
+
+var _heuristicPasses = [...]string{
+	posHeuristicVar:       "var",
+	posHeuristicUsage:     "usage",
+	posHeuristicReceivers: "receivers",
 }
 
 // String returns the string representation of HeuristicPass.
 // If multiple flags are set, it returns a comma-separated list of names.
 // If no flags are set, it returns "off".
-func (h HeuristicPass) String() string {
-	if h == HeuristicOff {
-		return heuristicPasses[HeuristicOff]
-	}
-
-	var parts []string
-
-	for flag := HeuristicPass(1); flag != 0; flag <<= 1 {
-		if h&flag != 0 {
-			name, ok := heuristicPasses[flag]
-			if !ok {
-				name = fmt.Sprintf("Unknown(%d)", int(flag))
-			}
-
-			parts = append(parts, name)
-		}
-	}
-
-	return strings.Join(parts, ", ")
+func (h Heuristics) String() string {
+	return bitflag.ToString(h, _heuristicPasses[:], "off")
 }
 
 // HeuristicsFromString parses a comma-separated string into a HeuristicPass value.
 // Returns an error if the input contains invalid or conflicting heuristics.
-func HeuristicsFromString(list string) (HeuristicPass, error) {
+func HeuristicsFromString(list string) (Heuristics, error) {
 	var (
-		heuristics HeuristicPass
+		heuristics Heuristics
 		hasOff     bool
 	)
 
@@ -86,16 +76,16 @@ func HeuristicsFromString(list string) (HeuristicPass, error) {
 		case "":
 			continue
 
-		case heuristicPasses[HeuristicOff]:
+		case "off":
 			hasOff = true
 
-		case heuristicPasses[HeuristicVar]:
+		case _heuristicPasses[posHeuristicVar]:
 			heuristics |= HeuristicVar
 
-		case heuristicPasses[HeuristicUsage]:
+		case _heuristicPasses[posHeuristicUsage]:
 			heuristics |= HeuristicUsage
 
-		case heuristicPasses[HeuristicReceivers]:
+		case _heuristicPasses[posHeuristicReceivers]:
 			heuristics |= HeuristicReceivers
 
 		default:

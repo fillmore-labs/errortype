@@ -18,14 +18,13 @@ package analyze
 
 import (
 	"fmt"
-	"go/ast"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 )
 
 // ReportErrorf reports an internal ("should not happen") failure message.
-func (p pass) ReportErrorf(n ast.Node, format string, args ...any) {
+func (p Pass) ReportErrorf(n analysis.Range, format string, args ...any) {
 	var sb strings.Builder
 	_, _ = sb.WriteString("Internal error: ")
 	_, _ = fmt.Fprintf(&sb, format, args...)

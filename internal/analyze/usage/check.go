@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package usage
 
 import (
 	"go/types"
@@ -22,10 +22,28 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// checkErrorUsage verifies that a given type `t` is used correctly (as a pointer or value)
+// Reporter defines the interface for reporting diagnostics related to
+// incorrect error type usage. Different implementations can provide
+// context-specific error messages for returns or type assertions.
+type Reporter interface {
+	// ShouldBeValue is called when an error type that should be a value is
+	// used as a pointer.
+	ShouldBeValue(tn *types.TypeName)
+
+	// ShouldBePointer is called when an error type that should be a pointer is
+	// used as a value.
+	ShouldBePointer(tn *types.TypeName)
+
+	// UndeterminedUsage is called when a named error type is encountered whose
+	// pointer-vs.-value usage has not been determined by the `detecttypes`
+	// analyzer. This is often due to embedding the `error` interface.
+	UndeterminedUsage(tn *types.TypeName, ptr bool)
+}
+
+// Check verifies that a given type `t` is used correctly (as a pointer or value)
 // based on the determined or configured usage. It reports diagnostics for mismatches
 // or for types with undetermined usage.
-func (p pass) checkErrorUsage(t types.Type, reporter usageReporter) {
+func (e ErrorUsage) Check(t types.Type, reporter Reporter) {
 	if types.IsInterface(t) {
 		return // We can't analyze interfaces.
 	}
@@ -41,11 +59,11 @@ func (p pass) checkErrorUsage(t types.Type, reporter usageReporter) {
 		return // local type with embedded error
 	}
 
-	// Record the observed usage and look up the expected one.
-	usage := p.recordAndLookup(tn, ptr)
+	//  Look up the configured usage for the type.
+	usage := e[tn]
 
 	// Check the actual usage against the expected usage.
-	switch usage {
+	switch usage & ExpectedMask {
 	case PointerExpected:
 		if !ptr {
 			reporter.ShouldBePointer(tn)
@@ -65,22 +83,17 @@ func (p pass) checkErrorUsage(t types.Type, reporter usageReporter) {
 		// We report this to suggest adding it to the configuration.
 		reporter.UndeterminedUsage(tn, ptr)
 
-	default:
-		// This should not happen if the analyzer is configured correctly.
+	default: // should not happen
 		panic("Misconfigured type in usage map: " + tn.Name())
 	}
-}
 
-// recordAndLookup records the observed usage type (value or pointer) for the given
-// type name and returns the detected usage for that type, masked by AnalyzeMask.
-// It updates the errorUsages property with the observed usage before returning the result.
-func (p pass) recordAndLookup(tn *types.TypeName, ptr bool) Usage {
-	// Record the observed ...
+	// Record the observed.
 	et := ValueObserved
 	if ptr {
 		et = PointerObserved
 	}
 
-	// ... and look up the configured usage for the type.
-	return p.errorUsages.AddTypeProperty(tn, et) & ExpectedMask
+	if usage&et == 0 {
+		e[tn] |= et
+	}
 }

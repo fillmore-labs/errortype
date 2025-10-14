@@ -48,7 +48,7 @@ func (Plugin) GetLoadMode() string {
 	return register.LoadModeTypesInfo
 }
 
-// BuildAnalyzers returns the [analysis.Analyzer]s for a zerolint run.
+// BuildAnalyzers returns the [analysis.Analyzer]s for an errortype run.
 func (p Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	dopts := detectOptions(p.settings)
 

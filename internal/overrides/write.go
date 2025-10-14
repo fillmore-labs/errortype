@@ -17,6 +17,7 @@
 package overrides
 
 import (
+	"context"
 	"io"
 	"slices"
 
@@ -27,30 +28,33 @@ import (
 )
 
 // Write serializes the provided overrides suggestions into YAML format and writes it to the given io.Writer.
-func Write(w io.Writer, suggestions map[errortypes.ErrorType][]typeutil.TypeName, name string) error {
-	var suggestfile errorfileType
+func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath string) error {
+	var suggestFile errorFileType
 
 	for errortype, s := range suggestions {
 		slices.SortFunc(s, typeutil.TypeName.Compare)
 
 		switch errortype {
 		case errortypes.PointerType:
-			suggestfile.Pointer = s
+			suggestFile.Pointer = s
 
 		case errortypes.ValueType:
-			suggestfile.Value = s
+			suggestFile.Value = s
 
-		case errortypes.Undecided:
-			suggestfile.Inconsistent = s
+		case errortypes.SuppressType:
+			suggestFile.Inconsistent = s
 		}
 	}
 
-	_, _ = w.Write([]byte("---"))
-	if name != "" {
-		_, _ = w.Write([]byte(" # suggestions for "))
-		_, _ = w.Write([]byte(name))
+	_, _ = io.WriteString(w, "---\n")
+	if pkgPath != "" {
+		_, _ = io.WriteString(w, "# suggestions for ")
+		_, _ = io.WriteString(w, pkgPath)
+		_, _ = io.WriteString(w, "\n")
 	}
-	_, _ = w.Write([]byte("\n"))
 
-	return yaml.NewEncoder(w, yaml.IndentSequence(true)).Encode(suggestfile)
+	enc := yaml.NewEncoder(w, yaml.IndentSequence(true))
+	defer enc.Close()
+
+	return enc.EncodeContext(ctx, suggestFile)
 }

@@ -30,12 +30,14 @@ func version(string) error {
 		return err
 	}
 
-	if bi, ok := debug.ReadBuildInfo(); ok {
-		fmt.Printf("%s version %s build with %s\n",
-			filepath.Base(progname), bi.Main.Version, bi.GoVersion)
-	} else {
-		fmt.Printf("%s version (unknown)\n", filepath.Base(progname))
+	mainVersion, goVersion := "unknown", "unknown"
+	if info, ok := debug.ReadBuildInfo(); ok {
+		mainVersion = info.Main.Version
+		goVersion = info.GoVersion
 	}
+
+	fmt.Printf("%s version %s built with %s\n",
+		filepath.Base(progname), mainVersion, goVersion)
 
 	os.Exit(0)
 

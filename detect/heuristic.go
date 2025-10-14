@@ -16,7 +16,7 @@
 
 package detect
 
-// Heuristic represents a heuristic flags used to control various passes in the analysis process.
+// Heuristic represents heuristic flags used to control various passes in the analysis process.
 type Heuristic uint8
 
 //go:generate go tool stringer -type Heuristic -linecomment

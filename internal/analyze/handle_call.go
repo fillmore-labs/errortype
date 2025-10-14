@@ -21,23 +21,22 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
+	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleCall checks for incorrect pointer/value usage of error types passed to functions like errors.As.
-func (p pass) handleCall(n *ast.CallExpr, c inspector.Cursor, opts AstOptions) {
+func (p Pass) handleCall(c inspector.Cursor, n *ast.CallExpr) {
 	if len(n.Args) == 0 {
 		return // Not interested in calls with no arguments.
 	}
 
-	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n.Fun)
+	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n)
 	if !ok {
 		return // Could not resolve function, might be a func variable.
 	}
 
-	funcName := typeutil.FuncNameOf(fun)
-
-	info, ok := typeutil.KnownFuncs[funcName]
+	info, ok := knownfuncs.FuncInfoOf(fun)
 	if !ok {
 		return
 	}
@@ -45,13 +44,13 @@ func (p pass) handleCall(n *ast.CallExpr, c inspector.Cursor, opts AstOptions) {
 	// TODO: Handle deprecation
 
 	switch info.Kind() {
-	case typeutil.KindIs:
-		p.handleErrorIs(n, methodExpr, info.IsType(), opts.CheckIs)
-
-	case typeutil.KindEqu:
+	case knownfuncs.KindIs:
 		p.handleErrorIs(n, methodExpr, info.IsType(), false)
 
-	case typeutil.KindAs:
+	case knownfuncs.KindEqu:
+		p.handleErrorIs(n, methodExpr, info.IsType(), true)
+
+	case knownfuncs.KindAs:
 		targetArgIndex, typeParam := info.AsTarget()
 
 		// Handle generic functions like `errors.AsType[T]`.
@@ -78,24 +77,20 @@ func (p pass) handleCall(n *ast.CallExpr, c inspector.Cursor, opts AstOptions) {
 			targetArgIndex++
 		}
 
-		p.handleErrorsAs(n, fun, targetArgIndex, opts)
+		p.handleErrorsAs(n, fun, targetArgIndex)
 
-	case typeutil.KindType:
+	case knownfuncs.KindType:
 		p.handleIsType(n, methodExpr, info.IsType())
 	}
 
-	if tag, ok := unusedTag(info.EvalType(), opts.CheckUnused); ok {
-		e := c.Parent()
-
-		for {
+	if tag, shouldCheck := checkResultWithTag(info.EvalType(), p.CheckUnused()); shouldCheck {
+		for e := c.Parent(); ; e = e.Parent() {
 			switch e.Node().(type) {
 			case *ast.ParenExpr:
-				e = e.Parent()
-
 				continue
 
 			case *ast.ExprStmt:
-				p.ReportRangef(n, "Result of %s is ignored (et:%s)", funcName, tag)
+				p.ReportRangef(n, "Result of %s is ignored (et:%s)", fun.FullName(), tag)
 			}
 
 			break
@@ -103,12 +98,13 @@ func (p pass) handleCall(n *ast.CallExpr, c inspector.Cursor, opts AstOptions) {
 	}
 }
 
-func unusedTag(evalType typeutil.EvalType, checkUnused bool) (string, bool) {
+// checkResultWithTag determines a tag and status based on the evaluation type and unused check flag.
+func checkResultWithTag(evalType knownfuncs.EvalType, checkUnused bool) (string, bool) {
 	switch evalType {
-	case typeutil.MustEval:
+	case knownfuncs.MustEval:
 		return "unu+", true
 
-	case typeutil.ShouldEval:
+	case knownfuncs.ShouldEval:
 		if !checkUnused {
 			return "", false
 		}

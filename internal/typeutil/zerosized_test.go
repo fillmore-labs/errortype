@@ -17,6 +17,8 @@
 package typeutil_test
 
 import (
+	"go/token"
+	"go/types"
 	"testing"
 
 	. "fillmore-labs.com/errortype/internal/typeutil"
@@ -41,6 +43,8 @@ type (
 	NestedZeroSized struct {
 		f1 StructWithZeroSizedFields
 	}
+	// RecursiveStruct struct { RecursiveStruct }
+	// RecursiveArray [1]RecursiveArray
 )
 
 var (
@@ -54,10 +58,24 @@ var (
 	afunc       func()
 )
 `
-	_, pkg, _, _ := parseSource(t, source)
-	scope := pkg.Scope()
 
-	testCases := []struct {
+	const (
+		RecursiveStruct = "RecursiveStruct"
+		RecursiveArray  = "RecursiveArray"
+	)
+
+	_, pkg, _, _ := parseSource(t, source)
+	recursiveTypes := [...]types.Object{
+		recursiveStructType(pkg, RecursiveStruct),
+		recursiveArrayType(pkg, RecursiveArray),
+	}
+
+	scope := pkg.Scope()
+	for _, obj := range recursiveTypes {
+		scope.Insert(obj)
+	}
+
+	testCases := [...]struct {
 		name   string
 		isZero bool
 	}{
@@ -68,6 +86,8 @@ var (
 		{"StructWithZeroSizedFields", true},
 		{"StructWithNonZeroSizedField", false},
 		{"NestedZeroSized", true},
+		{RecursiveStruct, false},
+		{RecursiveArray, false},
 		{"basic", false},
 		{"ptr", false},
 		{"slice", false},
@@ -92,4 +112,31 @@ var (
 			}
 		})
 	}
+}
+
+// recursiveStructType creates a recursively defined type within the given package and returns its type name.
+// It defines a named struct type that contains a field of its own type, creating a nominally recursive type.
+func recursiveStructType(pkg *types.Package, name string) *types.TypeName {
+	typeName := types.NewTypeName(token.NoPos, pkg, name, nil)
+	typ := types.NewNamed(typeName, nil, nil)
+
+	field := types.NewField(token.NoPos, pkg, typeName.Name(), typ, true)
+	underlying := types.NewStruct([]*types.Var{field}, nil)
+
+	typ.SetUnderlying(underlying)
+
+	return typeName
+}
+
+// recursiveArrayType creates a recursively defined type within the given package and returns its type name.
+// It defines a named array type that contains an element of its own type, creating a nominally recursive type.
+func recursiveArrayType(pkg *types.Package, name string) *types.TypeName {
+	typeName := types.NewTypeName(token.NoPos, pkg, name, nil)
+	typ := types.NewNamed(typeName, nil, nil)
+
+	underlying := types.NewArray(typ, 1)
+
+	typ.SetUnderlying(underlying)
+
+	return typeName
 }

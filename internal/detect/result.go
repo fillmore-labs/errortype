@@ -20,12 +20,14 @@ import (
 	"context"
 	"go/types"
 	"iter"
+	"log"
 	"maps"
 	"runtime/trace"
 
 	"golang.org/x/tools/go/analysis"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // createResult combines all determined type information into the final analyzer result.
@@ -39,7 +41,7 @@ func (p pass) createResult(ctx context.Context) errortypes.Result {
 	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
 	maps.Insert(determinedTypes, extractErrorTypes(facts))
 
-	for tn, prop := range p.PropertyMap {
+	for tn, prop := range p.DetectedTypes {
 		errorType := prop.DeterminedType()
 
 		if p.inCurrentPkg(tn) {
@@ -75,14 +77,22 @@ func extractErrorTypes(facts []analysis.ObjectFact) iter.Seq2[*types.TypeName, e
 				continue
 			}
 
-			tn, ok := f.Object.(*types.TypeName)
-			if !ok {
-				continue
-			}
-
-			if !yield(tn, *fact) {
+			if tn, ok := f.Object.(*types.TypeName); ok && !yield(tn, *fact) {
 				return
 			}
 		}
+	}
+}
+
+// logResults logs the properties and the determined error type for each type in the PropertyMap.
+func (p pass) logResults(_ context.Context, logger *log.Logger) {
+	pkgPath := typeutil.PkgPath(p.Pass)
+	qf := types.RelativeTo(p.Pkg)
+
+	for tn, errortype := range p.DetectedTypes.AllSorted {
+		typeName := types.TypeString(tn.Type(), qf)
+		determinedType := errortype.DeterminedType()
+
+		logger.Printf("%s %s: %s (%s)", pkgPath, typeName, determinedType, errortype)
 	}
 }

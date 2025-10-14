@@ -17,6 +17,7 @@
 package analyze
 
 import (
+	"fmt"
 	"go/ast"
 	"testing"
 
@@ -44,10 +45,10 @@ func TestAnalyzerInternal(t *testing.T) {
 func run(ap *analysis.Pass) (any, error) {
 	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, ErrNoInspectorResult
+		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
 	}
 
-	p := newPass(ap)
+	p := NewPass(ap, DefaultOptions)
 
 	var count int
 	for n := range inspector.All[*ast.ValueSpec](in) {

@@ -26,90 +26,75 @@ import (
 func TestFuncOf(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
+	tests := [...]struct {
 		name           string
 		src            string
 		wantFuncName   string
 		wantMethodExpr bool
 	}{
 		{
-			name: "simple function call",
-			src: `func myFunc() int { return 0 }
-var _ = myFunc()`,
+			name:         "simple function call",
+			src:          `func myFunc() int { return 0 }; var _ = myFunc()`,
 			wantFuncName: "test.myFunc",
 		},
 		{
-			name: "selector expression on package",
-			src: `import "strings"
-			var _ = strings.Clone("")`,
+			name:         "selector expression on package",
+			src:          `import "strings"; var _ = strings.Clone("")`,
 			wantFuncName: "strings.Clone",
 		},
 		{
-			name: "method call on a variable",
-			src: `type S struct{}
-func (s S) myMethod() int { return 0 }
-var v S
-var _ = v.myMethod()`,
+			name:         "method call on a variable",
+			src:          `type S struct{}; func (s S) myMethod() int { return 0 }; var v S; var _ = v.myMethod()`,
 			wantFuncName: "(test.S).myMethod",
 		},
 		{
-			name: "method expression call",
-			src: `type S struct{}
-func (s S) myMethod() int { return 0 }
-var v S
-var _ = (S).myMethod(v)`,
+			name:           "method expression call",
+			src:            `type S struct{}; func (s S) myMethod() int { return 0 }; var v S; var _ = (S).myMethod(v)`,
 			wantFuncName:   "(test.S).myMethod",
 			wantMethodExpr: true,
 		},
 		{
 			name: "method field call",
-			src: `type S struct{ f func() int }
-var v S
-var _ = v.f()`,
+			src:  `type S struct{ f func() int }; var v S; var _ = v.f()`,
 		},
 		{
-			name: "generic function call with one type parameter",
-			src: `func myFunc[T any]() T { return *new(T) }
-var _ = myFunc[int]()`,
+			name:         "generic function call with one type parameter",
+			src:          `func myFunc[T any]() T { return *new(T) }; var _ = myFunc[int]()`,
 			wantFuncName: "test.myFunc",
 		},
 		{
-			name: "generic function call with multiple type parameters",
-			src: `func myFunc[T, U any]() T { return *new(T) }
-var _ = myFunc[int, string]()`,
+			name:         "generic function call with multiple type parameters",
+			src:          `func myFunc[T, U any]() T { return *new(T) }; var _ = myFunc[int, string]()`,
 			wantFuncName: "test.myFunc",
 		},
 		{
-			name: "parenthesized function call",
-			src: `func myFunc() int { return 0 }
-var _ = (myFunc)()`,
+			name:         "parenthesized function call",
+			src:          `func myFunc() int { return 0 }; var _ = (myFunc)()`,
 			wantFuncName: "test.myFunc",
 		},
 		{
 			name: "call on function variable",
-			src: `var myFunc func() int
-var _ = myFunc()`,
+			src:  `var myFunc func() int; var _ = myFunc()`,
 		},
 		{
 			name: "call on a function pointer",
-			src: `var myFunc *func() int
-var _ = (*myFunc)()`,
+			src:  `var myFunc *func() int; var _ = (*myFunc)()`,
 		},
 		{
-			name: "call on a type conversion",
-			src: `type myFuncType func() int
-var f myFuncType
-var _ = myFuncType(f)()`,
+			name: "type conversion",
+			src:  `type myFuncType func() int; var f myFuncType; var _ = myFuncType(f)`,
+		},
+		{
+			name: "external type conversion",
+			src:  `import "go/doc"; var _ = doc.Filter(nil)`,
 		},
 		{
 			name: "call on a function result",
-			src: `func myFunc() func() int { return nil }
-var _ = (myFunc)()()`,
+			src:  `func myFunc() func() int { return nil }; var _ = (myFunc)()()`,
 		},
 		{
 			name: "IndexExpr with non-type index",
-			src: `var a [1]func() int
-var _ = a[0]()`,
+			src:  `var a [1]func() int; var _ = a[0]()`,
 		},
 	}
 
@@ -120,7 +105,7 @@ var _ = a[0]()`,
 			info, _, _, f := parseSource(t, tt.src)
 			callExpr := lastDeclCallExpr(f)
 
-			fun, _, methodExpr, ok := FuncOf(info, callExpr.Fun)
+			fun, _, methodExpr, ok := FuncOf(info, callExpr)
 
 			wantOk := tt.wantFuncName != ""
 			if ok != wantOk {
@@ -135,8 +120,7 @@ var _ = a[0]()`,
 				t.Fatal("FuncOf() fun is nil, but wantOk is true")
 			}
 
-			funcName := fun.FullName()
-			if funcName != tt.wantFuncName {
+			if funcName := fun.FullName(); funcName != tt.wantFuncName {
 				t.Errorf("FuncOf() fun.FullName() = %q, want %q", funcName, tt.wantFuncName)
 			}
 

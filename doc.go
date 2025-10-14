@@ -40,22 +40,24 @@ The flags are:
 		display offending line with this many lines of context (default -1)
 	-check-is
 		suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true)
+	-check-unused
+		report unchecked calls on errors.As-like functions
 	-deep-is-check
-		diagnose all "Unwrap" functions in "Is" methods, not only on target (default false)
-	-unchecked-assert
-		report unchecked type asserts on errors (default false)
-	-heuristics value
+		diagnose all "Unwrap" functions in "Is" methods, not only those on target
+	-heuristics list
 		list of heuristics used (default: "var,usage,receivers", "off" to disable)
-	-overrides value
+	-overrides file
 		read error type overrides from this file
 	-style-check
 		check for confusing uses of errors.As (default true)
-	-suggest string
-		append override suggestions to this file, "-" for standard output
+	-suggest file
+		append suggestions to this file, "-" for standard output
 	-test
-		analyze test files (default true)
+		indicates whether test files should be analyzed, too (default true)
 	-tracetypes regex
-		trace error type detection in packages matching this regex
+		information of error type detection in packages matching this regex
+	-unchecked-assert
+		report unchecked type asserts on errors
 
 # Examples
 

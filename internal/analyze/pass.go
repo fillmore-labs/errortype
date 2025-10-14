@@ -19,21 +19,23 @@ package analyze
 import (
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/analyze/usage"
 )
 
-// pass wraps an *analysis.pass and tracks error usages within the analysis pass.
+// Pass wraps an *analysis.Pass and tracks error usages within the analysis Pass.
 // It contains a PropertyMap that associates error usages with their corresponding Usage information.
-type pass struct {
+type Pass struct {
 	*analysis.Pass
-	errorUsages errortypes.PropertyMap[Usage]
+	usage.ErrorUsage
+	Options
 }
 
-// newPass creates and returns a new Pass instance, initializing its errorUsages property map.
+// NewPass creates and returns a new Pass instance, initializing its errorUsages property map.
 // It takes an *analysis.Pass as input and embeds it within the returned Pass.
-func newPass(ap *analysis.Pass) pass {
-	return pass{
-		Pass:        ap,
-		errorUsages: errortypes.NewPropertyMap[Usage](),
+func NewPass(ap *analysis.Pass, opt Options) Pass {
+	return Pass{
+		Pass:       ap,
+		ErrorUsage: make(usage.ErrorUsage),
+		Options:    opt,
 	}
 }

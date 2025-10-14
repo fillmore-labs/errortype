@@ -18,9 +18,9 @@ const _Override_name = "pointervaluesuppress"
 var _Override_index = [...]uint8{0, 7, 12, 20}
 
 func (i Override) String() string {
-	i -= 1
-	if i >= Override(len(_Override_index)-1) {
-		return "Override(" + strconv.FormatInt(int64(i+1), 10) + ")"
+	idx := int(i) - 1
+	if i < 1 || idx >= len(_Override_index)-1 {
+		return "Override(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
-	return _Override_name[_Override_index[i]:_Override_index[i+1]]
+	return _Override_name[_Override_index[idx]:_Override_index[idx+1]]
 }

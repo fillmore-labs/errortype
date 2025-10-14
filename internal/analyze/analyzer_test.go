@@ -32,14 +32,14 @@ func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
 	overrides := path.Join(testdata, "overrides.yaml")
 
-	tests := []struct {
+	tests := [...]struct {
 		name     string
-		setupOpt func(*Options)
+		setupOpt func(*RunOptions)
 		packages []string
 	}{
 		{
 			name: "test/a",
-			setupOpt: func(o *Options) {
+			setupOpt: func(o *RunOptions) {
 				do := detect.DefaultOptions()
 				if err := do.ReadOverrides(overrides); err != nil {
 					t.Fatalf("can't read overrides: %v", err)
@@ -50,18 +50,18 @@ func TestAnalyzer(t *testing.T) {
 		},
 		{
 			name: "test/b",
-			setupOpt: func(o *Options) {
-				o.CheckIs = false
-				o.DeepIsCheck = true
-				o.UncheckedAssert = true
-				o.CheckUnused = true
+			setupOpt: func(o *RunOptions) {
+				o.SetOption(OptionCheckIs, false)
+				o.SetOption(OptionCheckUnused, true)
+				o.SetOption(OptionDeepIsCheck, true)
+				o.SetOption(OptionUncheckedAssert, true)
 			},
 			packages: []string{"test/b", "test/alias", "test/main", "test/style"},
 		},
 		{
 			name: "test/c",
-			setupOpt: func(o *Options) {
-				o.StyleCheck = false
+			setupOpt: func(o *RunOptions) {
+				o.SetOption(OptionStyleCheck, false)
 			},
 			packages: []string{"test/c"},
 		},
@@ -71,8 +71,11 @@ func TestAnalyzer(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			o := DefaultOptions()
+			o := DefaultRunOptions()
+			o.Context = t.Context()
+
 			tt.setupOpt(o)
+
 			a := o.Analyzer()
 
 			analysistest.Run(t, testdata, a, tt.packages...)

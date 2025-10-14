@@ -23,7 +23,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/internal/detect/properties"
 )
 
 // pass holds the state for a single run of the detecttypes analyzer on a package.
@@ -32,16 +32,16 @@ import (
 // within the current package.
 type pass struct {
 	*analysis.Pass
-	errortypes.PropertyMap[ErrorProperty]
-	StyleCheck bool
+	DetectedTypes properties.Properties
+	StyleCheck    bool
 }
 
 // newPass creates and initializes a new pass for the detecttypes analyzer.
 func newPass(ap *analysis.Pass) pass {
 	return pass{
-		Pass:        ap,
-		PropertyMap: errortypes.NewPropertyMap[ErrorProperty](),
-		StyleCheck:  false,
+		Pass:          ap,
+		DetectedTypes: make(properties.Properties),
+		StyleCheck:    false,
 	}
 }
 

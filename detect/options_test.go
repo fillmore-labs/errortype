@@ -28,7 +28,7 @@ import (
 func TestLogValue(t *testing.T) {
 	t.Parallel()
 
-	testCases := []struct {
+	testCases := [...]struct {
 		name     string
 		option   Option
 		expected string
@@ -83,8 +83,7 @@ func TestLogValue(t *testing.T) {
 			logger := slog.New(slog.NewJSONHandler(&sb, nil))
 			logger.LogAttrs(t.Context(), slog.LevelInfo, "test", tt.option.LogAttr())
 
-			got := sb.String()
-			if !strings.Contains(got, tt.expected) {
+			if got := sb.String(); !strings.Contains(got, tt.expected) {
 				t.Errorf("Expected log output %s to contain %s", got, tt.expected)
 			}
 		})

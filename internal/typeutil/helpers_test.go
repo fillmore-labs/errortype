@@ -27,7 +27,7 @@ import (
 )
 
 // parseSource is a helper to parse source and get [types.Info] and [types.Package].
-func parseSource(tb testing.TB, src string) (*types.Info, *types.Package, *token.FileSet, *ast.File) { //nolint:unparam
+func parseSource(tb testing.TB, src string) (*types.Info, *types.Package, *token.FileSet, *ast.File) {
 	tb.Helper()
 
 	const (

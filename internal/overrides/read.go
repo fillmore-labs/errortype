@@ -17,6 +17,7 @@
 package overrides
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -26,17 +27,16 @@ import (
 	"github.com/goccy/go-yaml"
 
 	"fillmore-labs.com/errortype/internal/errortypes"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Read parses an override file from the provided io.Reader and returns a map
 // associating type names with their corresponding error types. The override file
-// is expected to be in YAML format and structured according to errorfileType.
-func Read(r io.Reader) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
+// is expected to be in YAML format and structured according to errorFileType.
+func Read(ctx context.Context, r io.Reader) (Overrides, error) {
 	dec := yaml.NewDecoder(r)
 
-	var errorfile errorfileType
-	if err := dec.Decode(&errorfile); err != nil {
+	var errorfile errorFileType
+	if err := dec.DecodeContext(ctx, &errorfile); err != nil {
 		if errors.Is(err, io.EOF) {
 			return nil, nil
 		}
@@ -44,7 +44,7 @@ func Read(r io.Reader) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
 		return nil, fmt.Errorf("error parsing override file: %w", err)
 	}
 
-	return map[errortypes.ErrorType][]typeutil.TypeName{
+	return Overrides{
 			errortypes.PointerType:  errorfile.Pointer,
 			errortypes.ValueType:    errorfile.Value,
 			errortypes.SuppressType: errorfile.Suppress,
@@ -54,7 +54,9 @@ func Read(r io.Reader) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
 }
 
 // ReadFile reads error type usage overrides from the specified file.
-func ReadFile(fileName string) (map[errortypes.ErrorType][]typeutil.TypeName, error) {
+func ReadFile(fileName string) (Overrides, error) {
+	ctx := context.Background()
+
 	overridesFile, err := os.Open(filepath.Clean(fileName))
 	if err != nil {
 		return nil, fmt.Errorf("can't open overrides file: %w", err)
@@ -62,5 +64,5 @@ func ReadFile(fileName string) (map[errortypes.ErrorType][]typeutil.TypeName, er
 
 	defer overridesFile.Close()
 
-	return Read(overridesFile)
+	return Read(ctx, overridesFile)
 }

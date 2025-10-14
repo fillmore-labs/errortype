@@ -21,6 +21,7 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/internal/detect/properties"
 	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
@@ -28,12 +29,8 @@ import (
 func (p pass) processReceivers(ctx context.Context) {
 	defer trace.StartRegion(ctx, "receivers").End()
 
-	for tn, errorType := range p.PropertyMap {
-		if errorType.DeterminedType() != errortypes.Undecided {
-			continue
-		}
-
-		if !p.inCurrentPkg(tn) {
+	for tn, errorType := range p.DetectedTypes {
+		if errorType.DeterminedType() != errortypes.UndecidedType {
 			continue
 		}
 
@@ -47,12 +44,12 @@ func (p pass) processReceivers(ctx context.Context) {
 			continue
 		}
 
-		property := ValueReceivers
+		property := properties.ValueReceivers
 		if ptr {
-			property = PointerReceivers
+			property = properties.PointerReceivers
 		}
 
-		p.AddTypeProperty(tn, property)
+		p.DetectedTypes[tn] |= property
 	}
 }
 

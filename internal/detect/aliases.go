@@ -21,6 +21,7 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/internal/detect/properties"
 	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
@@ -29,7 +30,7 @@ import (
 func (p pass) processAliases(ctx context.Context) {
 	defer trace.StartRegion(ctx, "aliases").End()
 
-	for alias := range p.PropertyMap {
+	for alias := range p.DetectedTypes {
 		if !alias.IsAlias() {
 			continue // We are only interested in aliases.
 		}
@@ -48,17 +49,11 @@ func (p pass) processAliases(ctx context.Context) {
 			continue // Alias to an unnamed type with embedded error
 		}
 
-		var property ErrorProperty
-		// Check if the original type is from the same package.
-		if p.inCurrentPkg(tn) {
+		var property properties.ErrorProperty
+		if oldp, ok := p.DetectedTypes[tn]; ok {
 			// If the original type is in the same package, its properties
 			// have already been computed by processTypeDecls. We can copy them.
-			oldp, ok := p.GetTypeProperty(tn)
-			if !ok {
-				continue
-			}
-
-			property = oldp &^ OverrideMask // Copy all but override flags.
+			property = oldp &^ properties.OverrideMask // Copy all but override flags.
 		} else {
 			// If the original type is from another package, we rely on
 			// the facts exported by that package's analysis.
@@ -69,18 +64,17 @@ func (p pass) processAliases(ctx context.Context) {
 
 			switch errorType & errortypes.ExpectedMask {
 			case errortypes.PointerType:
-				property = PointerAlias
+				property = properties.PointerAlias
 
 			case errortypes.ValueType:
-				property = ValueAlias
+				property = properties.ValueAlias
 
 			default: // Undecided or suppressed
-				property = None
+				continue
 			}
 		}
 
-		// We have either found the type in our property map, or imported an ErrorType fact
-		// so it has to be an alias to an error type.
-		p.AddTypeProperty(alias, property)
+		// We have either found the type in our property map or imported an ErrorType fact.
+		p.DetectedTypes[alias] |= property
 	}
 }

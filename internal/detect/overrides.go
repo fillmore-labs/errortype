@@ -20,13 +20,13 @@ import (
 	"go/types"
 	"log"
 
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/detect/properties"
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // UsageOverrides is a type alias for mapping a fully qualified type name to its corresponding error usage type.
-type UsageOverrides = map[typeutil.TypeName]errortypes.ErrorType
+type UsageOverrides = map[typeutil.TypeName]facts.ErrorFact
 
 // processOverrides applies error usage overrides to the property map, validating and logging invalid configurations.
 func (p pass) processOverrides(overrides UsageOverrides) {
@@ -40,7 +40,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 
 		// Check whether the override is valid.
 		switch usage {
-		case errortypes.PointerType:
+		case facts.PointerType:
 			if ptrType := types.NewPointer(tn.Type()); !typeutil.HasErrorMethod(ptrType) {
 				log.Printf("Pointer override \"*%s\" does not implement the error interface", typeName)
 
@@ -48,7 +48,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			}
 			property |= properties.PointerOverride
 
-		case errortypes.ValueType:
+		case facts.ValueType:
 			if !typeutil.HasErrorMethod(tn.Type()) {
 				log.Printf("Value override %q does not implement the error interface", typeName)
 
@@ -56,7 +56,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			}
 			property |= properties.ValueOverride
 
-		case errortypes.SuppressType:
+		case facts.SuppressType:
 			property |= properties.SuppressOverride
 
 		default: // should not happen

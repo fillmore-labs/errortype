@@ -16,7 +16,7 @@
 
 package a
 
-import "github.com/go-errors/errors"
+import "errors"
 
 type GenericError[T any] struct{ _ T }
 

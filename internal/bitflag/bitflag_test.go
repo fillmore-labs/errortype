@@ -31,7 +31,7 @@ func TestToString(t *testing.T) {
 		2: "Four",
 	}
 
-	tests := []struct {
+	tests := [...]struct {
 		name  string
 		value uint8
 		want  string

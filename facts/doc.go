@@ -14,20 +14,6 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package b
-
-type (
-	PointerError struct{ msg string }
-
-	ValueError struct{ msg string }
-
-	AmbiguousError struct{ error }
-)
-
-func (e PointerError) Error() string { return e.msg }
-
-func (e ValueError) Error() string { return e.msg }
-
-var _, _ error = (*PointerError)(nil), ValueError{}
-
-var _, _ error = (*AmbiguousError)(nil), AmbiguousError{}
+// Package facts defines the types used to represent error type usage patterns
+// detected during static analysis.
+package facts

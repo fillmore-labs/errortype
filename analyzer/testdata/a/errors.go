@@ -18,8 +18,13 @@ package a
 
 import (
 	"errors"
+	. "errors"
 
 	"test/a/b"
+
+	pkgerrors "github.com/pkg/errors"
+	errorsx "golang.org/x/exp/errors"
+	"golang.org/x/xerrors"
 )
 
 type myError1 struct{}
@@ -32,8 +37,40 @@ func (myError1) As(_ error, _ any) bool { // want " \\(et:sig\\)$"
 	return false
 }
 
-func Errors() {
+var ErrPointer error = &b.ValueError{} // want " \\(et:var\\)$"
+
+func Errors(err error) {
 	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+
+	_ = As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+
+	_ = xerrors.As(func() error {
+		return &myErrorWithAs{} // want " \\(et:ret\\)$"
+	}(), &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+
+	_ = errorsx.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+
+	_ = pkgerrors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+
+	(errors.Is(err, nil)) // want " \\(et:unu\\+\\)"
+
+	(errors.As(err, nil)) // want " \\(et:arg\\)"
+}
+
+func Errors2() {
+	errors := myError1{}
+
+	_ = errors.As(&myError1{}, &b.AmbiguousError{})
+}
+
+type StructWithAsField struct {
+	As func(_ error, _ any) bool
+}
+
+func Errors3() {
+	errors := StructWithAsField{As: func(_ error, _ any) bool { return false }}
+
+	_ = errors.As(&myError1{}, &b.AmbiguousError{})
 }
 
 type myErrorWithAs struct{}

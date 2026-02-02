@@ -24,12 +24,14 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	. "fillmore-labs.com/errortype/analyzer"
+	"fillmore-labs.com/errortype/detect"
 )
 
 func TestAnalyzer(t *testing.T) {
 	t.Parallel()
 
 	testdata := analysistest.TestData()
+	overrides := path.Join(testdata, "overrides.yaml")
 
 	tests := [...]struct {
 		name     string
@@ -37,39 +39,27 @@ func TestAnalyzer(t *testing.T) {
 		options  Options
 		flags    func(*flag.FlagSet)
 	}{
-		{"a with flags", []string{"test/a"}, nil, func(f *flag.FlagSet) {
-			t.Helper()
-
-			overridefile := path.Join(testdata, "overrides.yaml")
-
-			if err := f.Set("overrides", overridefile); err != nil {
-				t.Fatal("can't set overrides", err)
-			}
-		}},
-		{"b", []string{"test/b", "test/style"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true)}, nil},
-		{"b with flags", []string{"test/b", "test/style"}, nil, func(f *flag.FlagSet) {
-			t.Helper()
-
-			if err := f.Set("check-is", "false"); err != nil {
-				t.Fatal("can't set check-is", err)
-			}
-
-			if err := f.Set("deep-is-check", "true"); err != nil {
-				t.Fatal("can't set deep-is-check", err)
-			}
-
-			if err := f.Set("unchecked-assert", "true"); err != nil {
-				t.Fatal("can't set unchecked-assert", err)
-			}
-		}},
+		{"a", []string{"test/a"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides)))}, nil},
+		{
+			"a with flags", []string{"test/a"}, nil, setFlags(t, map[string]string{
+				"overrides": overrides,
+			}),
+		},
+		{"b", []string{"test/b", "test/style", "test/main", "test/alias"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true), WithCheckUnused(true)}, nil},
+		{
+			"b with flags", []string{"test/b", "test/style", "test/main", "test/alias"}, nil, setFlags(t, map[string]string{
+				"check-is":         "false",
+				"deep-is-check":    "true",
+				"unchecked-assert": "true",
+				"check-unused":     "true",
+			}),
+		},
 		{"c", []string{"test/c"}, []Option{WithStyleCheck(false)}, nil},
-		{"c with flags", []string{"test/c"}, nil, func(f *flag.FlagSet) {
-			t.Helper()
-
-			if err := f.Set("style-check", "false"); err != nil {
-				t.Fatal("can't set style-check", err)
-			}
-		}},
+		{
+			"c with flags", []string{"test/c"}, nil, setFlags(t, map[string]string{
+				"style-check": "false",
+			}),
+		},
 	}
 
 	for _, tt := range tests {
@@ -84,5 +74,17 @@ func TestAnalyzer(t *testing.T) {
 
 			analysistest.Run(t, testdata, a, tt.patterns...)
 		})
+	}
+}
+
+func setFlags(tb testing.TB, flags map[string]string) func(*flag.FlagSet) { //nolint:thelper
+	return func(fs *flag.FlagSet) {
+		tb.Helper()
+
+		for name, value := range flags {
+			if err := fs.Set(name, value); err != nil {
+				tb.Fatalf("can't set %s to %s: %v", name, value, err)
+			}
+		}
 	}
 }

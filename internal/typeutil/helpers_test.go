@@ -17,7 +17,7 @@
 package typeutil_test
 
 import (
-	"fmt"
+	"bytes"
 	"go/ast"
 	"go/importer"
 	"go/parser"
@@ -26,38 +26,56 @@ import (
 	"testing"
 )
 
-// parseSource is a helper to parse source and get [types.Info] and [types.Package].
-func parseSource(tb testing.TB, src string) (*types.Info, *types.Package, *token.FileSet, *ast.File) {
+const testpkg = "test"
+
+// parseSource parses inline Go source code into an AST.
+// The source is automatically wrapped in a function body: func _() { <src> }.
+func parseSource(tb testing.TB, src string) (*token.FileSet, *ast.File) {
 	tb.Helper()
 
 	const (
-		filename = "test.go"
-		pkgname  = "test"
+		filename   = "test.go"
+		header     = "package " + testpkg + "\n\n"
+		suffix     = "\n"
+		wrapperLen = len(header) + len(suffix)
 	)
 
-	srcFile := fmt.Sprintf("package %s\n%s", pkgname, src)
+	var srcFile bytes.Buffer
+	srcFile.Grow(wrapperLen + len(src))
+
+	srcFile.WriteString(header)
+	srcFile.WriteString(src)
+	srcFile.WriteString(suffix)
 
 	fset := token.NewFileSet()
-	fset.AddFile(filename, -1, len(srcFile))
 
-	f, err := parser.ParseFile(fset, filename, srcFile, parser.SkipObjectResolution)
+	f, err := parser.ParseFile(fset, filename, &srcFile, parser.SkipObjectResolution)
 	if err != nil {
-		tb.Fatalf("failed to parse source: %T %v", err, err)
+		tb.Fatalf("Failed to parse source %q: %v", src, err)
 	}
 
-	conf := types.Config{Importer: importer.Default()}
+	return fset, f
+}
+
+// checkSource creates a fully type-checked [types.Info] for unit testing.
+// Use this when testing functions that require type information.
+func checkSource(tb testing.TB, fset *token.FileSet, files []*ast.File) (*types.Package, *types.Info) {
+	tb.Helper()
 
 	info := &types.Info{
 		Types:      make(map[ast.Expr]types.TypeAndValue),
 		Defs:       make(map[*ast.Ident]types.Object),
 		Uses:       make(map[*ast.Ident]types.Object),
 		Selections: make(map[*ast.SelectorExpr]*types.Selection),
+		Scopes:     make(map[ast.Node]*types.Scope),
 	}
 
-	pkg, err := conf.Check(pkgname, fset, []*ast.File{f}, info)
+	conf := types.Config{Importer: importer.Default()}
+
+	pkg, err := conf.Check(testpkg, fset, files, info)
 	if err != nil {
 		tb.Fatalf("failed to type Check source: %v", err)
 	}
 
-	return info, pkg, fset, f
+	return pkg, info
 }

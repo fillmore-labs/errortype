@@ -20,6 +20,9 @@ import (
 	"errors"
 	. "errors"
 	"os"
+
+	errorsx "golang.org/x/exp/errors"
+	"golang.org/x/xerrors"
 )
 
 type myError1 struct{}
@@ -61,6 +64,14 @@ func Errors() {
 	_ = errors.Join(&myError1{}, &myError1{})
 
 	_ = errors.Unwrap(&myError1{})
+
+	_ = errorsx.Is(&myError1{}, &myError1{}) // want "is false or undefined"
+
+	_ = xerrors.Is(func() error { // want "is false or undefined"
+		return &myErrorWithIs{}
+	}(), &myError1{})
+
+	(errors.Is(nil, &e)) // want " \\(et:unu\\+\\)"
 }
 
 func Errors2() {

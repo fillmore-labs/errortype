@@ -17,12 +17,12 @@
 package overrides
 
 import (
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Overrides associates an error type with a list of fully qualified type names.
-type Overrides = map[errortypes.ErrorType][]typeutil.TypeName
+type Overrides = map[facts.ErrorFact][]typeutil.TypeName
 
 // errorFileType represents the configuration for error type overrides in files.
 //

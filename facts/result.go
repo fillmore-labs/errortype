@@ -14,40 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package facts
 
-import "math/rand/v2"
+import "go/types"
 
-type PointerOverride struct{}
+// Result is the result of the detecttypes analyzer. It contains a list of all
+// error types whose pointer-ness could be unambiguously determined.
+type Result struct {
+	Types []ResultInfo
+}
 
-func (PointerOverride) Error() string { return "" }
-
-type ValueOverride struct{}
-
-func (ValueOverride) Error() string { return "" }
-
-type SuppressOverride struct{ error }
-
-var (
-	_ error = PointerOverride{} // want " \\(et:var\\+\\)$"
-	_ error = &ValueOverride{}  // want " \\(et:var\\)$"
-)
-
-func ReturnOverride() error {
-	switch rand.Int() {
-	case 0:
-		return &PointerOverride{}
-
-	case 1:
-		return ValueOverride{}
-
-	case 2:
-		return SuppressOverride{}
-
-	case 3:
-		return &SuppressOverride{}
-
-	default:
-		return nil
-	}
+// ResultInfo holds the determined pointer-ness for a type,
+// identified by its *types.TypeName.
+type ResultInfo struct {
+	TypeName  *types.TypeName
+	ErrorType ErrorFact
 }

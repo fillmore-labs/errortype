@@ -57,7 +57,7 @@ func (e myErrorWithUnwrapArray) Unwrap() []error {
 	return e.errs
 }
 
-func Errors4() {
+func Errors4(err error) {
 	_ = errors.Is(&myErrorWithIs{}, &myError1{}) // want "is always false"
 
 	_ = errors.Is(&struct{ *myErrorWithIs }{}, &myError1{}) // want "is always false"
@@ -65,6 +65,10 @@ func Errors4() {
 	_ = errors.Is(&myErrorWithUnwrap{}, os.ErrProcessDone) // want "is always false"
 
 	_ = errors.Is(&myErrorWithUnwrapArray{}, os.ErrProcessDone) // want "is always false"
+
+	(errors.Is(err, nil)) // want " \\(et:unu\\+\\)"
+
+	(errors.As(err, nil)) // want " \\(et:arg\\)" " \\(et:unu\\)"
 }
 
 type nonError struct{ err error }

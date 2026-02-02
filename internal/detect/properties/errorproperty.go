@@ -17,8 +17,8 @@
 package properties
 
 import (
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/bitflag"
-	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
 // ErrorProperty is a bitmask representing properties of an error type's definition
@@ -151,30 +151,30 @@ var _propertyPairs = [...]struct{ pointerProp, valueProp ErrorProperty }{
 //
 // Contradictory properties (e.g., both PointerVar and ValueVar being set)
 // for a given category are ignored, and the decision moves to the next category.
-func (e ErrorProperty) DeterminedType() errortypes.ErrorType {
+func (e ErrorProperty) DeterminedType() facts.ErrorFact {
 	switch e & OverrideMask { // Overrides have the highest precedence.
 	case SuppressOverride:
-		return errortypes.SuppressType
+		return facts.SuppressType
 
 	case PointerOverride:
-		return errortypes.PointerType
+		return facts.PointerType
 
 	case ValueOverride:
-		return errortypes.ValueType
+		return facts.ValueType
 	}
 	// Errors with pointer receivers can only be used in only one way.
 	// Errors with an `Unwrap() error` method with pointer receiver would behave differently as values.
 	if e&ReceiverMask != 0 {
-		return errortypes.PointerType
+		return facts.PointerType
 	}
 
 	for _, pair := range _propertyPairs {
 		switch pointerProp, valueProp := pair.pointerProp, pair.valueProp; e & (pointerProp | valueProp) { // Check for a non-contradictory usage within this category.
 		case pointerProp:
-			return errortypes.PointerType
+			return facts.PointerType
 
 		case valueProp:
-			return errortypes.ValueType
+			return facts.ValueType
 		}
 	}
 
@@ -182,11 +182,11 @@ func (e ErrorProperty) DeterminedType() errortypes.ErrorType {
 	// Although the underlying type is a pointer, `T` itself is used as a value
 	// (e.g., you return `T`, not `*T`), so we treat it as a value type.
 	if e&PointerDef != 0 {
-		return errortypes.ValueType
+		return facts.ValueType
 	}
 
 	// No unambiguous usage was found.
-	return errortypes.UndecidedType
+	return facts.UndecidedType
 }
 
 const (

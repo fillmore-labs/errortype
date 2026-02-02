@@ -102,7 +102,8 @@ func TestFuncOf(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			info, _, _, f := parseSource(t, tt.src)
+			fset, f := parseSource(t, tt.src)
+			_, info := checkSource(t, fset, []*ast.File{f})
 			callExpr := lastDeclCallExpr(f)
 
 			fun, _, methodExpr, ok := FuncOf(info, callExpr)

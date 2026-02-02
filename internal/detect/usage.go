@@ -291,15 +291,15 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 
 // handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
 // It returns the target argument, or nil if the function is not of interest.
-func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
+func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
 	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n)
 	if !ok {
-		return nil, false // Could not resolve function, might be a func variable.
+		return nil // Could not resolve function, might be a func variable.
 	}
 
 	asfunc, ok := knownfuncs.FuncInfoOf(fun)
 	if !ok || asfunc.Kind() != knownfuncs.KindAs {
-		return nil, false // Not a function we are interested in.
+		return nil // Not a function we are interested in.
 	}
 
 	targetArgIndex, typeParam := asfunc.AsTarget()
@@ -308,13 +308,13 @@ func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
 			typ := typeParams[typeParam]
 
 			if tv, ok := p.TypesInfo.Types[typ]; ok && tv.IsType() && typeutil.HasErrorMethod(tv.Type) {
-				return tv.Type, ok
+				return tv.Type
 			}
 		}
 	}
 
 	if targetArgIndex < 0 {
-		return nil, false
+		return nil
 	}
 
 	if methodExpr {
@@ -326,26 +326,26 @@ func (p pass) handleErrorAs(n *ast.CallExpr) (target types.Type, ok bool) {
 	}
 
 	if len(n.Args) <= targetArgIndex {
-		return nil, true // Maybe called with the result of a multivalued function
+		return nil // Maybe called with the result of a multivalued function
 	}
 
 	targetArg := n.Args[targetArgIndex]
 
 	typ, ok := p.TypesInfo.Types[targetArg]
 	if !ok {
-		return nil, true // !ok means errors in type parsing
+		return nil // !ok means errors in type parsing
 	}
 
 	ptr, ok := typ.Type.Underlying().(*types.Pointer)
 	if !ok {
-		return nil, true
+		return nil
 	}
 
-	return ptr.Elem(), true
+	return ptr.Elem()
 }
 
 func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
-	if target, ok := v.handleErrorAs(n); ok {
+	if target := v.handleErrorAs(n); target != nil {
 		tn, ptr, ok := typeutil.TypeNameOf(target)
 		if !ok {
 			return // Not a named type.

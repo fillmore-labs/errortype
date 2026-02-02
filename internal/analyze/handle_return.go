@@ -16,28 +16,48 @@
 
 package analyze
 
-import "golang.org/x/tools/go/ast/inspector"
+import (
+	"go/ast"
+
+	"golang.org/x/tools/go/ast/inspector"
+)
 
 // handleReturns identifies function return parameters that are of type error
 // and then inspects all return statements within the function body to check
 // for incorrect error type usage.
 func (p Pass) handleReturns(b inspector.Cursor, lastResult int) {
-	for retStmt := range AllReturns(b) {
-		if len(retStmt.Results) <= lastResult {
-			continue // Skip return statements with differing arity
+	b.Inspect([]ast.Node{(*ast.FuncLit)(nil), (*ast.ReturnStmt)(nil)}, func(c inspector.Cursor) (descend bool) {
+		switch n := c.Node().(type) {
+		case *ast.FuncLit:
+			// Don't check returns in nested function literals, they will be handled separately.
+			return false
+
+		case *ast.ReturnStmt:
+			// Skip return statements with differing arity. We could handle *[types.Tuple] here,
+			// but it will be mostly `error` types, and we likely chack the called function anyway.
+			if len(n.Results) <= lastResult {
+				return false
+			}
+
+			res := n.Results[lastResult]
+
+			resType, ok := p.TypesInfo.Types[res]
+			if !ok || !resType.IsValue() { // should not happen
+				p.ReportErrorf(n, "Expected return value in %d, got %#v", lastResult, resType)
+			}
+
+			if resType.IsNil() {
+				return false // nil is fine.
+			}
+
+			p.checkReturn(resType.Type, res)
+
+			return false
+
+		default: // should not happen
+			p.ReportErrorf(n, "Unexpected node type: %T", n)
+
+			return true
 		}
-
-		res := retStmt.Results[lastResult]
-
-		resType, ok := p.TypesInfo.Types[res]
-		if !ok || !resType.IsValue() { // should not happen
-			p.ReportErrorf(retStmt, "Expected return value in %d, got %#v", lastResult, resType)
-		}
-
-		if resType.IsNil() {
-			continue // nil is fine.
-		}
-
-		p.checkReturn(resType.Type, res)
-	}
+	})
 }

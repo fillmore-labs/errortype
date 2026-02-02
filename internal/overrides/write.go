@@ -23,7 +23,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -35,22 +35,33 @@ func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath stri
 		slices.SortFunc(s, typeutil.TypeName.Compare)
 
 		switch errortype {
-		case errortypes.PointerType:
+		case facts.PointerType:
 			suggestFile.Pointer = s
 
-		case errortypes.ValueType:
+		case facts.ValueType:
 			suggestFile.Value = s
 
-		case errortypes.SuppressType:
+		case facts.SuppressType:
 			suggestFile.Inconsistent = s
 		}
 	}
 
-	_, _ = io.WriteString(w, "---\n")
+	if _, err := io.WriteString(w, "---\n"); err != nil {
+		return err
+	}
+
 	if pkgPath != "" {
-		_, _ = io.WriteString(w, "# suggestions for ")
-		_, _ = io.WriteString(w, pkgPath)
-		_, _ = io.WriteString(w, "\n")
+		if _, err := io.WriteString(w, "# suggestions for "); err != nil {
+			return err
+		}
+
+		if _, err := io.WriteString(w, pkgPath); err != nil {
+			return err
+		}
+
+		if _, err := io.WriteString(w, "\n"); err != nil {
+			return err
+		}
 	}
 
 	enc := yaml.NewEncoder(w, yaml.IndentSequence(true))

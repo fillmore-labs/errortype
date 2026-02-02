@@ -26,11 +26,11 @@ import (
 // LogErrorf reports an internal ("should not happen") failure message.
 func (p pass) LogErrorf(n ast.Node, format string, args ...any) {
 	var sb strings.Builder
-	_, _ = sb.WriteString("Internal error: ")
-	_, _ = fmt.Fprintf(&sb, format, args...)
-	_ = sb.WriteByte('\n')
+	sb.WriteString("Internal error: ") // ignore error
+	fmt.Fprintf(&sb, format, args...)  // ignore error
+	sb.WriteByte('\n')                 // ignore error
 
-	_ = ast.Fprint(&sb, p.Fset, n, ast.NotNilFilter)
+	ast.Fprint(&sb, p.Fset, n, ast.NotNilFilter) // ignore error
 
 	log.Println(sb.String())
 }

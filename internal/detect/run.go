@@ -26,7 +26,7 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// run is the main function for the detecttypes analyzer.
+// Run is the main function for the detecttypes analyzer.
 //
 // It inspects type, function and variable declarations to infer whether an error type
 // is intended to be used as a pointer or a value, including handling
@@ -34,7 +34,11 @@ import (
 //
 // It then exports the determined properties as facts for downstream packages and
 // returns a result containing all relevant properties for the current analysis pass.
-func (o *Options) run(ap *analysis.Pass) (any, error) {
+func (o *Options) Run(ap *analysis.Pass) (any, error) {
+	if o.InitializationError != nil {
+		return nil, o.InitializationError
+	}
+
 	ctx := context.Background()
 
 	ctx, task := trace.NewTask(ctx, "detecttypes")

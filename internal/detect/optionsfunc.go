@@ -17,6 +17,7 @@
 package detect
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
@@ -30,7 +31,9 @@ func (o *Options) ReadOverrides(fileName string) error {
 		return nil
 	}
 
-	usageOverrides, err := overrides.ReadFile(fileName)
+	ctx := context.Background()
+
+	usageOverrides, err := overrides.ReadFile(ctx, fileName)
 	if err != nil {
 		return fmt.Errorf("can't read overrides file %s: %w", fileName, err)
 	}

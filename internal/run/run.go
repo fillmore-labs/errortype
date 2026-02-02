@@ -14,9 +14,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package run
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime/trace"
@@ -25,31 +26,34 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/internal/analyze"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ErrResultMissing is returned when the result from an analyzer is missing.
 var ErrResultMissing = errors.New("analyzer result missing")
 
-// run executes the analysis pass using the provided options. It processes detected types,
+// Run executes the analysis pass using the provided options. It processes detected types,
 // analyzes the abstract syntax tree (AST), and calculates the final result. If any step fails,
 // an error is returned. Otherwise, the computed result is returned.
-func (o *RunOptions) run(ap *analysis.Pass) (any, error) {
-	ctx, task := trace.NewTask(o.Context, "errortype")
-	defer task.End()
-
-	detectedResult, ok := ap.ResultOf[o.DetectTypes].(errortypes.Result)
-	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", o.DetectTypes.Name, ErrResultMissing)
-	}
-
+func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
 		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
 	}
 
-	p := NewPass(ap, o.Options)
+	detectedResult, ok := ap.ResultOf[o.DetectTypes].(facts.Result)
+	if !ok {
+		return nil, fmt.Errorf("errortype: %s: %w", o.DetectTypes.Name, ErrResultMissing)
+	}
+
+	ctx := context.Background()
+
+	ctx, task := trace.NewTask(ctx, "errortype")
+	defer task.End()
+
+	p := analyze.NewPass(ap, o.Options)
 
 	if trace.IsEnabled() {
 		trace.Log(ctx, "pkg", typeutil.PkgPath(p.Pass))
@@ -65,9 +69,9 @@ func (o *RunOptions) run(ap *analysis.Pass) (any, error) {
 		pkgPath := typeutil.PkgPath(p.Pass)
 
 		if err := o.writeSuggestions(ctx, suggestions, pkgPath); err != nil {
-			return err, nil
+			return nil, err
 		}
 	}
 
-	return any(nil), nil
+	return nil, nil
 }

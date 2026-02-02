@@ -54,7 +54,7 @@ func (p Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 
 	d := detect.New(dopts...)
 
-	eopts := errortypeOptions(p.settings)
+	eopts := p.settings.Options()
 	eopts = append(eopts, errortype.WithDetectTypes(d))
 
 	e := errortype.New(eopts...)

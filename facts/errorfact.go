@@ -14,16 +14,16 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package errortypes
+package facts
 
-// ErrorType represents a detected usage type of an error.
-type ErrorType uint8
+// ErrorFact represents a detected usage type of an error.
+type ErrorFact uint8
 
 // Constants defining the possible usages of an error type.
 //
-//go:generate go tool stringer -type ErrorType -linecomment
+//go:generate go tool stringer -type ErrorFact -linecomment
 const (
-	UndecidedType ErrorType = iota // Undecided
+	UndecidedType ErrorFact = iota // Undecided
 
 	PointerType // Pointer
 
@@ -31,9 +31,9 @@ const (
 
 	SuppressType // Suppress
 
-	ExpectedMask ErrorType = 0b11
+	ExpectedMask ErrorFact = 0b11
 )
 
 // AFact makes *ErrorType satisfy the [analysis.Fact] interface.
 // [analysis.Fact]s must be pointers to be exported as a fact.
-func (*ErrorType) AFact() {}
+func (*ErrorFact) AFact() {}

@@ -26,7 +26,7 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 )
 
 // Read parses an override file from the provided io.Reader and returns a map
@@ -45,18 +45,16 @@ func Read(ctx context.Context, r io.Reader) (Overrides, error) {
 	}
 
 	return Overrides{
-			errortypes.PointerType:  errorfile.Pointer,
-			errortypes.ValueType:    errorfile.Value,
-			errortypes.SuppressType: errorfile.Suppress,
+			facts.PointerType:  errorfile.Pointer,
+			facts.ValueType:    errorfile.Value,
+			facts.SuppressType: errorfile.Suppress,
 			// errortypes.InconsistentType are ignored.
 		},
 		nil
 }
 
 // ReadFile reads error type usage overrides from the specified file.
-func ReadFile(fileName string) (Overrides, error) {
-	ctx := context.Background()
-
+func ReadFile(ctx context.Context, fileName string) (Overrides, error) {
 	overridesFile, err := os.Open(filepath.Clean(fileName))
 	if err != nil {
 		return nil, fmt.Errorf("can't open overrides file: %w", err)

@@ -19,7 +19,7 @@ package typeutil
 import "go/types"
 
 // HasErrorMethod checks if a given type implements the standard `error` interface.
-// Note that when T implements `error`, *T can, but must not, implement `error` too.
+// Note that when T implements `error`, *T can, but does not necessarily implement `error` too.
 func HasErrorMethod(typ types.Type) bool {
 	if typ == errorType {
 		return true
@@ -29,7 +29,7 @@ func HasErrorMethod(typ types.Type) bool {
 }
 
 // HasMethod checks if a given type implements a method.
-// Note that when T implements the method, *T can, but must not, implement the method too.
+// Note that when T implements the method, *T can, but does not necessarily implement the method too.
 func HasMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool) bool {
 	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, name)
 	if obj == nil {

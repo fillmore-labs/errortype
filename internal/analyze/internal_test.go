@@ -45,7 +45,7 @@ func TestAnalyzerInternal(t *testing.T) {
 func run(ap *analysis.Pass) (any, error) {
 	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
+		return nil, fmt.Errorf("testanalyzer: %s reuslt missing", inspect.Analyzer.Name)
 	}
 
 	p := NewPass(ap, DefaultOptions)

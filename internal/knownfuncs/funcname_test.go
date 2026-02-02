@@ -32,6 +32,8 @@ func TestFuncNameOf(t *testing.T) {
 	typeName := types.NewTypeName(token.NoPos, pkg, "MyType", nil)
 	emptystruct := types.NewStruct(nil, nil)
 	named := types.NewNamed(typeName, emptystruct, nil)
+	aliasName := types.NewTypeName(token.NoPos, pkg, "MyAlias", nil)
+	alias := types.NewAlias(aliasName, types.NewPointer(named))
 
 	tests := [...]struct {
 		name         string
@@ -65,7 +67,17 @@ func TestFuncNameOf(t *testing.T) {
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
 			}(),
-			wantFuncName: "(*example.com/testpkg.MyType).myFunc",
+			wantFuncName: "(example.com/testpkg.MyType).myFunc",
+		},
+		{
+			name: "alias pointer method call",
+			fun: func() *types.Func {
+				recv := types.NewParam(token.NoPos, pkg, "", alias)
+				sig := types.NewSignatureType(recv, nil, nil, nil, nil, false)
+
+				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
+			}(),
+			wantFuncName: "(example.com/testpkg.MyType).myFunc",
 		},
 		{
 			name: "interface method call",
@@ -113,7 +125,7 @@ func TestFuncNameOf(t *testing.T) {
 
 				return types.NewFunc(token.NoPos, pkg, "myFunc", sig)
 			}(),
-			wantFuncName: "(*<invalid>).myFunc",
+			wantFuncName: "(<invalid>).myFunc",
 		},
 	}
 

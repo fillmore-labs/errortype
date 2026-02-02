@@ -14,7 +14,7 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package run
 
 import (
 	"context"
@@ -25,7 +25,7 @@ import (
 	"fillmore-labs.com/errortype/internal/overrides"
 )
 
-func (o *RunOptions) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) error {
+func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) error {
 	if o.Suggest == "" || len(suggestions) == 0 {
 		return nil
 	}

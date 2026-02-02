@@ -21,18 +21,19 @@ import (
 	"strconv"
 
 	"fillmore-labs.com/errortype/internal/analyze"
+	"fillmore-labs.com/errortype/internal/run"
 )
 
 // registerFlags binds the [analyze.RunOptions] values to command line flag values.
 // A nil flag set value defaults to the program's command line.
-func registerFlags(o *analyze.RunOptions, fs *flag.FlagSet) {
+func registerFlags(o *run.Options, fs *flag.FlagSet) {
 	if fs == nil {
 		fs = flag.CommandLine
 	}
 
 	flags := [...]struct {
 		name, usage string
-		flag        analyze.Options
+		value       analyze.Options
 	}{
 		{"style-check", `check for confusing uses of errors.As`, analyze.OptionStyleCheck},
 		{"check-is", `suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`, analyze.OptionCheckIs},
@@ -42,7 +43,7 @@ func registerFlags(o *analyze.RunOptions, fs *flag.FlagSet) {
 	}
 
 	for _, f := range flags {
-		fs.Var(optionValue{o: &o.Options, flag: f.flag}, f.name, f.usage)
+		fs.Var(optionValue{flags: &o.Options, value: f.value}, f.name, f.usage)
 	}
 
 	fs.StringVar(&o.Suggest, "suggest", o.Suggest, "append suggestions to this `file`, \"-\" for standard output")
@@ -65,23 +66,25 @@ func copyFlags(from, to *flag.FlagSet) {
 
 // optionValue implements [flag.Value] to bind an [Options] configuration to a specific flag for command-line parsing.
 type optionValue struct {
-	o    *analyze.Options
-	flag analyze.Options
+	flags *analyze.Options
+	value analyze.Options
 }
 
 // String implements [flag.Value].
 func (v optionValue) String() string {
-	return strconv.FormatBool(v.o != nil && *v.o&v.flag != 0)
+	return strconv.FormatBool(v.flags != nil && *v.flags&v.value != 0)
 }
 
 // Set implements [flag.Value].
 func (v optionValue) Set(s string) error {
 	b, err := strconv.ParseBool(s)
-	if v.o != nil && err == nil {
-		v.o.SetOption(v.flag, b)
+	if err != nil {
+		return err
 	}
 
-	return err
+	v.flags.Set(v.value, b)
+
+	return nil
 }
 
 // IsBoolFlag makes `-name` equivalent to `-name=true`.

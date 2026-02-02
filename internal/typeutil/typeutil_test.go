@@ -78,7 +78,8 @@ func customError() (int, interface { error }) { return 0, myError{} }`,
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			info, _, _, f := parseSource(t, tt.src)
+			fset, f := parseSource(t, tt.src)
+			_, info := checkSource(t, fset, []*ast.File{f})
 			funcDecl := findFunc(t, f, tt.funcName)
 
 			if index := ErrorResultIndex(info, funcDecl.Type.Results); index != tt.wantIndex {
@@ -124,7 +125,8 @@ func TestHasSigs(t *testing.T) {
 		func sigTooManyResults() (string, string) { return "", "" }
 	`
 
-	_, pkg, _, _ := parseSource(t, src)
+	fset, f := parseSource(t, src)
+	pkg, _ := checkSource(t, fset, []*ast.File{f})
 
 	scope := pkg.Scope()
 	sigOf := func(name string) *types.Signature {

@@ -17,7 +17,6 @@
 package detect_test
 
 import (
-	"errors"
 	"fmt"
 	"go/ast"
 	"go/types"
@@ -29,8 +28,8 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
-	. "fillmore-labs.com/errortype/internal/detect"
-	"fillmore-labs.com/errortype/internal/errortypes"
+	. "fillmore-labs.com/errortype/detect"
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -48,12 +47,9 @@ func TestDetectAnalyzer(t *testing.T) {
 		{"errortypes", func() *analysis.Analyzer {
 			t.Helper()
 
-			o := DefaultOptions()
-			if err := o.ReadOverrides(overrides); err != nil {
-				t.Fatalf("can't read overrides: %v", err)
-			}
+			d := New(WithOverrideFile(overrides))
 
-			return newTestAnalyzer(o)
+			return newTestAnalyzer(d)
 		}, "test/a"},
 	}
 	for _, tt := range tests {
@@ -65,9 +61,7 @@ func TestDetectAnalyzer(t *testing.T) {
 	}
 }
 
-func newTestAnalyzer(o *Options) *analysis.Analyzer {
-	d := o.Analyzer()
-
+func newTestAnalyzer(d *analysis.Analyzer) *analysis.Analyzer {
 	testAnalyzer := &analysis.Analyzer{
 		Name: "testanalyzer",
 		Doc:  "consumes results from detect.Analyzer for testing",
@@ -80,21 +74,18 @@ func newTestAnalyzer(o *Options) *analysis.Analyzer {
 	return testAnalyzer
 }
 
-// ErrResultMissing is returned when the result from an analyzer is missing.
-var ErrResultMissing = errors.New("analyzer result missing")
-
 func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
+		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", inspect.Analyzer.Name)
 	}
 
-	res, ok := ap.ResultOf[d].(errortypes.Result)
+	res, ok := ap.ResultOf[d].(facts.Result)
 	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", d.Name, ErrResultMissing)
+		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", d.Name)
 	}
 
-	errorMap := make(map[*types.TypeName]errortypes.ErrorType, len(res.Types))
+	errorMap := make(map[*types.TypeName]facts.ErrorFact, len(res.Types))
 	for _, info := range res.Types {
 		errorMap[info.TypeName] = info.ErrorType
 	}
@@ -130,7 +121,7 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 	return any(nil), nil
 }
 
-func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) string {
+func message(t types.Type, errorMap map[*types.TypeName]facts.ErrorFact) string {
 	tn, _, ok := typeutil.TypeNameOf(t)
 	if !ok {
 		return "NOT A NAMED TYPE"
@@ -141,17 +132,17 @@ func message(t types.Type, errorMap map[*types.TypeName]errortypes.ErrorType) st
 		return "NOT IN RESULTS"
 	}
 
-	switch typ & errortypes.ExpectedMask {
-	case errortypes.UndecidedType:
+	switch typ & facts.ExpectedMask {
+	case facts.UndecidedType:
 		return "UNDECIDED"
 
-	case errortypes.PointerType:
+	case facts.PointerType:
 		return "POINTER"
 
-	case errortypes.ValueType:
+	case facts.ValueType:
 		return "VALUE"
 
-	case errortypes.SuppressType:
+	case facts.SuppressType:
 		return "SUPPRESS"
 
 	default:

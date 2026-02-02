@@ -14,35 +14,33 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package analyze
+package run
 
 import (
-	"context"
 	"sync"
 
 	"golang.org/x/tools/go/analysis"
+
+	"fillmore-labs.com/errortype/internal/analyze"
 )
 
-// RunOptions provide configurations for analysis passes, including type detection and AST-related behavior customization.
-type RunOptions struct {
-	Options
+// Options provide configurations for analysis passes, including type detection and AST-related behavior customization.
+type Options struct {
+	analyze.Options
 
 	DetectTypes *analysis.Analyzer
 
 	// Suggest appends suggestions to a file
 	Suggest string
 
-	Context context.Context
-
 	suggestwrite sync.Mutex
 }
 
-// DefaultRunOptions returns a [RunOptions] struct initialized with default values.
-func DefaultRunOptions() *RunOptions {
-	return &RunOptions{ // Default options
-		Options:     DefaultOptions,
+// DefaultRunOptions returns a [Options] struct initialized with default values.
+func DefaultRunOptions() *Options {
+	return &Options{ // Default options
+		Options:     analyze.DefaultOptions,
 		DetectTypes: nil,
 		Suggest:     "",
-		Context:     context.Background(),
 	}
 }

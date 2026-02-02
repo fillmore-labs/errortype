@@ -22,19 +22,11 @@ import (
 	"slices"
 	"strings"
 
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/detect"
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
-
-// makeOptions returns a [options] struct with overriding [Option]s applied.
-func makeOptions(opts Options) *detect.Options {
-	o := detect.DefaultOptions()
-	opts.apply(o)
-
-	return o
-}
 
 // Option configures specific behavior of the detect [analysis.Analyzer].
 type Option interface {
@@ -68,8 +60,6 @@ func (o Options) LogAttr() slog.Attr {
 
 // WithOverrides returns an Option that applies the provided overrides mapping,
 // allowing specific type names to be associated with custom error types.
-// The override map keys are type names, and the values are the corresponding error types
-// to use for those types during error detection.
 func WithOverrides(overrides map[Override][]string) Option {
 	return overridesOption{overrides: overrides}
 }
@@ -82,17 +72,17 @@ func (o overridesOption) apply(opts *detect.Options) {
 	or := make(overrides.Overrides)
 
 	for typ, names := range o.overrides {
-		var et errortypes.ErrorType
+		var et facts.ErrorFact
 
 		switch typ {
 		case OverridePointer:
-			et = errortypes.PointerType
+			et = facts.PointerType
 
 		case OverrideValue:
-			et = errortypes.ValueType
+			et = facts.ValueType
 
 		case OverrideSuppress:
-			et = errortypes.SuppressType
+			et = facts.SuppressType
 
 		default:
 			continue
@@ -124,6 +114,25 @@ func (o overridesOption) LogAttr() slog.Attr {
 
 	// go1.25: return slog.GroupAttrs("overrides", as...)
 	return slog.Attr{Key: "overrides", Value: slog.GroupValue(as...)}
+}
+
+// WithOverrideFile returns an [Option] that configures usage overrides by reading types from the specified file.
+func WithOverrideFile(file string) Option {
+	return overrideFileOption{file: file}
+}
+
+type overrideFileOption struct {
+	file string
+}
+
+func (o overrideFileOption) apply(opts *detect.Options) {
+	if err := opts.ReadOverrides(o.file); err != nil {
+		opts.InitializationError = err
+	}
+}
+
+func (o overrideFileOption) LogAttr() slog.Attr {
+	return slog.Any("overrideFile", o.file)
 }
 
 // WithHeuristics is an [Option] to configure heuristic passes.

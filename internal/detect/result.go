@@ -26,20 +26,20 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // createResult combines all determined type information into the final analyzer result.
 // It merges types from the current package and dependencies (facts) and local overrides,
 // with local overrides having the highest precedence.
-func (p pass) createResult(ctx context.Context) errortypes.Result {
+func (p pass) createResult(ctx context.Context) facts.Result {
 	defer trace.StartRegion(ctx, "result").End()
 
 	// Add types from dependencies (via facts).
-	facts := p.AllObjectFacts()
-	determinedTypes := make(map[*types.TypeName]errortypes.ErrorType, len(facts))
-	maps.Insert(determinedTypes, extractErrorTypes(facts))
+	allFacts := p.AllObjectFacts()
+	determinedTypes := make(map[*types.TypeName]facts.ErrorFact, len(allFacts))
+	maps.Insert(determinedTypes, extractErrorTypes(allFacts))
 
 	for tn, prop := range p.DetectedTypes {
 		errorType := prop.DeterminedType()
@@ -59,20 +59,20 @@ func (p pass) createResult(ctx context.Context) errortypes.Result {
 	return createResult(determinedTypes)
 }
 
-func createResult(determinedTypes map[*types.TypeName]errortypes.ErrorType) errortypes.Result {
-	typs := make([]errortypes.ResultInfo, 0, len(determinedTypes))
+func createResult(determinedTypes map[*types.TypeName]facts.ErrorFact) facts.Result {
+	typs := make([]facts.ResultInfo, 0, len(determinedTypes))
 	for tn, errorType := range determinedTypes {
-		typs = append(typs, errortypes.ResultInfo{TypeName: tn, ErrorType: errorType})
+		typs = append(typs, facts.ResultInfo{TypeName: tn, ErrorType: errorType})
 	}
 
-	return errortypes.Result{Types: typs}
+	return facts.Result{Types: typs}
 }
 
 // extractErrorTypes processes imported [analysis.ObjectFact]s and returns a sequence of *types.TypeName with errortypes.ErrorType.
-func extractErrorTypes(facts []analysis.ObjectFact) iter.Seq2[*types.TypeName, errortypes.ErrorType] {
-	return func(yield func(*types.TypeName, errortypes.ErrorType) bool) {
-		for _, f := range facts {
-			fact, ok := f.Fact.(*errortypes.ErrorType)
+func extractErrorTypes(allFacts []analysis.ObjectFact) iter.Seq2[*types.TypeName, facts.ErrorFact] {
+	return func(yield func(*types.TypeName, facts.ErrorFact) bool) {
+		for _, f := range allFacts {
+			fact, ok := f.Fact.(*facts.ErrorFact)
 			if !ok || fact == nil {
 				continue
 			}

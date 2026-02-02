@@ -19,7 +19,7 @@ package usage
 import (
 	"go/types"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 )
 
 // ErrorUsage maps error types to their usage information.
@@ -29,9 +29,9 @@ type ErrorUsage map[*types.TypeName]Usage
 // allDetermined is an iterator over all types in the map whose pointer-ness
 // has been unambiguously determined (i.e., where DeterminedType returns true).
 // The iterator yields the type's TypeName and a boolean indicating if it's a pointer type.
-func (e ErrorUsage) allDetermined(yield func(*types.TypeName, errortypes.ErrorType) bool) {
+func (e ErrorUsage) allDetermined(yield func(*types.TypeName, facts.ErrorFact) bool) {
 	for tn, usage := range e {
-		if typ := usage.DeterminedType(); typ != errortypes.UndecidedType {
+		if typ := usage.DeterminedType(); typ != facts.UndecidedType {
 			if !yield(tn, typ) {
 				return
 			}

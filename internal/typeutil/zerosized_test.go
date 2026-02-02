@@ -17,6 +17,7 @@
 package typeutil_test
 
 import (
+	"go/ast"
 	"go/token"
 	"go/types"
 	"testing"
@@ -64,7 +65,8 @@ var (
 		RecursiveArray  = "RecursiveArray"
 	)
 
-	_, pkg, _, _ := parseSource(t, source)
+	fset, f := parseSource(t, source)
+	pkg, _ := checkSource(t, fset, []*ast.File{f})
 	recursiveTypes := [...]types.Object{
 		recursiveStructType(pkg, RecursiveStruct),
 		recursiveArrayType(pkg, RecursiveArray),

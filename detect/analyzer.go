@@ -16,14 +16,31 @@
 
 package detect
 
-import "golang.org/x/tools/go/analysis"
+import (
+	"reflect"
+
+	"golang.org/x/tools/go/analysis"
+
+	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/internal/detect"
+)
 
 // New creates a new instance of the detecttypes analyzer.
 // It detects how error types are used (as pointers or values) to provide
 // this information to other analyzers in the toolchain.
 func New(opts ...Option) *analysis.Analyzer {
-	o := makeOptions(opts)
-	a := o.Analyzer()
+	o := detect.DefaultOptions()
+	Options(opts).apply(o)
+
+	a := &analysis.Analyzer{
+		Name:             "detecttypes",
+		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
+		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/detect",
+		Run:              o.Run,
+		RunDespiteErrors: true,
+		FactTypes:        []analysis.Fact{(*facts.ErrorFact)(nil)},
+		ResultType:       reflect.TypeFor[facts.Result](),
+	}
 
 	registerFlags(o, &a.Flags)
 

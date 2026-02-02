@@ -20,25 +20,25 @@ import (
 	"context"
 	"runtime/trace"
 
-	"fillmore-labs.com/errortype/internal/errortypes"
+	"fillmore-labs.com/errortype/facts"
 )
 
 // ProcessDetectedTypes populates the initial error usage map based on the results
 // from the prerequisite `detecttypes` analyzer.
-func (e ErrorUsage) ProcessDetectedTypes(ctx context.Context, resultInfo []errortypes.ResultInfo) {
+func (e ErrorUsage) ProcessDetectedTypes(ctx context.Context, resultInfo []facts.ResultInfo) {
 	defer trace.StartRegion(ctx, "detectedTypes").End()
 
 	for _, detectedType := range resultInfo {
 		var usage Usage
 
-		switch detectedType.ErrorType & errortypes.ExpectedMask {
-		case errortypes.PointerType:
+		switch detectedType.ErrorType & facts.ExpectedMask {
+		case facts.PointerType:
 			usage = PointerExpected
 
-		case errortypes.ValueType:
+		case facts.ValueType:
 			usage = ValueExpected
 
-		case errortypes.SuppressType:
+		case facts.SuppressType:
 			usage = SuppressExpected
 
 		default:

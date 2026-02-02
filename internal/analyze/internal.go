@@ -26,9 +26,9 @@ import (
 // ReportErrorf reports an internal ("should not happen") failure message.
 func (p Pass) ReportErrorf(n analysis.Range, format string, args ...any) {
 	var sb strings.Builder
-	_, _ = sb.WriteString("Internal error: ")
-	_, _ = fmt.Fprintf(&sb, format, args...)
-	_, _ = sb.WriteString(". (et:xxx)")
+	sb.WriteString("Internal error: ") // ignore error
+	fmt.Fprintf(&sb, format, args...)  // ignore error
+	sb.WriteString(". (et:xxx)")       // ignore error
 
 	p.Report(analysis.Diagnostic{
 		Pos:      n.Pos(),

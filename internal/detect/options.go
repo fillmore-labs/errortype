@@ -28,13 +28,16 @@ type Options struct {
 
 	// Trace controls result output
 	Trace *regexp.Regexp
+
+	InitializationError error
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
 func DefaultOptions() *Options {
 	return &Options{ // Default options
-		UsageOverrides: nil,
-		Heuristics:     HeuristicAll,
-		Trace:          nil,
+		UsageOverrides:      nil,
+		Heuristics:          HeuristicAll,
+		Trace:               nil,
+		InitializationError: nil,
 	}
 }

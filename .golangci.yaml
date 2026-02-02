@@ -3,6 +3,7 @@ version: "2"
 
 run:
   modules-download-mode: readonly
+  relative-path-mode: gomod
 
 formatters:
   enable:
@@ -39,7 +40,6 @@ linters:
     - misspell
     - modernize
     - nlreturn
-    - nolintlint
     - paralleltest
     - perfsprint
     - predeclared
@@ -58,10 +58,34 @@ linters:
     - usetesting
     - wsl_v5
     # keep-sorted end
+    - errortype
+    - scopeguard
   settings:
+    custom:
+      errortype:
+        type: module
+        description: errortype helps prevent subtle bugs in error handling.
+        original-url: https://fillmore-labs.com/errortype
+        settings:
+          style-check: true
+          deep-is-check: false
+          check-is: true
+          unchecked-assert: true
+          check-unused: true
+      scopeguard:
+        type: module
+        description: >-
+          scopeguard identifies variables with unnecessarily wide scope and suggests moving them to tighter
+          scopes.
+        original-url: https://fillmore-labs.com/scopeguard
+        settings:
+          conservative: true
+          max-lines: 10
     # keep-sorted start
     errcheck:
       exclude-functions:
+        - go/ast.Fprint
+        - go/format.Node
         - (io/fs.File).Close
         - (*os.File).Close
         - (*github.com/goccy/go-yaml.Encoder).Close
@@ -70,7 +94,8 @@ linters:
       values:
         const:
           AUTHOR: Oliver Eikemeier
-          RANGE: "2025"
+        regexp:
+          RANGE: '((2025\-2026)|2025|2026)'
       template: |-
         Copyright {{ RANGE }} {{ AUTHOR }}. All Rights Reserved.
 
@@ -91,9 +116,14 @@ linters:
       enable-all: true
       disable:
         - fieldalignment
-      settings:
-        shadow:
-          strict: true
+        - shadow
+    gosec:
+      config:
+        G104:
+          ast:
+            - Fprint
+          format:
+            - Node
     nlreturn:
       block-size: 2
     predeclared:
@@ -145,6 +175,6 @@ linters:
         linters:
           - gocheckcompilerdirectives
         text: "go:debug"
-      - linters:
-          - govet
-        text: '^shadow: declaration of "(ctx|err|ok)" shadows declaration at line \d+$'
+
+output:
+  sort-order: [file, linter]

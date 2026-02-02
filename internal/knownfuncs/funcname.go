@@ -34,9 +34,6 @@ type FuncName struct {
 
 	// Name is the function or method name ("Decode").
 	Name string
-
-	// Ptr is true if the receiver is a pointer type.
-	Ptr bool
 }
 
 // String returns the fully qualified function name as a string.
@@ -56,10 +53,6 @@ func (f FuncName) String() string {
 	var sb strings.Builder
 
 	sb.WriteByte('(')
-
-	if f.Ptr {
-		sb.WriteByte('*')
-	}
 
 	if f.Path != "" {
 		sb.WriteString(f.Path)
@@ -92,15 +85,18 @@ func FuncNameOf(fun *types.Func) FuncName {
 		return f
 	}
 
-	rtyp := types.Unalias(recv.Type()) // It's a method.
+	rtyp := recv.Type() // It's a method.
 
-	// If it's a pointer, set the ptr flag and unwrap to the element type.
-	if p, ok := rtyp.(*types.Pointer); ok {
-		f.Ptr = true
-		rtyp = types.Unalias(p.Elem())
-	}
-
+recvloop:
 	switch t := rtyp.(type) {
+	case *types.Alias:
+		rtyp = t.Rhs() // Unwrap alias.
+		goto recvloop
+
+	case *types.Pointer:
+		rtyp = t.Elem() // If it's a pointer, unwrap to the element type.
+		goto recvloop
+
 	case *types.Named:
 		tn := t.Obj()
 		if pkg := tn.Pkg(); pkg != nil {
@@ -108,7 +104,7 @@ func FuncNameOf(fun *types.Func) FuncName {
 		}
 		f.Receiver = tn.Name()
 
-	case *types.Interface: // This case handles methods on an interface type.
+	case *types.Interface: // Method on an interface type.
 		f.Receiver = "interface"
 
 	default: // Anonymous types shouldn't have methods.

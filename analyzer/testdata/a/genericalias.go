@@ -18,32 +18,32 @@ package a
 
 import "test/a/b"
 
-type IntError = b.GenericError[int]
+type AIntError = b.GenericError[int]
 
-type StringError = b.GenericError[string]
+type AStringError = b.GenericError[string]
 
-type GenericError[T string | int] = b.GenericError[T]
+type AGenericError[T string | int] = b.GenericError[T]
 
-var _, _, _ error = IntError{},
-	&StringError{}, // want " \\(et:var\\)$"
-	&GenericError[string]{} // want " \\(et:var\\)$"
+var _, _, _ error = AIntError{},
+	&AStringError{}, // want " \\(et:var\\)$"
+	&AGenericError[string]{} // want " \\(et:var\\)$"
 
-func Generics() {
+func AGenerics() {
 	var err error
 
-	_, _ = err.(*IntError) // want " \\(et:ast\\)$"
-	_, _ = err.(StringError)
+	_, _ = err.(*AIntError) // want " \\(et:ast\\)$"
+	_, _ = err.(AStringError)
 
 	switch err.(type) {
-	case *IntError: // want " \\(et:ast\\)$"
-	case StringError:
+	case *AIntError: // want " \\(et:ast\\)$"
+	case AStringError:
 	case nil:
 	default:
 	}
 
 	switch err.(type) {
-	case GenericError[int]:
-	case *GenericError[int]: // want " \\(et:ast\\)$"
+	case AGenericError[int]:
+	case *AGenericError[int]: // want " \\(et:ast\\)$"
 	case nil:
 	default:
 	}
@@ -56,27 +56,27 @@ func Generics() {
 	}
 
 	_ = func() error {
-		return (*IntError)(nil) // want " \\(et:ret\\)$"
+		return (*AIntError)(nil) // want " \\(et:ret\\)$"
 	}
 
 	_ = func() error {
-		return StringError{}
+		return AStringError{}
 	}
 
 	_ = func() error {
-		return GenericError[int]{}
+		return AGenericError[int]{}
 	}
 
 	_ = func() error {
-		return &GenericError[int]{} // want " \\(et:ret\\)$"
+		return &AGenericError[int]{} // want " \\(et:ret\\)$"
 	}
 
 	_ = func() error {
-		return (*IntError)(&b.GenericError[int]{}) // want " \\(et:ret\\)$"
+		return (*AIntError)(&b.GenericError[int]{}) // want " \\(et:ret\\)$"
 	}
 
 	_ = func() error {
-		return StringError(b.GenericError[string]{})
+		return AStringError(b.GenericError[string]{})
 	}
 
 	_ = func() error {

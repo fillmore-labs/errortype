@@ -21,8 +21,8 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/detect/properties"
-	"fillmore-labs.com/errortype/internal/errortypes"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -30,7 +30,7 @@ func (p pass) processReceivers(ctx context.Context) {
 	defer trace.StartRegion(ctx, "receivers").End()
 
 	for tn, errorType := range p.DetectedTypes {
-		if errorType.DeterminedType() != errortypes.UndecidedType {
+		if errorType.DeterminedType() != facts.UndecidedType {
 			continue
 		}
 

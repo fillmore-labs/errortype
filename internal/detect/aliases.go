@@ -21,8 +21,8 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/facts"
 	"fillmore-labs.com/errortype/internal/detect/properties"
-	"fillmore-labs.com/errortype/internal/errortypes"
 )
 
 // processAliases transfers properties from aliased types to the aliases themselves.
@@ -57,16 +57,16 @@ func (p pass) processAliases(ctx context.Context) {
 		} else {
 			// If the original type is from another package, we rely on
 			// the facts exported by that package's analysis.
-			var errorType errortypes.ErrorType
+			var errorType facts.ErrorFact
 			if !p.ImportObjectFact(tn, &errorType) {
 				continue
 			}
 
-			switch errorType & errortypes.ExpectedMask {
-			case errortypes.PointerType:
+			switch errorType & facts.ExpectedMask {
+			case facts.PointerType:
 				property = properties.PointerAlias
 
-			case errortypes.ValueType:
+			case facts.ValueType:
 				property = properties.ValueAlias
 
 			default: // Undecided or suppressed

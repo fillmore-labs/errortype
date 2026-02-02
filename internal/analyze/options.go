@@ -82,10 +82,10 @@ func (o Options) UncheckedAssert() bool {
 	return o&OptionUncheckedAssert != 0
 }
 
-// SetOption modifies the state of a specific option flag in the Options configuration
+// Set modifies the state of a specific option flag in the Options configuration
 // based on the provided boolean value. The flag parameter should be a single option
 // constant (e.g., [OptionCheckIs], [OptionStyleCheck]).
-func (o *Options) SetOption(flag Options, v bool) {
+func (o *Options) Set(flag Options, v bool) {
 	if v {
 		*o |= flag
 	} else {

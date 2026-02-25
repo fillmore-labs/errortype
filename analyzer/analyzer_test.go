@@ -33,13 +33,18 @@ func TestAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
 	overrides := path.Join(testdata, "overrides.yaml")
 
+	d, err := detect.New(detect.WithOverrideFile(overrides))
+	if err != nil {
+		t.Fatalf("Can't build detect analyzer: %v", err)
+	}
+
 	tests := [...]struct {
 		name     string
 		patterns []string
-		options  Options
+		options  []Option
 		flags    func(*flag.FlagSet)
 	}{
-		{"a", []string{"test/a"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides))), WithNaming(true), WithStyleCheck(true)}, nil},
+		{"a", []string{"test/a"}, []Option{WithDetectTypes(d), WithNaming(true), WithStyleCheck(true)}, nil},
 		{
 			"a with flags", []string{"test/a"}, nil, setFlags(t, map[string]string{
 				"overrides":   overrides,
@@ -65,14 +70,17 @@ func TestAnalyzer(t *testing.T) {
 				"naming":      "true",
 			}),
 		},
-		{"wrappers", []string{"test/wrappers"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides)))}, nil},
+		{"wrappers", []string{"test/wrappers"}, []Option{WithDetectTypes(d)}, nil},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			a := New(tt.options...)
+			a, err := New(tt.options...)
+			if err != nil {
+				t.Fatalf("Can't build analyzer: %v", err)
+			}
 
 			if tt.flags != nil {
 				tt.flags(&a.Flags)

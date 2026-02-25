@@ -27,19 +27,19 @@ import (
 // corresponding to the bit flags at positions 0, 1, 2.
 // Multiple set flags are joined with ", " in descending bit position order.
 // Unknown flags (positions beyond the names slice) are represented as "Unknown(N)" where N is the bit position.
-func ToString[T interface{ ~uint8 | ~uint16 | ~uint32 }](t T, names []string, none string) string {
+func ToString[T interface {
+	~uint8 | ~uint16 | ~uint32 | ~uint64
+}](t T, names []string, none string) string {
 	if t == 0 {
 		return none
 	}
 
-	nameCount := len(names)
-
-	parts := make([]string, 0, bits.OnesCount32(uint32(t)))
+	parts := make([]string, 0, bits.OnesCount64(uint64(t)))
 	for remaining, pos := t, 0; remaining != 0; remaining &^= T(1) << pos {
-		pos = bits.Len32(uint32(remaining)) - 1 // Highest bit position
+		pos = bits.Len64(uint64(remaining)) - 1 // Highest bit position
 
 		var name string
-		if pos < nameCount {
+		if pos < len(names) {
 			name = names[pos]
 		} else {
 			name = fmt.Sprintf("Unknown(%d)", pos)

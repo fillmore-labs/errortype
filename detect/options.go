@@ -17,43 +17,34 @@
 package detect
 
 import (
+	"cmp"
+	"encoding"
+	"errors"
+	"fmt"
 	"log/slog"
+	"maps"
 	"regexp"
+	"slices"
 	"strings"
 
 	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect"
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/options"
 )
 
 // Option configures specific behavior of the detect [analysis.Analyzer].
 type Option interface {
-	apply(opts *detect.Options)
+	Apply(opts *detect.Options) error
 	LogAttr() slog.Attr
 }
 
-// Options is a list of [Option] values that also satisfies the [Option] interface.
-type Options []Option
-
-func (o Options) apply(opts *detect.Options) {
-	for _, opt := range o {
-		opt.apply(opts)
-	}
-}
-
-// LogValue implements [slog.LogValuer].
-func (o Options) LogValue() slog.Value {
-	as := make([]slog.Attr, 0, len(o))
-	for _, opt := range o {
-		as = append(as, opt.LogAttr())
-	}
-
-	return slog.GroupValue(as...)
-}
-
-// LogAttr returns a [slog.Attr] for logging.
-func (o Options) LogAttr() slog.Attr {
-	return slog.Any("options", o)
+// Join creates a new Option joining the provided Option values.
+//
+// The result implements [slog.LogValuer], so the following is evaluated lazily:
+//
+//	slog.LogAttrs(ctx, slog.LevelInfo, "settings", Join(opts...).LogAttr())
+func Join(opts ...Option) Option {
+	return options.Join(opts)
 }
 
 // WithOverrides returns an Option that applies the provided overrides mapping,
@@ -62,80 +53,10 @@ func WithOverrides(overrides map[result.ErrorType][]string) Option {
 	return overridesOption{overrides: overrides}
 }
 
-type overridesOption struct {
-	overrides map[result.ErrorType][]string
-}
-
-func (o overridesOption) apply(opts *detect.Options) {
-	or := make(map[result.ErrorType][]typeutil.TypeName, len(o.overrides))
-
-	for typ, names := range o.overrides {
-		l := make([]typeutil.TypeName, 0, len(names))
-		for _, name := range names {
-			var tn typeutil.TypeName
-			if err := tn.UnmarshalText([]byte(name)); err != nil {
-				continue
-			}
-
-			l = append(l, tn)
-		}
-		or[typ] = l
-	}
-
-	opts.AddOverrides(or)
-}
-
-func (o overridesOption) LogAttr() slog.Attr {
-	var as []slog.Attr
-	for override, usage := range o.overrides {
-		as = append(as, slog.Attr{
-			Key:   override.String(),
-			Value: slog.StringValue(strings.Join(usage, ",")),
-		})
-	}
-
-	return slog.GroupAttrs("overrides", as...)
-}
-
 // WithWrappers returns an Option that applies the provided overrides mapping,
 // allowing specific functions to be treated as a wrapper for standard function.
 func WithWrappers(wrappers map[result.WrapperType][]string) Option {
 	return wrappersOption{wrappers: wrappers}
-}
-
-type wrappersOption struct {
-	wrappers map[result.WrapperType][]string
-}
-
-func (o wrappersOption) apply(opts *detect.Options) {
-	or := make(map[result.WrapperType][]typeutil.FuncName, len(o.wrappers))
-
-	for typ, names := range o.wrappers {
-		l := make([]typeutil.FuncName, 0, len(names))
-		for _, name := range names {
-			var fn typeutil.FuncName
-			if err := fn.UnmarshalText([]byte(name)); err != nil {
-				continue
-			}
-
-			l = append(l, fn)
-		}
-		or[typ] = l
-	}
-
-	opts.AddWrappers(or)
-}
-
-func (o wrappersOption) LogAttr() slog.Attr {
-	var as []slog.Attr
-	for override, usage := range o.wrappers {
-		as = append(as, slog.Attr{
-			Key:   override.String(),
-			Value: slog.StringValue(strings.Join(usage, ",")),
-		})
-	}
-
-	return slog.GroupAttrs("wrappers", as...)
 }
 
 // WithOverrideFile returns an [Option] that configures usage overrides by reading types from the specified file.
@@ -143,28 +64,53 @@ func WithOverrideFile(file string) Option {
 	return overrideFileOption{file: file}
 }
 
+// WithHeuristics is an [Option] to configure heuristic passes.
+func WithHeuristics(heuristics ...Heuristic) Option {
+	return heuristicsOption{heuristics: heuristics}
+}
+
+// WithTrace is an [Option] to configure result output.
+func WithTrace(trace *regexp.Regexp) Option { return traceOption{trace: trace} }
+
+type overridesOption struct {
+	overrides map[result.ErrorType][]string
+}
+
+func (o overridesOption) Apply(opts *detect.Options) error {
+	return unmarshalAndApply(o.overrides, opts.AddOverrides)
+}
+
+func (o overridesOption) LogAttr() slog.Attr {
+	return logAttrMap("overrides", o.overrides)
+}
+
+type wrappersOption struct {
+	wrappers map[result.WrapperType][]string
+}
+
+func (o wrappersOption) Apply(opts *detect.Options) error {
+	return unmarshalAndApply(o.wrappers, opts.AddWrappers)
+}
+
+func (o wrappersOption) LogAttr() slog.Attr {
+	return logAttrMap("wrappers", o.wrappers)
+}
+
 type overrideFileOption struct {
 	file string
 }
 
-func (o overrideFileOption) apply(opts *detect.Options) {
-	if err := opts.ReadOverrides(o.file); err != nil {
-		opts.InitializationError = err
-	}
+func (o overrideFileOption) Apply(opts *detect.Options) error {
+	return opts.ReadOverrides(o.file)
 }
 
 func (o overrideFileOption) LogAttr() slog.Attr {
 	return slog.Any("overrideFile", o.file)
 }
 
-// WithHeuristics is an [Option] to configure heuristic passes.
-func WithHeuristics(heuristics ...Heuristic) Option {
-	return heuristicsOption{heuristics: heuristics}
-}
-
 type heuristicsOption struct{ heuristics []Heuristic }
 
-func (o heuristicsOption) apply(opts *detect.Options) {
+func (o heuristicsOption) Apply(opts *detect.Options) error {
 	var combined detect.Heuristics
 
 	for _, heuristic := range o.heuristics {
@@ -184,6 +130,8 @@ func (o heuristicsOption) apply(opts *detect.Options) {
 	}
 
 	opts.Heuristics = combined
+
+	return nil
 }
 
 func (o heuristicsOption) LogAttr() slog.Attr {
@@ -195,12 +143,9 @@ func (o heuristicsOption) LogAttr() slog.Attr {
 	return slog.String("heuristics", strings.Join(heuristics, ","))
 }
 
-// WithTrace is an [Option] to configure result output.
-func WithTrace(trace *regexp.Regexp) Option { return traceOption{trace: trace} }
-
 type traceOption struct{ trace *regexp.Regexp }
 
-func (o traceOption) apply(opts *detect.Options) { opts.Trace = o.trace }
+func (o traceOption) Apply(opts *detect.Options) error { opts.Trace = o.trace; return nil }
 
 func (o traceOption) LogAttr() slog.Attr {
 	var re string
@@ -209,4 +154,55 @@ func (o traceOption) LogAttr() slog.Attr {
 	}
 
 	return slog.String("trace", re)
+}
+
+func logAttrMap[K interface {
+	cmp.Ordered
+	fmt.Stringer
+}](name string, m map[K][]string) slog.Attr {
+	keys := slices.Sorted(maps.Keys(m))
+	attrs := make([]slog.Attr, 0, len(keys))
+
+	for _, key := range keys {
+		values := m[key]
+		if len(values) == 0 {
+			continue
+		}
+
+		attrs = append(attrs, slog.String(key.String(), strings.Join(values, ",")))
+	}
+
+	return slog.GroupAttrs(name, attrs...)
+}
+
+func unmarshalAndApply[V any, K comparable, PV interface {
+	*V
+	encoding.TextUnmarshaler
+}](m map[K][]string, apply func(map[K][]V)) error {
+	var errs []error
+
+	res := make(map[K][]V, len(m))
+	for k, names := range m {
+		vs := make([]V, 0, len(names))
+		for _, name := range names {
+			i := len(vs)
+			vs = vs[:i+1] // safe because cap(vs) == len(names)
+
+			var pv PV = &vs[i]
+			if err := pv.UnmarshalText([]byte(name)); err != nil {
+				errs = append(errs, err)
+				vs = vs[:i]
+			}
+		}
+
+		res[k] = vs
+	}
+
+	if err := errors.Join(errs...); err != nil {
+		return err
+	}
+
+	apply(res)
+
+	return nil
 }

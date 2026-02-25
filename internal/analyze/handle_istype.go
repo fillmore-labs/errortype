@@ -24,7 +24,7 @@ import (
 
 // handleIsType processes type assertion functions that check if an error implements a specific type.
 // It handles functions with signatures like `assert.IsType`.
-func (p Pass) handleIsType(n *ast.CallExpr, methodExpr bool, argIndex int8) {
+func (p Pass) handleIsType(call *ast.CallExpr, methodExpr bool, argIndex int8) {
 	typeArg := int(argIndex)
 
 	// Receiver offset for method expressions
@@ -33,17 +33,17 @@ func (p Pass) handleIsType(n *ast.CallExpr, methodExpr bool, argIndex int8) {
 	}
 
 	// Validate argument count
-	if len(n.Args) < typeArg+2 {
+	if len(call.Args) < typeArg+2 {
 		return // Multivalued argument or incorrect call
 	}
 
 	// Only analyze if the target implements the error interface
-	targetExpr := n.Args[typeArg+1]
+	targetExpr := call.Args[typeArg+1]
 	if targetType, ok := p.TypesInfo.Types[targetExpr]; !ok || !typeutil.HasErrorMethod(targetType.Type) {
 		return
 	}
 
-	typeExpr := n.Args[typeArg]
+	typeExpr := call.Args[typeArg]
 
 	assertedType, ok := p.TypesInfo.Types[typeExpr]
 	if !ok { // should not happen

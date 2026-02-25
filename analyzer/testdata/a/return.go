@@ -16,18 +16,25 @@
 
 package a
 
-import "test/a/b"
+import (
+	"net"
+
+	"test/a/b"
+	"test/a/d"
+)
 
 func Return() {
 	_ = func() (any, error) { return &b.ValueError{}, nil }
 
-	f := func() (any, error) { return nil, &b.ValueError{} } // want ` \(et:ret\)$`
+	_ = func() (error, error) { return &b.ValueError{}, nil }
 
-	_ = func() (any, error) { return f() }
+	_ = func() (any, error) { return nil, &b.ValueError{} } // want ` \(et:ret\)$`
+
+	f := func() (int, *d.ValueError) { return 0, &d.ValueError{} }
+
+	_ = func() (any, net.Error) { return f() } // want ` \(et:ret\)$`
 
 	_ = func() (any, error) { return func() (any, error) { return nil, (&b.ValueError{}) }() } // want ` \(et:ret\)$`
-
-	_ = func() (error, error) { return &b.ValueError{}, nil }
 
 	_ = func() error { return b.PointerError{} } // want ` \(et:ret\+\)$`
 }

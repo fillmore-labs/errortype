@@ -34,10 +34,21 @@ func IsAnyInterface(typ types.Type) bool {
 	return ok && iface.NumMethods() == 0
 }
 
+// IsInterfaceWithError checks if the provided type is an error-like interface.
+func IsInterfaceWithError(typ types.Type) bool {
+	if IsErrorInterface(typ) {
+		return true
+	}
+
+	iface, ok := typ.Underlying().(*types.Interface)
+
+	return ok && HasMethod(iface, "Error", HasErrorSig)
+}
+
 // HasErrorMethod checks if a given type implements the standard `error` interface.
 // Note that when T implements `error`, *T can, but does not necessarily implement `error` too.
 func HasErrorMethod(typ types.Type) bool {
-	if typ == errorType {
+	if IsErrorInterface(typ) {
 		return true
 	}
 
@@ -59,20 +70,28 @@ func HasMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool
 	return true
 }
 
+// LookupResult is the result of a method lookup on a type, containing the receiver, indirection, and embedding info.
+type LookupResult struct {
+	Recv               *types.Var
+	Indirect, Embedded bool
+}
+
 // LookupMethod finds a method with the specified name in a type, checking its signature and accounting for embedding.
 // Returns the method if found, whether it was found via indirection, and a boolean indicating success.
-func LookupMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool) (fun *types.Func, indirect, embedded, found bool) {
+func LookupMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool) (res LookupResult, ok bool) {
 	obj, index, indirect := types.LookupFieldOrMethod(typ, true, nil, name)
 	if obj == nil {
-		return nil, false, false, false // No method with name
+		return res, false // No method with name
 	}
 
 	fun, ok := obj.(*types.Func)
 	if !ok || !sigCheck(fun.Signature()) {
-		return nil, false, false, false // *types.Var or wrong signature
+		return res, false // *types.Var or wrong signature
 	}
 
-	embedded = len(index) > 1
+	res.Recv = fun.Signature().Recv()
+	res.Indirect = indirect
+	res.Embedded = len(index) > 1
 
-	return fun, indirect, embedded, true
+	return res, true
 }

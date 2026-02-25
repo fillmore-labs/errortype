@@ -68,12 +68,12 @@ func TestLogValue(t *testing.T) {
 		},
 		{
 			name: "Options",
-			option: Options{
+			option: Join(
 				WithDetectTypes(testDetect),
 				WithStyleCheck(true),
 				WithCheckIs(false),
 				WithCheckUnused(true),
-			},
+			),
 			expected: `"options":{"detect":"test-detect","styleCheck":true,"checkIs":false,"checkUnused":true}}`,
 		},
 	}

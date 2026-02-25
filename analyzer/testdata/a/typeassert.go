@@ -37,9 +37,15 @@ func Assert() {
 
 	_, _ = err.(*aes.KeySizeError) // want ` \(et:ast\)$`
 
+	_ = err.(*aes.KeySizeError) // want ` \(et:ast\)$`
+
 	_, _ = err.(interface{ Temporary() bool })
 
+	_ = err.(interface{ Temporary() bool })
+
 	_, _ = err.(struct{ *net.ParseError })
+
+	_ = err.(struct{ *net.ParseError })
 }
 
 func Assert2() {

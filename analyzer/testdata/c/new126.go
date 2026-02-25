@@ -30,5 +30,10 @@ func New126(err *myIntError) {
 	(errors.AsType[myIntError](err)) // want ` \(et:unu\)$`
 
 	_ = errors.As(err, new(myIntError(1)))
+
+	_ = errors.As(err, new(err)) // want ` \(et:err\)$`
+
+	_ = errors.As(err, myIntError(1)) // want ` \(et:arg\)$`
+
 	_ = errors.As(err, new(1)) // want ` \(et:arg\)$`
 }

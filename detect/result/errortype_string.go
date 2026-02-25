@@ -12,12 +12,13 @@ func _() {
 	_ = x[Pointer-1]
 	_ = x[Value-2]
 	_ = x[Suppress-3]
+	_ = x[LastErrorType-4]
 	_ = x[ExpectedMask-3]
 }
 
-const _ErrorType_name = "undecidedpointervaluesuppressed"
+const _ErrorType_name = "undecidedpointervaluesuppressedxxx"
 
-var _ErrorType_index = [...]uint8{0, 9, 16, 21, 31}
+var _ErrorType_index = [...]uint8{0, 9, 16, 21, 31, 34}
 
 func (i ErrorType) String() string {
 	idx := int(i) - 0

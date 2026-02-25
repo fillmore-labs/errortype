@@ -14,10 +14,19 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package c
 
-import "github.com/samber/lo"
+type (
+	ValueVarFunc    struct{}        // want ValueVarFunc:"value"
+	PointerVarFunc  struct{}        // want PointerVarFunc:"pointer"
+	EmbeddedVarFunc struct{ error } // want EmbeddedVarFunc:"pointer"
+)
 
-func LoErrors(err error) {
-	_, _ = lo.ErrorsAs[*ValueError](err) // want ` \(et:ast\)$`
-}
+func (ValueVarFunc) Error() string   { return "" }
+func (PointerVarFunc) Error() string { return "" }
+
+var (
+	Err1, Err2 error = func() (ValueVarFunc, *PointerVarFunc) { return ValueVarFunc{}, nil }()
+
+	_ error = func() *EmbeddedVarFunc { return nil }()
+)

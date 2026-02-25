@@ -20,6 +20,7 @@ import (
 	"bytes"
 	"fmt"
 	"go/types"
+	"slices"
 	"strings"
 )
 
@@ -109,6 +110,8 @@ func (t TypeName) MarshalText() ([]byte, error) {
 // AppendText implements [encoding.TextAppender].
 func (t TypeName) AppendText(buf []byte) ([]byte, error) {
 	if t.Path != "" {
+		buf = slices.Grow(buf, len(t.Path)+1+len(t.Name))
+
 		buf = append(buf, t.Path...)
 		buf = append(buf, '.')
 	}

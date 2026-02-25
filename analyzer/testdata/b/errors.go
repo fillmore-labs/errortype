@@ -80,3 +80,5 @@ func (e nonError) Error() []byte {
 func (e nonError) Is(err error) bool {
 	return errors.Is(e.err, (err))
 }
+
+func Is() {}

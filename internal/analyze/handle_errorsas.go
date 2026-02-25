@@ -26,12 +26,12 @@ import (
 )
 
 // handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
-func (p Pass) handleErrorsAs(n *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
-	if targetArgIndex >= len(n.Args) {
+func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
+	if targetArgIndex >= len(call.Args) {
 		return // Not enough arguments, e.g. called with return values of another function.
 	}
 
-	targetArg := n.Args[targetArgIndex]
+	targetArg := call.Args[targetArgIndex]
 
 	tv, ok := p.TypesInfo.Types[targetArg]
 	if !ok || !tv.IsValue() { // should not happen
@@ -51,7 +51,10 @@ func (p Pass) handleErrorsAs(n *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
 		}
 
 		// The pointed-to type must implement the error interface.
-		if !p.implementsError(elemType, targetArg) {
+		if !typeutil.HasErrorMethod(elemType) {
+			typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
+			p.ReportRangef(targetArg, `Expected pointer to a type implementing "error", but %q does not. (et:arg)`, typeName)
+
 			return
 		}
 
@@ -81,7 +84,7 @@ func (p Pass) handleErrorsAs(n *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
 	default:
 		// The argument to an `errors.As`-like function must be a pointer or an interface.
 		funName := "<invalid>"
-		if sb := (strings.Builder{}); format.Node(&sb, p.Fset, n.Fun) == nil {
+		if sb := (strings.Builder{}); format.Node(&sb, p.Fset, call.Fun) == nil {
 			funName = sb.String()
 		}
 
@@ -93,15 +96,4 @@ func (p Pass) handleErrorsAs(n *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
 		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
 		p.ReportRangef(targetArg, `Target argument of %s must be a pointer or interface, got %q (type %s). (et:arg)`, funName, target, typeName)
 	}
-}
-
-func (p Pass) implementsError(elemType types.Type, targetArg ast.Expr) bool {
-	if typeutil.HasErrorMethod(elemType) {
-		return true
-	}
-
-	typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
-	p.ReportRangef(targetArg, `Expected pointer to a type implementing "error", but %q does not. (et:arg)`, typeName)
-
-	return false
 }

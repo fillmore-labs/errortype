@@ -1,7 +1,7 @@
 # Errortype
 
 [![Go Reference](https://pkg.go.dev/badge/fillmore-labs.com/errortype.svg)](https://pkg.go.dev/fillmore-labs.com/errortype)
-[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml?query=branch%3Amain)
+[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml?query=branch%3Amain)
 [![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/main/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
 [![Go Report Card](https://goreportcard.com/badge/fillmore-labs.com/errortype)](https://goreportcard.com/report/fillmore-labs.com/errortype)
@@ -62,6 +62,7 @@ errortype -naming -style-check ./...
 | `-check-is`           | Suppress diagnostics on `errors.Is` if the type has an `Is(error) bool` method | `true`                |
 | `-deep-is-check`      | In `Is` methods, diagnose any unwrapping call, not just those using `target`   | `false`               |
 | `-unchecked-assert`   | Diagnose unchecked type asserts on errors                                      | `false`               |
+| `-prefix-filter`      | Restrict variable analysis to explicitly named variables (`err` or `Err`)      | `true`                |
 | `-c <N>`              | Lines of context around each issue (`-1` = none, `0` = offending line only)    | `-1`                  |
 | `-test`               | Analyze test files                                                             | `true`                |
 | `-overrides <file>`   | Read type overrides from a YAML file (see [Override File](#override-file))     | —                     |
@@ -321,14 +322,15 @@ When possible, improve detection in the defining package by making usage explici
 
 ### Error Type Consistency
 
-| Code     | Name               | Description                                                                                           |
-| -------- | ------------------ | ----------------------------------------------------------------------------------------------------- |
-| `et:ret` | Return Mismatch    | Error type returned incorrectly (value as pointer or vice versa)                                      |
-| `et:ast` | Assertion Mismatch | Incorrect type in assertion or switch                                                                 |
-| `et:err` | Argument Mismatch  | Incorrect target passed to `errors.As`-like function                                                  |
-| `et:emb` | Ambiguous Usage    | Could not determine if error is pointer or value type — use an [override](#overriding-detected-types) |
-| `et:var` | Variable Mismatch  | Incorrect assignment in variable declaration starting with `Err`/`err`                                |
-| `et:rcv` | Receiver Mismatch  | `Unwrap`-related method on value error should use value receiver                                      |
+| Code     | Name                | Description                                                                                           |
+| -------- | ------------------- | ----------------------------------------------------------------------------------------------------- |
+| `et:ret` | Return Mismatch     | Error type returned incorrectly (value as pointer or vice versa)                                      |
+| `et:ast` | Assertion Mismatch  | Incorrect type in assertion or switch                                                                 |
+| `et:asn` | Assignment Mismatch | Incorrect type in assignment                                                                          |
+| `et:err` | Argument Mismatch   | Incorrect target passed to `errors.As`-like function                                                  |
+| `et:emb` | Ambiguous Usage     | Could not determine if error is pointer or value type — use an [override](#overriding-detected-types) |
+| `et:var` | Variable Mismatch   | Incorrect assignment in variable declaration starting with `Err`/`err`                                |
+| `et:rcv` | Receiver Mismatch   | `Unwrap`-related method on value error should use value receiver                                      |
 
 ### Pointer Comparisons
 
@@ -363,7 +365,7 @@ Add `.custom-gcl.yaml` to your project:
 
 ```yaml
 ---
-version: v2.10.1
+version: v2.11.3
 
 name: golangci-lint
 destination: .
@@ -371,7 +373,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.10
+    version: v0.0.11
 ```
 
 Run `golangci-lint custom` to build a custom executable. Configure in `.golangci.yaml`:
@@ -395,6 +397,7 @@ linters:
           check-is: true
           unchecked-assert: false
           check-unused: false
+          prefix-filter: true
           overrides:
             pointer:
               - your.pkg/a.PointerOverrideError

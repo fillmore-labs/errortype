@@ -36,10 +36,6 @@ import (
 // It then exports the determined properties as facts for downstream packages and
 // returns a result containing all relevant properties for the current analysis pass.
 func (o *Options) Run(ap *analysis.Pass) (any, error) {
-	if o.InitializationError != nil {
-		return nil, o.InitializationError
-	}
-
 	ctx := context.Background()
 
 	ctx, task := trace.NewTask(ctx, "detecttypes")
@@ -68,7 +64,7 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 
 	if o.Heuristics&HeuristicVar != 0 && p.ErrorTypes.HasUndeterminedErrors() {
 		// Process variable declarations, identifying properties for local types.
-		p.processValueSpecs(ctx)
+		p.processVarDecls(ctx)
 	}
 
 	if o.Heuristics&HeuristicUsage != 0 && p.ErrorTypes.HasUndeterminedErrors() {

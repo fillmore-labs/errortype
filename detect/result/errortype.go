@@ -28,7 +28,8 @@ const (
 	Value                      // value
 	Suppress                   // suppressed
 
-	ExpectedMask ErrorType = 0b11
+	LastErrorType           // xxx
+	ExpectedMask  ErrorType = 0b11
 )
 
 // AFact makes *ErrorType satisfy the [analysis.Fact] interface.

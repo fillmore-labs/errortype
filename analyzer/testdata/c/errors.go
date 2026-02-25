@@ -135,6 +135,10 @@ func Errors4() {
 	_ = errors.Is(&myUnwrapArrayError{}, os.ErrProcessDone)
 
 	_ = errors.Is(os.ErrProcessDone, &myUnwrapError{}) // want `type "?myUnwrapError"?`
+
+	_ = errors.Is(UnnamedIsError{}, UnnamedIsError{})
+
+	_ = errors.Is(UnderscoreIsError{}, UnderscoreIsError{})
 }
 
 func Interface() {
@@ -177,4 +181,20 @@ func NonComparable() {
 	_ = errors.Is(nonComparableError{}, nonComparableError{}) // want "non-comparable .* is always false"
 
 	_ = errors.Is(nonComparableWithIsError{}, nonComparableWithIsError{})
+}
+
+type UnnamedIsError struct{}
+
+func (UnnamedIsError) Error() string { return "unnamed" }
+
+func (UnnamedIsError) Is(error) bool {
+	return false
+}
+
+type UnderscoreIsError struct{}
+
+func (_ UnderscoreIsError) Error() string { return "underscore" }
+
+func (_ UnderscoreIsError) Is(_ error) bool {
+	return false
 }

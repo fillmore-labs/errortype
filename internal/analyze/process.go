@@ -36,6 +36,7 @@ func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
 	root := in.Root()
 	for c := range root.Preorder(
 		// keep-sorted start
+		(*ast.AssignStmt)(nil),
 		(*ast.BinaryExpr)(nil),
 		(*ast.CallExpr)(nil),
 		(*ast.FuncDecl)(nil),
@@ -49,6 +50,11 @@ func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
 
 		switch n := c.Node().(type) {
 		// keep-sorted start newline_separated=yes
+		case *ast.AssignStmt:
+			reg = trace.StartRegion(ctx, "AssignStmt")
+
+			p.handleAssign(n)
+
 		case *ast.BinaryExpr:
 			reg = trace.StartRegion(ctx, "BinaryExpr")
 
@@ -70,17 +76,17 @@ func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
 				break // Skip function declarations without a body.
 			}
 
-			if lastResult := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); lastResult >= 0 {
-				b := c.ChildAt(edge.FuncDecl_Body, -1)
-				p.handleReturns(b, lastResult)
+			if errResultIdx := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); errResultIdx >= 0 {
+				body := c.ChildAt(edge.FuncDecl_Body, -1)
+				p.handleReturns(body, errResultIdx)
 			}
 
 		case *ast.FuncLit:
 			reg = trace.StartRegion(ctx, "FuncLit")
 
-			if lastResult := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); lastResult >= 0 {
-				b := c.ChildAt(edge.FuncLit_Body, -1)
-				p.handleReturns(b, lastResult)
+			if errResultIdx := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); errResultIdx >= 0 {
+				body := c.ChildAt(edge.FuncLit_Body, -1)
+				p.handleReturns(body, errResultIdx)
 			}
 
 		case *ast.TypeAssertExpr:

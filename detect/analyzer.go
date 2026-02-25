@@ -28,9 +28,11 @@ import (
 // New creates a new instance of the detecttypes analyzer.
 // It detects how error types are used (as pointers or values) to provide
 // this information to other analyzers in the toolchain.
-func New(opts ...Option) *analysis.Analyzer {
+func New(opts ...Option) (*analysis.Analyzer, error) {
 	o := detect.DefaultOptions()
-	Options(opts).apply(o)
+	if err := Join(opts...).Apply(o); err != nil {
+		return nil, err
+	}
 
 	a := &analysis.Analyzer{
 		Name:             "detecttypes",
@@ -44,8 +46,15 @@ func New(opts ...Option) *analysis.Analyzer {
 
 	registerFlags(o, &a.Flags)
 
-	return a
+	return a, nil
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting error types in Go programs.
-var Analyzer = New()
+var Analyzer = func() *analysis.Analyzer {
+	a, err := New()
+	if err != nil {
+		panic(err)
+	}
+
+	return a
+}()

@@ -29,41 +29,26 @@ func (p Pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 		return // Type switches are handled in handleTypeSwitch
 	}
 
-	tvx, ok := p.TypesInfo.Types[n.X]
-	if !ok || !typeutil.HasErrorMethod(tvx.Type) {
+	eTyp := p.TypesInfo.Types[n.X].Type
+	if !typeutil.IsInterfaceWithError(eTyp) {
 		return // We are only interested in assertions on interfaces that implement error.
 	}
 
-	tv, ok := p.TypesInfo.Types[n]
-	if !ok { // should not happen
-		return
-	}
+	// The type is of course n.Type, but we can check whether it is used in the special form "v, ok"
+	typ := p.TypesInfo.Types[n].Type
 
-	var typ types.Type
-
-	if t, ok := tv.Type.(*types.Tuple); ok {
-		if t.Len() != 2 || t.At(1).Type() != _basicBool { // should not happen
-			p.ReportErrorf(n, "Unrecognized tuple structure: %v", t)
-			return
-		}
-
+	if t, ok := typ.(*types.Tuple); ok {
 		typ = t.At(0).Type()
-	} else {
-		if p.UncheckedAssert() {
-			p.reportUnchecked(n, tvx, tv)
-		}
-
-		typ = tv.Type
+	} else if p.UncheckedAssert() {
+		p.reportUnchecked(n, eTyp, typ)
 	}
 
 	p.checkAssert(typ, n.Type)
 }
 
-var _basicBool = types.Typ[types.Bool]
-
-func (p Pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue) {
-	ityp, isInterface := tv.Type.Underlying().(*types.Interface)
-	if isInterface && types.Implements(tvx.Type, ityp) {
+func (p Pass) reportUnchecked(n *ast.TypeAssertExpr, eTyp, typ types.Type) {
+	ityp, isInterface := typ.Underlying().(*types.Interface)
+	if isInterface && types.Implements(eTyp, ityp) {
 		return
 	}
 
@@ -73,7 +58,7 @@ func (p Pass) reportUnchecked(n *ast.TypeAssertExpr, tvx, tv types.TypeAndValue)
 		codeSuffix = "+"
 	}
 
-	name := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
+	name := types.TypeString(typ, types.RelativeTo(p.Pkg))
 
 	p.ReportRangef(n, "Asserting error to %q without checking might lead to a run-time panic. (et:uca%s)", name, codeSuffix)
 }

@@ -27,29 +27,34 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-var _errorMethods = map[string]func(*types.Signature) bool{
-	"Is":     typeutil.HasIsSig,
-	"Unwrap": typeutil.HasUnwrapSig,
-	"As":     typeutil.HasAsSig,
-}
+func (p Pass) handleMethodDecl(c inspector.Cursor, f *ast.FuncDecl) {
+	var sigCheck func(*types.Signature) bool
 
-func (p Pass) handleMethodDecl(c inspector.Cursor, n *ast.FuncDecl) {
-	sigCheck, ok := _errorMethods[n.Name.Name]
-	if !ok {
-		return // Not an error related function
+	switch f.Name.Name {
+	case "Is":
+		sigCheck = typeutil.HasIsSig
+
+	case "Unwrap":
+		sigCheck = typeutil.HasUnwrapSig
+
+	case "As":
+		sigCheck = typeutil.HasAsSig
+
+	default:
+		return // Not an error-related function
 	}
 
-	fun, ok := p.TypesInfo.Defs[n.Name].(*types.Func)
+	fun, ok := p.TypesInfo.Defs[f.Name].(*types.Func)
 	if !ok { // should not happen
 		return
 	}
 
-	recv := fun.Signature().Recv()
-	if recv == nil { // should not happen
+	sig := fun.Signature()
+	if sig.Recv() == nil { // should not happen, checked before
 		return
 	}
 
-	tn, ptr, ok := typeutil.TypeNameOf(recv.Type())
+	tn, ptr, ok := typeutil.TypeNameOf(types.Unalias(sig.Recv().Type()))
 	if !ok { // should not happen
 		return
 	}
@@ -59,49 +64,45 @@ func (p Pass) handleMethodDecl(c inspector.Cursor, n *ast.FuncDecl) {
 		return // not an error type
 	}
 
-	if !sigCheck(fun.Signature()) {
+	if !sigCheck(sig) {
 		// also found by golang.org/x/tools/go/analysis/passes/stdmethods.
-		p.ReportRangef(n.Recv, "Method %q has the wrong signature (et:sig)", fun.Name())
+		p.ReportRangef(f.Type, "Method %q has the wrong signature (et:sig)", fun.Name())
 
 		return
 	}
 
 	if ptr && prop&usage.ExpectedMask == usage.ValueExpected {
-		p.ReportRangef(n.Recv, "Method %q should be implemented with a value receiver, not a pointer (et:rcv)", fun.Name())
+		p.ReportRangef(f.Recv, "Method %q should be implemented with a value receiver, not a pointer (et:rcv)", fun.Name())
 	}
 
-	p.checkForIsDecl(c, n)
-}
+	// check for an "Is" method declaration and hand over to body analysis.
+	if f.Name.Name == "Is" && f.Body != nil {
+		param := singleField(f.Type.Params)
+		if param == nil || param.Name == "_" {
+			return // An "Is" method without named target parameter is legal, but rare.
+		}
 
-// checkForIsDecl checks for an "Is" method declaration and hands over to body analysis.
-func (p Pass) checkForIsDecl(c inspector.Cursor, n *ast.FuncDecl) {
-	if n.Name.Name != "Is" || n.Body == nil {
-		return
+		target, ok := p.TypesInfo.Defs[param].(*types.Var)
+		if !ok { // should not happen
+			p.ReportErrorf(param, "Can't determine parameter type of %q", param.Name)
+			return
+		}
+
+		body := c.ChildAt(edge.FuncDecl_Body, -1)
+		p.handleIs(body, target)
 	}
-
-	recv, hasReceiver := singleField(n.Recv)
-	if !hasReceiver { // should not happen, checked before
-		return
-	}
-
-	target, hasParameter := singleField(n.Type.Params)
-	if !hasParameter { // should not happen, checked before
-		return
-	}
-
-	b := c.ChildAt(edge.FuncDecl_Body, -1)
-	p.handleIs(b, recv, target)
 }
 
 // singleField checks if a field list contains exactly one field, which itself has at most one name.
-func singleField(f *ast.FieldList) (name *ast.Ident, ok bool) {
-	if f == nil || len(f.List) != 1 || len(f.List[0].Names) > 1 {
-		return nil, false
+func singleField(f *ast.FieldList) *ast.Ident {
+	if f == nil || len(f.List) != 1 {
+		return nil
 	}
 
-	if field := f.List[0]; len(field.Names) == 1 {
-		return field.Names[0], true
+	field := f.List[0]
+	if len(field.Names) != 1 {
+		return nil
 	}
 
-	return nil, true
+	return field.Names[0]
 }

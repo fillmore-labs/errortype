@@ -44,12 +44,9 @@ func (p Pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 			continue
 		}
 
-		// Check each type in the case clause (e.g., "case T1, T2:").
+		// Check each type in the case clause (e.g., "case T1, T2:"),
+		// ignoring the "default:" case (clause.List == nil).
 		for _, caseExpr := range clause.List {
-			if caseExpr == nil {
-				continue // ignore the "default:" case
-			}
-
 			caseType := p.TypesInfo.Types[caseExpr]
 			if caseType.IsNil() {
 				continue // ignore the "nil:" case

@@ -16,32 +16,127 @@
 
 package detect
 
-import "regexp"
+import (
+	"context"
+	"fmt"
+	"regexp"
+
+	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/overrides"
+	"fillmore-labs.com/errortype/internal/typeutil"
+)
 
 // Options define configuration settings for type analysis, including heuristic passes, usage overrides, and tracing.
 type Options struct {
 	// UsageOverrides stores the usage configuration for error types, read from a file.
-	UsageOverrides
+	UsageOverrides UsageOverrides
 
 	// WrapperOverrides stores the wrapper function configuration, read from a file.
-	WrapperOverrides
+	WrapperOverrides WrapperOverrides
 
 	// Heuristics controls heuristic passes
-	Heuristics
+	Heuristics Heuristics
 
 	// Trace controls result output
 	Trace *regexp.Regexp
-
-	// InitializationError is set when [Options] intialization fails
-	InitializationError error
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
 func DefaultOptions() *Options {
 	return &Options{ // Default options
-		UsageOverrides:      nil,
-		Heuristics:          HeuristicAll,
-		Trace:               nil,
-		InitializationError: nil,
+		UsageOverrides: nil,
+		Heuristics:     HeuristicAll,
+		Trace:          nil,
 	}
+}
+
+// ReadOverrides reads error type usage overrides from the specified file.
+// If fileName is empty, no action is taken.
+func (o *Options) ReadOverrides(fileName string) error {
+	if fileName == "" {
+		return nil
+	}
+
+	ctx := context.Background()
+
+	usageOverrides, err := overrides.ReadFile(ctx, fileName)
+	if err != nil {
+		return fmt.Errorf("can't read overrides file %s: %w", fileName, err)
+	}
+
+	o.AddOverrides(usageOverrides.Types)
+	o.AddWrappers(usageOverrides.Wrappers)
+
+	return nil
+}
+
+// AddOverrides merges the given overrides into the UsageOverrides map.
+func (o *Options) AddOverrides(or map[result.ErrorType][]typeutil.TypeName) {
+	if len(or) == 0 {
+		return
+	}
+
+	if o.UsageOverrides == nil {
+		o.UsageOverrides = make(UsageOverrides)
+	}
+
+	for typ, names := range or {
+		for _, name := range names {
+			o.UsageOverrides[name] = typ
+		}
+	}
+}
+
+// AddWrappers merges the given overrides into the WrapperOverrides map.
+func (o *Options) AddWrappers(or map[result.WrapperType][]typeutil.FuncName) {
+	if len(or) == 0 {
+		return
+	}
+
+	if o.WrapperOverrides == nil {
+		o.WrapperOverrides = make(WrapperOverrides)
+	}
+
+	for wrapperType, names := range or {
+		for _, name := range names {
+			o.WrapperOverrides[name] = wrapperType
+		}
+	}
+}
+
+// SetHeuristics parses and sets the heuristic passes from a comma-separated list.
+// Valid values are: "usage", "receivers", and "off".
+// "off" disables all heuristics and cannot be combined with other values.
+func (o *Options) SetHeuristics(list string) error {
+	// Only update if the user provided some values.
+	if list == "" {
+		return nil
+	}
+
+	heuristics, err := HeuristicsFromString(list)
+	if err != nil {
+		return err
+	}
+
+	o.Heuristics = heuristics
+
+	return nil
+}
+
+// SetTrace sets the Trace field to a compiled regular expression based on the provided regex string.
+func (o *Options) SetTrace(regex string) error {
+	if regex == "" {
+		o.Trace = nil
+
+		return nil
+	}
+
+	re, err := regexp.Compile(regex)
+	if err != nil {
+		return err
+	}
+
+	o.Trace = re
+
+	return nil
 }

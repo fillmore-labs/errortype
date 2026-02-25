@@ -51,8 +51,8 @@ func AllTypeDecls(files []*ast.File) iter.Seq[*ast.TypeSpec] {
 	}
 }
 
-// AllValueDecls is an iterator over all variable and constant declarations (*ast.ValueSpec) in the files.
-func AllValueDecls(files []*ast.File) iter.Seq[*ast.ValueSpec] {
+// AllVarDecls is an iterator over all variable and constant declarations (*ast.ValueSpec) in the files.
+func AllVarDecls(files []*ast.File) iter.Seq[*ast.ValueSpec] {
 	return func(yield func(*ast.ValueSpec) bool) {
 		for g := range AllGenDecls(files) {
 			switch g.Tok {

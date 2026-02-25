@@ -40,27 +40,24 @@ func TestDetectAnalyzer(t *testing.T) {
 	overrides := filepath.Join(dir, "overrides.yaml")
 
 	tests := [...]struct {
-		name        string
-		newAnalyzer func() *analysis.Analyzer
-		pkg         string
+		name    string
+		options Option
+		pkg     string
 	}{
-		{"detect", func() *analysis.Analyzer {
-			t.Helper()
-
-			return New(WithOverrideFile(overrides))
-		}, "./a/c"},
-		{"wrappers", func() *analysis.Analyzer {
-			t.Helper()
-
-			return New(WithOverrideFile(overrides))
-		}, "./wrappers/..."},
+		{"detect", WithOverrideFile(overrides), "./a/c"},
+		{"wrappers", WithOverrideFile(overrides), "./wrappers/..."},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			analysistest.Run(t, dir, tt.newAnalyzer(), tt.pkg)
+			a, err := New(tt.options)
+			if err != nil {
+				t.Fatalf("Can't build analyzer: %v", err)
+			}
+
+			analysistest.Run(t, dir, a, tt.pkg)
 		})
 	}
 }
@@ -72,23 +69,22 @@ func TestDetectAnalyzerResults(t *testing.T) {
 	overrides := filepath.Join(dir, "overrides.yaml")
 
 	tests := [...]struct {
-		name        string
-		newAnalyzer func() *analysis.Analyzer
-		pkg         string
+		name    string
+		options Option
+		pkg     string
 	}{
-		{"errortypes", func() *analysis.Analyzer {
-			t.Helper()
-
-			d := New(WithOverrideFile(overrides))
-
-			return newTestAnalyzer(d)
-		}, "test/a"},
+		{"errortypes", WithOverrideFile(overrides), "test/a"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			analysistest.Run(t, dir, tt.newAnalyzer(), tt.pkg)
+			a, err := New(tt.options)
+			if err != nil {
+				t.Fatalf("Can't build analyzer: %v", err)
+			}
+
+			analysistest.Run(t, dir, newTestAnalyzer(a), tt.pkg)
 		})
 	}
 }

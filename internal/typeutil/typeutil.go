@@ -21,6 +21,42 @@ import (
 	"go/types"
 )
 
+// ResultOf extracts the expression and its inferred type for a return value at a given index.
+// It consistently handles single expressions, multiple return expressions, and tuple returns.
+func ResultOf(info *types.Info, exprs []ast.Expr, idx int) (types.Type, ast.Expr) {
+	switch l := len(exprs); l {
+	case 0:
+		return nil, nil
+
+	case 1:
+		expr := exprs[0]
+
+		typ := info.Types[expr].Type
+		if tuple, ok := typ.(*types.Tuple); ok {
+			if idx >= tuple.Len() {
+				return nil, expr // Out of bounds tuple
+			}
+
+			return tuple.At(idx).Type(), expr
+		}
+
+		if idx != 0 {
+			return nil, expr // Single value addressed at > 0
+		}
+
+		return typ, expr // Single value perfectly addressed at index 0
+
+	default:
+		if idx >= l {
+			return nil, nil
+		}
+
+		expr := exprs[idx]
+
+		return info.Types[expr].Type, expr
+	}
+}
+
 // ErrorResultIndex checks whether the given function result list has an error type as its last return value.
 // Returns the index of the error result or -1 when not found.
 func ErrorResultIndex(info *types.Info, results *ast.FieldList) int {
@@ -34,17 +70,16 @@ func ErrorResultIndex(info *types.Info, results *ast.FieldList) int {
 	lastType := results.List[len(results.List)-1].Type
 
 	// Check if the return type is a type with an `Error() string` method.
-	if tv, ok := info.Types[lastType]; ok && types.IsInterface(tv.Type) && HasErrorMethod(tv.Type) {
+	if tv, ok := info.Types[lastType]; ok && IsInterfaceWithError(tv.Type) {
 		return results.NumFields() - 1
 	}
 
 	return -1 // Not an error type
 }
 
-// HasPointerReceiver determines whether the given method signature has a pointer receiver.
+// IsPointerReceiver determines whether the given method receiver is a pointer.
 // It returns true if the receiver is a pointer type, and false otherwise.
-func HasPointerReceiver(sig *types.Signature) (elem types.Type, ptr bool) {
-	recv := sig.Recv()
+func IsPointerReceiver(recv *types.Var) (elem types.Type, ptr bool) {
 	if recv == nil {
 		return nil, false // Not a method
 	}

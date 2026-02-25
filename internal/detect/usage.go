@@ -291,8 +291,8 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 
 // handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
 // It returns the target argument or nil if the function is not of interest.
-func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
-	fun, ok := typeutil.FuncOf(p.TypesInfo, n)
+func (p pass) handleErrorAs(call *ast.CallExpr) types.Type {
+	fun, ok := typeutil.FuncOf(p.TypesInfo, call)
 	if !ok {
 		return nil // Could not resolve function, might be a func variable.
 	}
@@ -338,11 +338,11 @@ func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
 		targetArgIndex++
 	}
 
-	if len(n.Args) <= targetArgIndex {
+	if len(call.Args) <= targetArgIndex {
 		return nil // Maybe called with the result of a multivalued function
 	}
 
-	targetArg := n.Args[targetArgIndex]
+	targetArg := call.Args[targetArgIndex]
 
 	typ, ok := p.TypesInfo.Types[targetArg]
 	if !ok {
@@ -357,8 +357,8 @@ func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
 	return ptr.Elem()
 }
 
-func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
-	if target := v.handleErrorAs(n); target != nil {
+func (v usageVisitor) handleCallExpr(call *ast.CallExpr) {
+	if target := v.handleErrorAs(call); target != nil {
 		tn, ptr, ok := typeutil.TypeNameOf(target)
 		if !ok {
 			return // Not a named type.
@@ -375,11 +375,11 @@ func (v usageVisitor) handleCallExpr(n *ast.CallExpr) {
 	}
 
 	// not an `errors.As`-like function
-	v.walkExprs(n.Args...)
+	v.walkExprs(call.Args...)
 
 	// TODO: handle target arguments of `errors.Is`
 
-	if f, ok := n.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
+	if f, ok := call.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
 		u := usageVisitor{
 			pass:       v.pass,
 			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, f.Type.Results),

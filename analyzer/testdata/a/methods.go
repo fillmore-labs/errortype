@@ -24,6 +24,8 @@ func (*ValueOverrideError) As(target any) bool { // want ` \(et:rcv\)$`
 	return false
 }
 
-func (*ValueOverrideError) Unwrap() []error { // want ` \(et:rcv\)$`
+type valueOverridePtrError = *ValueOverrideError
+
+func (valueOverridePtrError) Unwrap() []error { // want ` \(et:rcv\)$`
 	return nil
 }

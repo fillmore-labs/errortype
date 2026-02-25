@@ -51,18 +51,11 @@ const (
 )
 
 var _usages = [...]string{
-	posPointerExpected: "PointerExpected",
-	posValueExpected:   "ValueExpected",
-	posPointerObserved: "PointerObserved",
-	posValueObserved:   "ValueObserved",
+	"PointerExpected",
+	"ValueExpected",
+	"PointerObserved",
+	"ValueObserved",
 }
-
-const (
-	posPointerExpected = 3 - iota
-	posValueExpected
-	posPointerObserved
-	posValueObserved
-)
 
 func (u Usage) String() string {
 	return bitflag.ToString(u, _usages[:], "None")

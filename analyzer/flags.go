@@ -41,6 +41,7 @@ func registerFlags(o *run.Options, fs *flag.FlagSet) {
 		{"check-is", `suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`, analyze.OptionCheckIs},
 		{"deep-is-check", `diagnose all "Unwrap" functions in "Is" methods, not only those on target`, analyze.OptionDeepIsCheck},
 		{"unchecked-assert", `report unchecked type asserts on errors`, analyze.OptionUncheckedAssert},
+		{"prefix-filter", `restrict variable analysis to variables with an 'err' prefix`, analyze.OptionPrefixFilter},
 	}
 
 	for _, f := range flags {
@@ -65,7 +66,7 @@ func copyFlags(from, to *flag.FlagSet) {
 	})
 }
 
-// optionValue implements [flag.Value] to bind an [Options] configuration to a specific flag for command-line parsing.
+// optionValue implements [flag.Value] to bind an [options] configuration to a specific flag for command-line parsing.
 type optionValue struct {
 	flags *analyze.Options
 	value analyze.Options

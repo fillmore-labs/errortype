@@ -23,39 +23,33 @@ type Options uint8
 
 const (
 	// OptionCheckIs controls whether to check for `Is(error) bool` methods.
-	OptionCheckIs Options = 1 << posOptionCheckIs
+	OptionCheckIs Options = 1 << iota
 	// OptionCheckUnused flags unchecked results of `errors.Is` calls.
-	OptionCheckUnused = 1 << posOptionCheckUnused
+	OptionCheckUnused
 	// OptionDeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
-	OptionDeepIsCheck = 1 << posOptionDeepIsCheck
+	OptionDeepIsCheck
 	// OptionStyleCheck controls the target style check in `errors.As` calls.
-	OptionStyleCheck = 1 << posOptionStyleCheck
+	OptionStyleCheck
 	// OptionUncheckedAssert flags all unchecked asserts on errors.
-	OptionUncheckedAssert = 1 << posOptionUncheckedAssert
+	OptionUncheckedAssert
 	// OptionNaming checks errors for naming.
-	OptionNaming = 1 << posNaming
+	OptionNaming
+	// OptionPrefixFilter restricts variable declaration analysis to variables with an 'err' or 'Err' prefix.
+	OptionPrefixFilter
 
 	// DefaultOptions is the default configuration for error analysis.
-	DefaultOptions = OptionCheckIs | OptionCheckUnused
+	DefaultOptions = OptionCheckIs | OptionCheckUnused | OptionPrefixFilter
 )
 
 var _options = [...]string{
-	posOptionCheckIs:         "checkIs",
-	posOptionCheckUnused:     "checkUnused",
-	posOptionDeepIsCheck:     "deepIsCheck",
-	posOptionStyleCheck:      "styleCheck",
-	posOptionUncheckedAssert: "uncheckedAssert",
-	posNaming:                "naming",
+	"checkIs",
+	"checkUnused",
+	"deepIsCheck",
+	"styleCheck",
+	"uncheckedAssert",
+	"naming",
+	"prefixFilter",
 }
-
-const (
-	posOptionCheckIs = 5 - iota
-	posOptionCheckUnused
-	posOptionDeepIsCheck
-	posOptionStyleCheck
-	posOptionUncheckedAssert
-	posNaming
-)
 
 func (o Options) String() string {
 	return bitflag.ToString(o, _options[:], "none")
@@ -89,6 +83,11 @@ func (o Options) UncheckedAssert() bool {
 // Naming checks error types and variables for naming conventions.
 func (o Options) Naming() bool {
 	return o&OptionNaming != 0
+}
+
+// PrefixFilter checks only prefixed variables declarations.
+func (o Options) PrefixFilter() bool {
+	return o&OptionPrefixFilter != 0
 }
 
 // SetOption modifies the state of a specific option flag in the Options configuration

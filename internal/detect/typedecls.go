@@ -41,7 +41,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 			continue
 		}
 
-		fun, indirect, embedded, ok := typeutil.LookupMethod(tn.Type(), "Error", typeutil.HasErrorSig)
+		res, ok := typeutil.LookupMethod(tn.Type(), "Error", typeutil.HasErrorSig)
 		if !ok {
 			continue // No "Error" method
 		}
@@ -49,7 +49,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 		// Type has a `Error() string` method
 
 		var prop properties.ErrorProperty
-		if embedded {
+		if res.Embedded {
 			prop |= properties.Embedded
 		}
 
@@ -76,9 +76,9 @@ func (p pass) processTypeDecls(ctx context.Context) {
 		}
 
 		ptrRecv := false
-		if !indirect {
+		if !res.Indirect {
 			// The `Error() string` method is direct or embedded without indirections
-			_, ptrRecv = typeutil.HasPointerReceiver(fun.Signature())
+			_, ptrRecv = typeutil.IsPointerReceiver(res.Recv)
 		}
 
 		if ptrRecv {
@@ -116,19 +116,19 @@ var _errorMethods = [...]struct {
 // HasErrorMethods inspects a type for error-wrapping related methods, embedded or with pointer receivers.
 func (p pass) HasErrorMethods(tn *types.TypeName) (ptrRecv, embedded bool) {
 	for i, lookup := range _errorMethods {
-		fun, indirect, emb, ok := typeutil.LookupMethod(tn.Type(), lookup.name, lookup.sigCheck)
+		res, ok := typeutil.LookupMethod(tn.Type(), lookup.name, lookup.sigCheck)
 		if !ok {
 			continue // No such method with matching signature
 		}
 
-		if !indirect {
+		if !res.Indirect {
 			// The method is direct or embedded without indirections
-			if _, ptr := typeutil.HasPointerReceiver(fun.Signature()); ptr {
+			if _, ptr := typeutil.IsPointerReceiver(res.Recv); ptr {
 				ptrRecv = true
 			}
 		}
 
-		if emb && i != 0 { // Only test `Is` and `As` for embedding
+		if res.Embedded && i != 0 { // Only test `Is` and `As` for embedding
 			embedded = true
 		}
 	}

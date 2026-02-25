@@ -22,7 +22,6 @@ linters:
     # keep-sorted start
     - copyloopvar
     - errcheck
-    - errname
     - exptostd
     - gocheckcompilerdirectives
     - gochecksumtype
@@ -67,12 +66,12 @@ linters:
         description: errortype helps prevent subtle bugs in error handling.
         original-url: https://fillmore-labs.com/errortype
         settings:
-          style-check: true
-          deep-is-check: false
-          check-is: true
-          unchecked-assert: true
-          check-unused: true
           naming: true
+          style-check: true
+          check-unused: true
+          unchecked-assert: true
+          check-is: true
+          deep-is-check: false
       scopeguard:
         type: module
         description: >-
@@ -173,6 +172,8 @@ linters:
         # keep-sorted end
   exclusions:
     rules:
+      - path: examples/
+        source: .
       - path: ^main\.go$
         linters:
           - gocheckcompilerdirectives

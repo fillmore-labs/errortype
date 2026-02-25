@@ -36,8 +36,8 @@ type Options struct {
 	suggestwrite sync.Mutex
 }
 
-// DefaultRunOptions returns a [Options] struct initialized with default values.
-func DefaultRunOptions() *Options {
+// DefaultOptions returns a [Options] struct initialized with default values.
+func DefaultOptions() *Options {
 	return &Options{ // Default options
 		Options:     analyze.DefaultOptions,
 		DetectTypes: nil,

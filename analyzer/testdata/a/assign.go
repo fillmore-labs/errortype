@@ -16,8 +16,31 @@
 
 package a
 
-import "github.com/samber/lo"
+import (
+	"net"
+	"strconv"
 
-func LoErrors(err error) {
-	_, _ = lo.ErrorsAs[*ValueError](err) // want ` \(et:ast\)$`
+	"test/a/d"
+)
+
+type IntegerError int
+
+func (i IntegerError) Error() string { return "error " + strconv.Itoa(int(i)) }
+
+func Assign() (err net.Error) {
+	a, err := IntegerError(1), &d.ValueError{} // want ` \(et:asn\)$`
+
+	err = d.PointerError{} // want ` \(et:asn\+\)$`
+
+	a += 1
+
+	return
+}
+
+func AssignSimple() {
+	var err error
+
+	err = new(IntegerError) // want ` \(et:asn\)$`
+
+	_ = err
 }

@@ -23,6 +23,12 @@ import (
 	"fillmore-labs.com/errortype/internal/analyze/report"
 )
 
+// checkAssign creates a new reporter for assignments.
+func (p Pass) checkAssign(t types.Type, e ast.Expr) {
+	reporter := report.Assign{Base: report.Base{Pass: p.Pass, Expr: e}}
+	p.Check(t, reporter)
+}
+
 // checkAssert creates a new reporter for assertions.
 func (p Pass) checkAssert(t types.Type, e ast.Expr) {
 	reporter := report.Assert{Base: report.Base{Pass: p.Pass, Expr: e}}

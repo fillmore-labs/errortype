@@ -64,17 +64,21 @@ func checkVarNaming(p *analysis.Pass, spec *ast.ValueSpec) {
 			continue
 		}
 
+		if hasErrPrefix(name.Name) {
+			continue
+		}
+
 		wanted := "err"
 		if name.IsExported() {
 			wanted = "Err"
 		}
 
-		if strings.HasPrefix(name.Name, wanted) {
-			continue
-		}
-
 		p.ReportRangef(name, "Error sentinel %q should start with %q (et:nam)", name.Name, wanted)
 	}
+}
+
+func hasErrPrefix(name string) bool {
+	return strings.HasPrefix(name, "Err") || strings.HasPrefix(name, "err")
 }
 
 func checkTypeNaming(p *analysis.Pass, spec *ast.TypeSpec) {

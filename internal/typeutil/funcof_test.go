@@ -104,9 +104,9 @@ func TestFuncOf(t *testing.T) {
 
 			fset, f := parseSource(t, tt.src)
 			_, info := checkSource(t, fset, []*ast.File{f})
-			callExpr := lastDeclCallExpr(f)
+			call := lastDeclCallExpr(f)
 
-			fun, ok := FuncOf(info, callExpr)
+			fun, ok := FuncOf(info, call)
 
 			wantOk := tt.wantFuncName != ""
 			if ok != wantOk {

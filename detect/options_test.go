@@ -40,9 +40,30 @@ func TestLogValue(t *testing.T) {
 			expected: `"overrides":{"pointer":"pkg.MyType"}`,
 		},
 		{
+			name: "WithOverrides Multiple",
+			option: WithOverrides(map[result.ErrorType][]string{
+				result.Suppress: {"pkg.Suppress"},
+				result.Pointer:  {"pkg.Pointer"},
+				result.Value:    {"pkg.Value"},
+			}),
+			expected: `"overrides":{"pointer":"pkg.Pointer","value":"pkg.Value","suppressed":"pkg.Suppress"}`,
+		},
+		{
 			name:     "WithWrappers",
 			option:   WithWrappers(map[result.WrapperType][]string{result.WrapperAsType: {"pkg.MyAsType"}}),
 			expected: `"wrappers":{"astype":"pkg.MyAsType"}`,
+		},
+		{
+			name: "WithWrappers Multiple",
+			option: WithWrappers(map[result.WrapperType][]string{
+				result.FuncAssert:    {"pkg.Assert"},
+				result.WrapperAsType: {"pkg.AsType"},
+				result.WrapperAs:     {"pkg.As"},
+				result.WrapperIs:     {"pkg.Is"},
+				result.FuncEqual:     {"pkg.Equal"},
+				result.FuncIsType:    {"pkg.IsType"},
+			}),
+			expected: `"wrappers":{"is":"pkg.Is","as":"pkg.As","astype":"pkg.AsType","istype":"pkg.IsType","equal":"pkg.Equal","assert":"pkg.Assert"}`,
 		},
 		{
 			name:     "WithHeuristics - None",
@@ -71,11 +92,11 @@ func TestLogValue(t *testing.T) {
 		},
 		{
 			name: "Options",
-			option: Options{
+			option: Join(
 				WithOverrides(map[result.ErrorType][]string{result.Value: {"pkg.MyType"}}),
 				WithHeuristics(HeuristicUsage),
 				WithTrace(regexp.MustCompile(".*")),
-			},
+			),
 			expected: `"options":{"overrides":{"value":"pkg.MyType"},"heuristics":"usage","trace":".*"}`,
 		},
 	}

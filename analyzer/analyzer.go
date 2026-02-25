@@ -46,29 +46,42 @@ for most error types but may require a configuration file for ambiguous cases.`
 )
 
 // New creates a new instance of the errortype analyzer.
-// It allows for programmatic configuration using [Options], which is useful
+// It allows for programmatic configuration using [options], which is useful
 // for integrating the analyzer into other tools. For command-line use, the
 // pre-configured [Analyzer] variable is typically sufficient.
-func New(opts ...Option) *analysis.Analyzer {
-	r := run.DefaultRunOptions()
-	Options(opts).apply(r)
+func New(opts ...Option) (*analysis.Analyzer, error) {
+	o := run.DefaultOptions()
+	if err := Join(opts...).Apply(o); err != nil {
+		return nil, err
+	}
 
-	if r.DetectTypes == nil {
-		r.DetectTypes = detect.New()
+	if o.DetectTypes == nil {
+		d, err := detect.New()
+		if err != nil {
+			return nil, err
+		}
+		o.DetectTypes = d
 	}
 
 	a := &analysis.Analyzer{
 		Name:     Name,
 		Doc:      Doc,
 		URL:      URL,
-		Run:      r.Run,
-		Requires: []*analysis.Analyzer{inspect.Analyzer, r.DetectTypes},
+		Run:      o.Run,
+		Requires: []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
 	}
 
-	registerFlags(r, &a.Flags)
+	registerFlags(o, &a.Flags)
 
-	return a
+	return a, nil
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting and enforcing consistent error type usage in Go programs.
-var Analyzer = New(WithDetectTypes(detect.Analyzer))
+var Analyzer = func() *analysis.Analyzer {
+	a, err := New(WithDetectTypes(detect.Analyzer))
+	if err != nil {
+		panic(err)
+	}
+
+	return a
+}()

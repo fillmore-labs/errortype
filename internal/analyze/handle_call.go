@@ -141,7 +141,7 @@ func firstParam(wrapper result.ErrorFunc, fun typeutil.ResolvedFunc) bool {
 	return wrapper.Source == 0 && fun.Func.Signature().Recv() == nil
 }
 
-func (p Pass) checkUnused(c inspector.Cursor, n *ast.CallExpr, tag string) {
+func (p Pass) checkUnused(c inspector.Cursor, call *ast.CallExpr, tag string) {
 	e := c.Parent()
 
 unwrap:
@@ -151,6 +151,6 @@ unwrap:
 		goto unwrap
 
 	case *ast.ExprStmt:
-		p.ReportRangef(n, "Result of %s is ignored (et:%s)", p.exprToString(n.Fun), tag)
+		p.ReportRangef(call, "Result of %s is ignored (et:%s)", p.exprToString(call.Fun), tag)
 	}
 }

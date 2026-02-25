@@ -32,6 +32,7 @@ type Settings struct {
 	UncheckedAssert *bool     `json:"unchecked-assert,omitzero"`
 	CheckUnused     *bool     `json:"check-unused,omitzero"`
 	Naming          *bool     `json:"naming,omitzero"`
+	PrefixFilter    *bool     `json:"prefix-filter,omitzero"`
 }
 
 // Overrides defines overrides for error types.
@@ -44,16 +45,16 @@ type Overrides struct {
 
 	// Types for which error type checks should be suppressed.
 	Suppress []string `json:"suppress,omitempty"`
-
-	Wrappers Wrappers `json:"wrappers,omitzero"`
 }
 
 // Wrappers overrides wrapper function autodetection in packages.
 type Wrappers map[result.WrapperType][]string
 
-// detectOptions converts Settings into [detect.Options] for the detect analyzer.
+// detectOption converts [Settings] into [detect.Option]s for the detect analyzer.
 // It processes override configurations and returns them in the appropriate format.
-func detectOptions(settings Settings) detect.Options {
+func detectOption(settings Settings) []detect.Option {
+	var opts []detect.Option
+
 	overrides := settings.Overrides
 
 	var d detectOverrides
@@ -61,11 +62,15 @@ func detectOptions(settings Settings) detect.Options {
 	d.setOverrides(result.Value, overrides.Value)
 	d.setOverrides(result.Suppress, overrides.Suppress)
 
-	if len(d) == 0 {
-		return nil
+	if len(d) > 0 {
+		opts = append(opts, detect.WithOverrides(d))
 	}
 
-	return detect.Options{detect.WithOverrides(d)}
+	if len(settings.Wrappers) > 0 {
+		opts = append(opts, detect.WithWrappers(settings.Wrappers))
+	}
+
+	return opts
 }
 
 type detectOverrides map[result.ErrorType][]string
@@ -74,38 +79,6 @@ func (d *detectOverrides) setOverrides(key result.ErrorType, values []string) {
 	if len(values) > 0 {
 		if *d == nil {
 			*d = make(detectOverrides, 3)
-		}
-
-		(*d)[key] = values
-	}
-}
-
-// wrapperOptions converts Settings into [detect.Options] for the detect analyzer.
-// It processes override configurations and returns them in the appropriate format.
-func wrapperOptions(settings Settings) detect.Options {
-	var w wrapperOverrides
-
-	for k, v := range settings.Overrides.Wrappers {
-		w.setOverrides(k, v)
-	}
-
-	for k, v := range settings.Wrappers {
-		w.setOverrides(k, v)
-	}
-
-	if len(w) == 0 {
-		return nil
-	}
-
-	return detect.Options{detect.WithWrappers(w)}
-}
-
-type wrapperOverrides map[result.WrapperType][]string
-
-func (d *wrapperOverrides) setOverrides(key result.WrapperType, values []string) {
-	if len(values) > 0 {
-		if *d == nil {
-			*d = make(wrapperOverrides, 3)
 		}
 
 		(*d)[key] = values
@@ -123,6 +96,7 @@ func (s Settings) Options() []errortype.Option {
 	opts = appendOption(opts, s.UncheckedAssert, errortype.WithUncheckedAssert)
 	opts = appendOption(opts, s.CheckUnused, errortype.WithCheckUnused)
 	opts = appendOption(opts, s.Naming, errortype.WithNaming)
+	opts = appendOption(opts, s.PrefixFilter, errortype.WithPrefixFilter)
 
 	return opts
 }

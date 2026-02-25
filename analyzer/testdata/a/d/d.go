@@ -1,4 +1,4 @@
-// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,10 +14,26 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package d
 
-import "github.com/samber/lo"
+import "net"
 
-func LoErrors(err error) {
-	_, _ = lo.ErrorsAs[*ValueError](err) // want ` \(et:ast\)$`
-}
+type (
+	PointerError struct{ msg string }
+
+	ValueError struct{ msg string }
+)
+
+func (e PointerError) Error() string { return e.msg }
+
+func (e PointerError) Temporary() bool { return false }
+
+func (e PointerError) Timeout() bool { return false }
+
+func (e ValueError) Error() string { return e.msg }
+
+func (e ValueError) Temporary() bool { return false }
+
+func (e ValueError) Timeout() bool { return false }
+
+var _, _ net.Error = (*PointerError)(nil), ValueError{}

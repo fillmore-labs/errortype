@@ -25,22 +25,39 @@ import (
 
 // handleVarDecls checks for incorrect pointer/value usage of error types in variable declarations.
 func (p Pass) handleVarDecls(n *ast.ValueSpec) {
-	for i, id := range n.Names {
-		if len(n.Values) <= i {
-			break
+	if len(n.Values) == 0 {
+		return // uninitialized variables
+	}
+
+	checkType := true
+
+	if n.Type != nil {
+		if tv, ok := p.TypesInfo.Types[n.Type]; !ok || !typeutil.HasErrorMethod(tv.Type) {
+			return
 		}
 
-		if id.Name != "_" && !strings.HasPrefix(id.Name, "Err") && !strings.HasPrefix(id.Name, "err") {
+		checkType = false
+	}
+
+	for i, id := range n.Names {
+		name := id.Name
+
+		if checkType && p.PrefixFilter() && !hasErrPrefix(id.Name) {
 			continue
 		}
 
-		value := n.Values[i]
-
-		tv, ok := p.TypesInfo.Types[value]
-		if !ok || !typeutil.HasErrorMethod(tv.Type) {
+		typ, value := typeutil.ResultOf(p.TypesInfo, n.Values, i)
+		if typ == nil || checkType && !typeutil.HasErrorMethod(typ) {
 			continue // Not an error type
 		}
 
-		p.checkVarDecl(tv.Type, value, id.Name)
+		p.checkVarDecl(typ, value, name)
 	}
+}
+
+// hasErrPrefix checks if a variable name indicates it is intended to be an error variable.
+// This heuristic prevents false positives for short-lived local variables that happen to
+// hold an error type, ensuring we only enforce semantics on explicit error variables.
+func hasErrPrefix(name string) bool {
+	return strings.HasPrefix(name, "Err") || strings.HasPrefix(name, "err")
 }

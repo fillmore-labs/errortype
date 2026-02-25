@@ -24,7 +24,7 @@ type VarDecl struct {
 	VarName string
 }
 
-// ShouldBeValue reports a diagnostic when a value error is queried as a pointer.
+// ShouldBeValue reports a diagnostic when a value error is assigned as a pointer.
 func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
 	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
 		r.ReportRangef(r.Expr,
@@ -35,11 +35,11 @@ func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
 	}
 }
 
-// ShouldBePointer reports a diagnostic when a pointer error is queried as a value.
+// ShouldBePointer reports a diagnostic when a pointer error is assigned as a value.
 func (r VarDecl) ShouldBePointer(tn *types.TypeName) {
 	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
 		r.ReportRangef(r.Expr,
-			`Compile‑time assertion assertion should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, relativeName)
+			`Compile‑time assertion should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, relativeName)
 	} else {
 		r.ReportRangef(r.Expr,
 			`Error %q should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, r.VarName, relativeName)

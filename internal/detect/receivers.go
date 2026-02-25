@@ -59,17 +59,18 @@ func (p pass) processReceivers(ctx context.Context) {
 // It returns ok when the type has at least one method and all methods have receivers of the same kind,
 // ptr when all methods have pointer receivers.
 func pureReceivers(named *types.Named) (ptr, ok bool) {
-	numMethods := named.NumMethods()
-	if numMethods == 0 {
-		return false, false
-	}
+	first := true
 
-	_, ptr0 := typeutil.HasPointerReceiver(named.Method(0).Signature())
-	for i := 1; i < numMethods; i++ {
-		if _, ptr1 := typeutil.HasPointerReceiver(named.Method(i).Signature()); ptr1 != ptr0 {
+	for m := range named.Methods() {
+		switch _, ptrcv := typeutil.IsPointerReceiver(m.Signature().Recv()); {
+		case first:
+			ptr, ok = ptrcv, true
+			first = false
+
+		case ptr != ptrcv:
 			return false, false
 		}
 	}
 
-	return ptr0, true
+	return ptr, ok
 }

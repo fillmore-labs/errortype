@@ -21,11 +21,11 @@ import (
 
 	"golang.org/x/tools/go/analysis/singlechecker"
 
-	"fillmore-labs.com/errortype/analyzer"
+	errortype "fillmore-labs.com/errortype/analyzer"
 )
 
 func main() {
-	a := analyzer.Analyzer
+	a := errortype.Analyzer
 
 	if flag.Lookup("V") == nil {
 		flag.BoolFunc("V", "print version and exit", version)

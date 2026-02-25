@@ -134,28 +134,30 @@ func (f FuncName) MarshalText() ([]byte, error) {
 
 // AppendText implements [encoding.TextAppender].
 func (f FuncName) AppendText(buf []byte) ([]byte, error) {
+	plen := len(f.Path)
+	rlen := len(f.Receiver)
+
 	size := len(f.Name)
-	if l := len(f.Path); l > 0 {
-		size += l + 1
+	if plen > 0 {
+		size += plen + 1
 	}
 
-	method := f.Receiver != ""
-	if method {
-		size += len(f.Receiver) + 3
+	if rlen > 0 {
+		size += rlen + 3
 	}
 
 	buf = slices.Grow(buf, size)
 
-	if method {
+	if rlen > 0 {
 		buf = append(buf, '(')
 	}
 
-	if f.Path != "" {
+	if plen > 0 {
 		buf = append(buf, f.Path...)
 		buf = append(buf, '.')
 	}
 
-	if method {
+	if rlen > 0 {
 		buf = append(buf, f.Receiver...)
 		buf = append(buf, ')', '.')
 	}

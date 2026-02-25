@@ -218,7 +218,7 @@ func iface() {
 	var pve interface {
 		fmt.Stringer
 		error
-	} = &BadValueError{Msg: "iface pointer to value"}
+	} = &BadValueError{Msg: "iface pointer to value"} // want ` \(et:var\)$`
 
 	_ = BadValueError{}
 
@@ -261,7 +261,7 @@ func iface() {
 type PointerEmbeddedError struct{ *PointerError }
 
 func embedded() {
-	var eperr error = PointerEmbeddedError{&PointerError{Msg: "embedded pointer"}}
+	var eperr error = PointerEmbeddedError{&PointerError{Msg: "embedded pointer"}} // want ` \(et:emb\)$`
 
 	var _ error = &PointerEmbeddedError{} // want ` \(et:emb\+\)$`
 

@@ -17,29 +17,29 @@
 package c
 
 type (
-	ErrorWithIs1    struct{ error } // want ErrorWithIs1:"pointer"
-	ErrorWithIs2    struct{ error } // want ErrorWithIs2:"undecided"
-	ErrorWithoutIs1 struct{ error } // want ErrorWithoutIs1:"undecided"
-	ErrorWithoutIs2 struct{ error } // want ErrorWithoutIs2:"undecided"
+	WithIs1Error    struct{ error } // want WithIs1Error:"pointer"
+	WithIs2Error    struct{ error } // want WithIs2Error:"undecided"
+	WithoutIs1Error struct{ error } // want WithoutIs1Error:"undecided"
+	WithoutIs2Error struct{ error } // want WithoutIs2Error:"undecided"
 )
 
-func (e *ErrorWithIs1) Is(err error) bool {
+func (e *WithIs1Error) Is(err error) bool {
 	return e.error == err
 }
 
-func (e ErrorWithIs2) Is(err error) bool {
+func (e WithIs2Error) Is(err error) bool {
 	return e.error == err
 }
 
-func (e *ErrorWithoutIs1) Is(err1, err2 error) bool {
+func (e *WithoutIs1Error) Is(err1, err2 error) bool {
 	return e.error == err1
 }
 
-func (e *ErrorWithoutIs2) Is(error) string {
+func (e *WithoutIs2Error) Is(error) string {
 	return e.error.Error()
 }
 
-func (e ErrorWithIs1) Whatever()    {}
-func (e *ErrorWithIs2) Whatever()   {}
-func (e ErrorWithoutIs1) Whatever() {}
-func (e ErrorWithoutIs2) Whatever() {}
+func (e WithIs1Error) Whatever()    {}
+func (e *WithIs2Error) Whatever()   {}
+func (e WithoutIs1Error) Whatever() {}
+func (e WithoutIs2Error) Whatever() {}

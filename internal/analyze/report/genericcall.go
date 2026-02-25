@@ -30,7 +30,7 @@ type GenericCall struct {
 // ShouldBeValue reports a diagnostic when a value error is queried as a pointer.
 func (r GenericCall) ShouldBeValue(tn *types.TypeName) {
 	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
-	fname := r.exprToString(r.Fun)
+	fname := exprToString(r.Fset, r.Fun)
 
 	r.ReportRangef(r.Expr,
 		`Error type %q should be queried as a value ("%s[%s]"), not a pointer. (et:ast)`, relativeName, fname, shortName)
@@ -39,7 +39,7 @@ func (r GenericCall) ShouldBeValue(tn *types.TypeName) {
 // ShouldBePointer reports a diagnostic when a pointer error is queried as a value.
 func (r GenericCall) ShouldBePointer(tn *types.TypeName) {
 	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
-	fname := r.exprToString(r.Fun)
+	fname := exprToString(r.Fset, r.Fun)
 
 	r.ReportRangef(r.Expr,
 		`Error type %q should be queried as a pointer ("%s[*%s]"), not a value. (et:ast+)`, relativeName, fname, shortName)

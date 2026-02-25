@@ -22,23 +22,17 @@ import (
 	"regexp"
 
 	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/detect/wrappers"
 	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Options define configuration settings for type analysis, including heuristic passes, usage overrides, and tracing.
 type Options struct {
-	// UsageOverrides stores the usage configuration for error types, read from a file.
-	UsageOverrides UsageOverrides
-
-	// WrapperOverrides stores the wrapper function configuration, read from a file.
+	UsageOverrides   UsageOverrides
 	WrapperOverrides WrapperOverrides
-
-	// Heuristics controls heuristic passes
-	Heuristics Heuristics
-
-	// Trace controls result output
-	Trace *regexp.Regexp
+	Trace            *regexp.Regexp
+	Heuristics       Heuristics
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
@@ -99,28 +93,10 @@ func (o *Options) AddWrappers(or map[result.WrapperType][]typeutil.FuncName) {
 
 	for wrapperType, names := range or {
 		for _, name := range names {
-			o.WrapperOverrides[name] = wrapperType
+			pkg := name.Path
+			o.WrapperOverrides[pkg] = append(o.WrapperOverrides[pkg], wrappers.ExplicitWrapper{LocalFuncName: name.LocalFuncName, Type: wrapperType})
 		}
 	}
-}
-
-// SetHeuristics parses and sets the heuristic passes from a comma-separated list.
-// Valid values are: "usage", "receivers", and "off".
-// "off" disables all heuristics and cannot be combined with other values.
-func (o *Options) SetHeuristics(list string) error {
-	// Only update if the user provided some values.
-	if list == "" {
-		return nil
-	}
-
-	heuristics, err := HeuristicsFromString(list)
-	if err != nil {
-		return err
-	}
-
-	o.Heuristics = heuristics
-
-	return nil
 }
 
 // SetTrace sets the Trace field to a compiled regular expression based on the provided regex string.

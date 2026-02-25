@@ -19,6 +19,7 @@ package analyze
 import (
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
@@ -37,13 +38,13 @@ type Pass struct {
 }
 
 // NewPass creates and returns a new Pass instance, initializing its errorUsages property map.
-// It takes an *analysis.Pass as input and embeds it within the returned Pass.
-func NewPass(ap *analysis.Pass, detectedResult result.Result, opt Options) Pass {
+// It takes an *[analysis.Pass] as input and embeds it within the returned Pass.
+func NewPass(pass *analysis.Pass, detectedResult result.Result, opt Options) Pass {
 	errorUsage := make(usage.ErrorUsage)
 	errorUsage.ProcessDetectedTypes(detectedResult.Types)
 
 	return Pass{
-		Pass:       ap,
+		Pass:       pass,
 		ErrorUsage: errorUsage,
 		ErrorFuncs: detectedResult.Funcs,
 		Options:    opt,
@@ -52,8 +53,8 @@ func NewPass(ap *analysis.Pass, detectedResult result.Result, opt Options) Pass 
 
 var rawfmt = &printer.Config{Mode: printer.RawFormat}
 
-func (p Pass) exprToString(expr ast.Expr) string {
-	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, p.Fset, expr) == nil {
+func exprToString(fset *token.FileSet, expr ast.Expr) string {
+	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, fset, expr) == nil {
 		return sb.String()
 	}
 

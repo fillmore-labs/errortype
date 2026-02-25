@@ -5,7 +5,7 @@ when:
 
 matrix:
   GO_VERSION:
-    - "tip"
+    - 'tip'
 
 steps:
   - name: test
@@ -13,7 +13,6 @@ steps:
     environment:
       GOTOOLCHAIN: local
     commands:
-      - go telemetry on
       - echo "🤖 Run Vulnerability Scanner:"
       - go run golang.org/x/vuln/cmd/govulncheck@master ./...
       - echo "⬆️ Update to latest dependency versions:"

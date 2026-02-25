@@ -126,6 +126,9 @@ func (o heuristicsOption) Apply(opts *detect.Options) error {
 
 		case HeuristicReceivers:
 			combined |= detect.HeuristicReceivers
+
+		default:
+			return fmt.Errorf("unknown heurisitc %s", heuristic)
 		}
 	}
 
@@ -148,12 +151,7 @@ type traceOption struct{ trace *regexp.Regexp }
 func (o traceOption) Apply(opts *detect.Options) error { opts.Trace = o.trace; return nil }
 
 func (o traceOption) LogAttr() slog.Attr {
-	var re string
-	if o.trace != nil {
-		re = o.trace.String()
-	}
-
-	return slog.String("trace", re)
+	return slog.Any("trace", o.trace)
 }
 
 func logAttrMap[K interface {

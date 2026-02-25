@@ -26,10 +26,10 @@ import (
 type ErrorFunc struct {
 	Type   WrapperType
 	Source int8 // Index of the source error argument
-	Target int8 // Index of the target argument (As/Is) or type parameter (AsType)
+	Target int8 // Index of the target argument (Is/As) or type parameter (AsType)
 }
 
-// AFact makes *Wrapper satisfy the [analysis.Fact] interface.
+// AFact makes *ErrorFunc satisfy the [analysis.Fact] interface.
 func (*ErrorFunc) AFact() {}
 
 func (w ErrorFunc) String() string {
@@ -45,6 +45,7 @@ const (
 	WrapperIs
 	WrapperAs
 	WrapperAsType
+	WrapperErrorf
 	FuncIsType
 	FuncEqual
 	FuncAssert
@@ -57,6 +58,7 @@ var wrapperTypes = [...]string{
 	WrapperIs:      "is",
 	WrapperAs:      "as",
 	WrapperAsType:  "astype",
+	WrapperErrorf:  "errorf",
 	FuncIsType:     "istype",
 	FuncEqual:      "equal",
 	FuncAssert:     "assert",

@@ -24,15 +24,18 @@ import (
 
 // Settings are the linter settings.
 type Settings struct {
-	Overrides       Overrides `json:"overrides,omitzero"`
-	Wrappers        Wrappers  `json:"wrappers,omitzero"`
+	Recommended     *bool     `json:"recommended,omitzero"`
+	NotComparable   *bool     `json:"non-comparable,omitzero"`
+	Naming          *bool     `json:"naming,omitzero"`
+	Legacy          *bool     `json:"legacy,omitzero"`
 	StyleCheck      *bool     `json:"style-check,omitzero"`
 	DeepIsCheck     *bool     `json:"deep-is-check,omitzero"`
 	CheckIs         *bool     `json:"check-is,omitzero"`
 	UncheckedAssert *bool     `json:"unchecked-assert,omitzero"`
 	CheckUnused     *bool     `json:"check-unused,omitzero"`
-	Naming          *bool     `json:"naming,omitzero"`
 	PrefixFilter    *bool     `json:"prefix-filter,omitzero"`
+	Wrappers        Wrappers  `json:"wrappers,omitzero"`
+	Overrides       Overrides `json:"overrides,omitzero"`
 }
 
 // Overrides defines overrides for error types.
@@ -47,15 +50,47 @@ type Overrides struct {
 	Suppress []string `json:"suppress,omitempty"`
 }
 
-// Wrappers overrides wrapper function autodetection in packages.
+// Wrappers override wrapper function autodetection in packages.
 type Wrappers map[result.WrapperType][]string
 
-// detectOption converts [Settings] into [detect.Option]s for the detect analyzer.
+// options converts [Settings] into a list of [errortype.Option] for the errortype analyzer.
+// It processes settings and applies them only when explicitly set (non-nil).
+func (s Settings) options() ([]errortype.Option, error) {
+	var opts []errortype.Option
+
+	opts = appendOption(opts, s.Recommended, errortype.WithRecommended)
+	opts = appendOption(opts, s.NotComparable, errortype.WithNotComparable)
+	opts = appendOption(opts, s.Naming, errortype.WithNaming)
+	opts = appendOption(opts, s.Legacy, errortype.WithLegacy)
+	opts = appendOption(opts, s.StyleCheck, errortype.WithStyleCheck)
+	opts = appendOption(opts, s.DeepIsCheck, errortype.WithDeepIsCheck)
+	opts = appendOption(opts, s.CheckIs, errortype.WithCheckIs)
+	opts = appendOption(opts, s.UncheckedAssert, errortype.WithUncheckedAssert)
+	opts = appendOption(opts, s.CheckUnused, errortype.WithCheckUnused)
+	opts = appendOption(opts, s.PrefixFilter, errortype.WithPrefixFilter)
+
+	if dopts := s.detectOptions(); len(dopts) > 0 {
+		opts = append(opts, errortype.WithDetectOptions(dopts...))
+	}
+
+	return opts, nil
+}
+
+// appendOption appends a non-nil setting to an option list.
+func appendOption[T, O any](opts []O, value *T, constructor func(T) O) []O {
+	if value == nil {
+		return opts
+	}
+
+	return append(opts, constructor(*value))
+}
+
+// detectOptions converts [Settings] into [detect.Option]s for the detect analyzer.
 // It processes override configurations and returns them in the appropriate format.
-func detectOption(settings Settings) []detect.Option {
+func (s Settings) detectOptions() []detect.Option {
 	var opts []detect.Option
 
-	overrides := settings.Overrides
+	overrides := s.Overrides
 
 	var d detectOverrides
 	d.setOverrides(result.Pointer, overrides.Pointer)
@@ -66,8 +101,8 @@ func detectOption(settings Settings) []detect.Option {
 		opts = append(opts, detect.WithOverrides(d))
 	}
 
-	if len(settings.Wrappers) > 0 {
-		opts = append(opts, detect.WithWrappers(settings.Wrappers))
+	if len(s.Wrappers) > 0 {
+		opts = append(opts, detect.WithWrappers(s.Wrappers))
 	}
 
 	return opts
@@ -83,29 +118,4 @@ func (d *detectOverrides) setOverrides(key result.ErrorType, values []string) {
 
 		(*d)[key] = values
 	}
-}
-
-// Options converts [Settings] into a list of [errortype.Option] for the errortype analyzer.
-// It processes settings and applies them only when explicitly set (non-nil).
-func (s Settings) Options() []errortype.Option {
-	var opts []errortype.Option
-
-	opts = appendOption(opts, s.StyleCheck, errortype.WithStyleCheck)
-	opts = appendOption(opts, s.DeepIsCheck, errortype.WithDeepIsCheck)
-	opts = appendOption(opts, s.CheckIs, errortype.WithCheckIs)
-	opts = appendOption(opts, s.UncheckedAssert, errortype.WithUncheckedAssert)
-	opts = appendOption(opts, s.CheckUnused, errortype.WithCheckUnused)
-	opts = appendOption(opts, s.Naming, errortype.WithNaming)
-	opts = appendOption(opts, s.PrefixFilter, errortype.WithPrefixFilter)
-
-	return opts
-}
-
-// appendOption appends a non-nil setting to an option list.
-func appendOption[T, O any](opts []O, value *T, constructor func(T) O) []O {
-	if value == nil {
-		return opts
-	}
-
-	return append(opts, constructor(*value))
 }

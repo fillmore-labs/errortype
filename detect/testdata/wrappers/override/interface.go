@@ -17,6 +17,7 @@
 package override
 
 type Suite interface {
-	As(err error, target any) bool // want As:`as\(0, 1\)`
-	Is(err, target error) bool     // want Is:`is\(0, 1\)`
+	As(err error, target any) bool        // want As:`as\(0, 1\)`
+	Is(err, target error) bool            // want Is:`is\(0, 1\)`
+	Errorf(format string, a ...any) error // want Errorf:`errorf\(0, 1\)`
 }

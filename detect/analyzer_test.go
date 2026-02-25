@@ -95,8 +95,8 @@ func newTestAnalyzer(d *analysis.Analyzer) *analysis.Analyzer {
 	testAnalyzer := &analysis.Analyzer{
 		Name: "testanalyzer",
 		Doc:  "consumes results from detect.Analyzer for testing",
-		Run: func(ap *analysis.Pass) (any, error) {
-			return run(ap, d)
+		Run: func(pass *analysis.Pass) (any, error) {
+			return run(pass, d)
 		},
 		Requires:  []*analysis.Analyzer{inspect.Analyzer, d},
 		FactTypes: []analysis.Fact{(*testFact)(nil)},
@@ -105,13 +105,13 @@ func newTestAnalyzer(d *analysis.Analyzer) *analysis.Analyzer {
 	return testAnalyzer
 }
 
-func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
-	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+func run(pass *analysis.Pass, d *analysis.Analyzer) (any, error) {
+	in, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
 		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", inspect.Analyzer.Name)
 	}
 
-	res, ok := ap.ResultOf[d].(result.Result)
+	res, ok := pass.ResultOf[d].(result.Result)
 	if !ok {
 		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", d.Name)
 	}
@@ -120,12 +120,10 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 	for name, errorType := range res.Types {
 		errorMap[name] = errorType
 
-		if ap.Pkg == name.Pkg() {
-			ap.ExportObjectFact(name, &testFact{errorType})
+		if pass.Pkg == name.Pkg() {
+			pass.ExportObjectFact(name, &testFact{errorType})
 		}
 	}
-
-	errorInterface := types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
 
 	for caseClause := range inspector.All[*ast.CaseClause](in) {
 		if len(caseClause.Body) != 1 {
@@ -138,18 +136,18 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 		}
 
 		for _, rhs := range assignStmt.Rhs {
-			tv, ok := ap.TypesInfo.Types[rhs]
+			tv, ok := pass.TypesInfo.Types[rhs]
 			if !ok || tv.IsNil() {
 				continue
 			}
 			t := tv.Type
 
-			if !types.Implements(t, errorInterface) {
+			if !typeutil.HasErrorMethod(t) {
 				continue
 			}
 
 			msg := message(t, errorMap)
-			ap.ReportRangef(rhs, "Type %q %s", t.String(), msg)
+			pass.ReportRangef(rhs, "Type %q %s", t.String(), msg)
 		}
 	}
 

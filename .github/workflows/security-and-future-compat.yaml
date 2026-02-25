@@ -1,6 +1,6 @@
 ---
 name: Security & Future Compatibility
-"on":
+'on':
   push:
     branches:
       - main
@@ -9,7 +9,7 @@ name: Security & Future Compatibility
     branches:
       - main
   schedule:
-    - cron: "15 4 * * 1" # weekly on Mondays, 4:15 AM UTC
+    - cron: '15 4 * * 1' # weekly on Mondays, 4:15 AM UTC
 jobs:
   security-and-future-compat:
     name: Test and run security checks on Go tip
@@ -23,14 +23,14 @@ jobs:
       GOTOOLCHAIN: local
     steps:
       - name: ✔ Check out
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
       - name: 🌱 Environment
         run: |
           go env -w GOMODCACHE="$HOME/go/pkg/mod"
       - name: 📦 Cache Go modules
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/go/pkg/mod
@@ -42,9 +42,7 @@ jobs:
         run: go run golang.org/x/vuln/cmd/govulncheck@master ./...
       - name: ⬆️ Update to latest dependency versions
         run: >
-          find . -name go.mod
-          -execdir go get -u -t ./... \;
-          -execdir go mod tidy \;
+          find . -name go.mod -execdir go get -u -t ./... \; -execdir go mod tidy \;
       - name: 🔨 Test
         run: |-
           go version

@@ -19,6 +19,7 @@ package report
 import (
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"go/types"
 	"strings"
 
@@ -33,7 +34,7 @@ type Base struct {
 }
 
 // UndeterminedUsage reports a diagnostic for an error type with undetermined usage.
-func (r Base) UndeterminedUsage(tn *types.TypeName, ptr bool) {
+func (b Base) UndeterminedUsage(tn *types.TypeName, ptr bool) {
 	fullName := types.TypeString(tn.Type(), nil)
 
 	codeSuffix := ""
@@ -41,17 +42,17 @@ func (r Base) UndeterminedUsage(tn *types.TypeName, ptr bool) {
 		codeSuffix = "+"
 	}
 
-	r.ReportRangef(r.Expr,
+	b.ReportRangef(b.Expr,
 		"Undetermined usage for error type %q. Specify in the configuration whether it is a pointer or value error. (et:emb%s)",
 		fullName, codeSuffix)
 }
 
-func (r Base) relativeNameOf(tn *types.TypeName) string {
-	return types.TypeString(tn.Type(), types.RelativeTo(r.Pkg))
+func (b Base) relativeNameOf(tn *types.TypeName) string {
+	return types.TypeString(tn.Type(), types.RelativeTo(b.Pkg))
 }
 
-func (r Base) shortNameOf(tn *types.TypeName) string {
-	current := r.Pkg
+func (b Base) shortNameOf(tn *types.TypeName) string {
+	current := b.Pkg
 
 	return types.TypeString(tn.Type(), func(pkg *types.Package) string {
 		if pkg == current {
@@ -64,8 +65,8 @@ func (r Base) shortNameOf(tn *types.TypeName) string {
 
 var rawfmt = &printer.Config{Mode: printer.RawFormat}
 
-func (r Base) exprToString(expr ast.Expr) string {
-	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, r.Fset, expr) == nil {
+func exprToString(fset *token.FileSet, expr ast.Expr) string {
+	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, fset, expr) == nil {
 		return sb.String()
 	}
 

@@ -61,7 +61,7 @@ func Read(ctx context.Context, r io.Reader) (Overrides, error) {
 func ReadFile(ctx context.Context, fileName string) (Overrides, error) {
 	overridesFile, err := os.Open(filepath.Clean(fileName))
 	if err != nil {
-		return Overrides{}, fmt.Errorf("can't open overrides file: %w", err)
+		return Overrides{}, err
 	}
 
 	defer overridesFile.Close() // ignore error

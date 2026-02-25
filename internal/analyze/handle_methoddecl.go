@@ -17,31 +17,23 @@
 package analyze
 
 import (
+	"fmt"
 	"go/ast"
 	"go/types"
 
+	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 
 	"fillmore-labs.com/errortype/internal/analyze/usage"
+	"fillmore-labs.com/errortype/internal/astutil"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 func (p Pass) handleMethodDecl(c inspector.Cursor, f *ast.FuncDecl) {
-	var sigCheck func(*types.Signature) bool
-
-	switch f.Name.Name {
-	case "Is":
-		sigCheck = typeutil.HasIsSig
-
-	case "Unwrap":
-		sigCheck = typeutil.HasUnwrapSig
-
-	case "As":
-		sigCheck = typeutil.HasAsSig
-
-	default:
-		return // Not an error-related function
+	matchSignature := typeutil.SignatureCheckFor(f.Name.Name)
+	if matchSignature == nil { // Not an error-related function
+		return
 	}
 
 	fun, ok := p.TypesInfo.Defs[f.Name].(*types.Func)
@@ -64,7 +56,11 @@ func (p Pass) handleMethodDecl(c inspector.Cursor, f *ast.FuncDecl) {
 		return // not an error type
 	}
 
-	if !sigCheck(sig) {
+	if astutil.HasNoLint(f.Doc, p.Analyzer.Name) {
+		return
+	}
+
+	if !matchSignature(sig) {
 		// also found by golang.org/x/tools/go/analysis/passes/stdmethods.
 		p.ReportRangef(f.Type, "Method %q has the wrong signature (et:sig)", fun.Name())
 
@@ -76,33 +72,58 @@ func (p Pass) handleMethodDecl(c inspector.Cursor, f *ast.FuncDecl) {
 	}
 
 	// check for an "Is" method declaration and hand over to body analysis.
-	if f.Name.Name == "Is" && f.Body != nil {
-		param := singleField(f.Type.Params)
-		if param == nil || param.Name == "_" {
+	if f.Name.Name == typeutil.IsName && f.Body != nil {
+		// TODO: unify this with the checkIsMethod below
+		param := singleParam(p.TypesInfo, f.Type.Params)
+		if param == nil {
 			return // An "Is" method without named target parameter is legal, but rare.
 		}
 
-		target, ok := p.TypesInfo.Defs[param].(*types.Var)
-		if !ok { // should not happen
-			p.ReportErrorf(param, "Can't determine parameter type of %q", param.Name)
-			return
-		}
-
 		body := c.ChildAt(edge.FuncDecl_Body, -1)
-		p.handleIs(body, target)
+		p.handleIs(body, param)
+
+		if !ptr || !typeutil.ZeroSized(tn.Type()) { // make an exception for pointers to zero-sized types.
+			p.checkIsMethod(tn, f.Type, f.Body)
+		}
 	}
 }
 
-// singleField checks if a field list contains exactly one field, which itself has at most one name.
-func singleField(f *ast.FieldList) *ast.Ident {
-	if f == nil || len(f.List) != 1 {
-		return nil
+func (p Pass) checkIsMethod(tn *types.TypeName, fType *ast.FuncType, body *ast.BlockStmt) {
+	q, ok := p.matchAssertionQuery(fType, body)
+	if !ok {
+		return
 	}
 
-	field := f.List[0]
-	if len(field.Names) != 1 {
-		return nil
+	if atn, _, ok := typeutil.TypeNameOf(types.Unalias(q.assertedType)); !ok || atn != tn {
+		return
 	}
 
-	return field.Names[0]
+	// If aliased, use the alias name
+	atn, ptr, ok := typeutil.TypeNameOf(q.assertedType)
+	if !ok {
+		return
+	}
+
+	name := shortNameOf(p.Pkg, atn, ptr)
+	p.Report(analysis.Diagnostic{
+		Pos:     fType.Pos(),
+		End:     fType.End(),
+		Message: fmt.Sprintf("Is method implementation makes errors.Is act as a type check; remove it and use errors.AsType[%s] at call sites (et:ias)", name),
+	})
+}
+
+func shortNameOf(current *types.Package, tn *types.TypeName, ptr bool) string {
+	name := types.TypeString(tn.Type(), func(pkg *types.Package) string {
+		if pkg == current {
+			return ""
+		}
+
+		return pkg.Name()
+	})
+
+	if ptr {
+		name = "*" + name
+	}
+
+	return name
 }

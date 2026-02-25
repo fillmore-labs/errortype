@@ -1,0 +1,49 @@
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+//go:build go1.27
+
+package testdata
+
+import "errors"
+
+type (
+	EmbVErr struct{ msg string } // want ` suggestion: "EmbVError"$`
+
+	EmbPErr struct{ msg string } // want ` suggestion: "EmbPError"$`
+
+	ErrEmbVContainer struct { // want ` suggestion: "EmbVContainerError"$`
+		EmbVErr
+	}
+
+	ErrEmbPContainer struct { // want ` suggestion: "EmbPContainerError"$`
+		EmbPErr
+	}
+)
+
+func (e EmbVErr) Error() string { return e.msg }
+
+func (e *EmbPErr) Error() string { return e.msg }
+
+func _() error {
+	err1 := ErrEmbVContainer{msg: "boom 1"}
+	_ = err1.EmbVErr
+
+	err2 := &ErrEmbPContainer{msg: "boom 2"}
+	_ = err2.EmbPErr
+
+	return errors.Join(err1, err2)
+}

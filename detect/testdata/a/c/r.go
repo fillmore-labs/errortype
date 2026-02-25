@@ -19,19 +19,19 @@ package c
 import "errors"
 
 type (
-	AmbiguousPointer   struct{ error }            // want AmbiguousPointer:"pointer"
-	AmbiguousValue     struct{ error }            // want AmbiguousValue:"value"
-	AmbiguousAmbiguous struct{ error }            // want AmbiguousAmbiguous:"undecided"
-	EmbeddedPointer    struct{ PointerDefault }   // want EmbeddedPointer:"pointer"
-	EmbeddedValue      struct{ ValueDefault }     // want EmbeddedValue:"undecided"
-	EmbeddedAmbiguous  struct{ EmbeddedDefault }  // want EmbeddedAmbiguous:"undecided"
-	EmbeddedPPointer   struct{ *PointerDefault }  // want EmbeddedPPointer:"undecided"
-	EmbeddedPValue     struct{ *ValueDefault }    // want EmbeddedPValue:"undecided"
-	EmbeddedPAmbiguous struct{ *EmbeddedDefault } // want EmbeddedPAmbiguous:"undecided"
+	AmbiguousPointerError   struct{ error }                 // want AmbiguousPointerError:"pointer"
+	AmbiguousValueError     struct{ error }                 // want AmbiguousValueError:"value"
+	AmbiguousAmbiguousError struct{ error }                 // want AmbiguousAmbiguousError:"undecided"
+	EmbeddedPointerError    struct{ PointerDefaultError }   // want EmbeddedPointerError:"pointer"
+	EmbeddedValueError      struct{ ValueDefaultError }     // want EmbeddedValueError:"undecided"
+	EmbeddedAmbiguousError  struct{ EmbeddedDefaultError }  // want EmbeddedAmbiguousError:"undecided"
+	EmbeddedPPointerError   struct{ *PointerDefaultError }  // want EmbeddedPPointerError:"undecided"
+	EmbeddedPValueError     struct{ *ValueDefaultError }    // want EmbeddedPValueError:"undecided"
+	EmbeddedPAmbiguousError struct{ *EmbeddedDefaultError } // want EmbeddedPAmbiguousError:"undecided"
 )
 
-func (a *AmbiguousPointer) As(target any) bool { return errors.As(a.error, target) }
-func (a AmbiguousValue) Unwrap() error         { return a.error }
+func (a *AmbiguousPointerError) As(target any) bool { return errors.As(a.error, target) }
+func (a AmbiguousValueError) Unwrap() error         { return a.error }
 
-func (a AmbiguousAmbiguous) As() error               { return a.error }
-func (a *AmbiguousAmbiguous) Unwrap(target any) bool { return errors.As(a.error, target) }
+func (a AmbiguousAmbiguousError) As() error               { return a.error }
+func (a *AmbiguousAmbiguousError) Unwrap(target any) bool { return errors.As(a.error, target) }

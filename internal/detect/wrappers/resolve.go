@@ -25,41 +25,49 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// resolveCandidate traverses the AST of a wrapper candidate to find internal calls to known wrappers or other candidates.
-func resolveCandidate(info *types.Info, cand *wrapperCandidate, wrapperCandidates map[*types.Func]*wrapperCandidate, known, wrappers result.ErrorFuncs) {
-	// We do not use [golang.org/x/tools/go/ast/inspector.Inspector] here since we assume most packages don't contain wrappers.
-	for n := range ast.Preorder(cand.body) {
-		switch n := n.(type) {
-		case *ast.CallExpr:
-			if matchCall(info, cand, n, wrapperCandidates, known, wrappers) {
-				propagate(wrappers, cand)
-				return // first matching call only
-			}
+// resolveCandidates traverses the AST of wrapper candidates to find internal calls to known wrappers or other candidates.
+func resolveCandidates(info *types.Info, wrapperCandidates map[types.Object]*wrapperCandidate, known result.ErrorFuncs) result.ErrorFuncs {
+	wrappers := make(result.ErrorFuncs)
 
-		case *ast.AssignStmt:
-			for _, lhs := range n.Lhs {
-				if matchArgs(info, lhs, cand.srcVar, cand.tgtVar) {
-					return // Argument is modified
+	for _, cand := range wrapperCandidates {
+		// We do not use [golang.org/x/tools/go/ast/inspector.Inspector] here since we assume
+		// most packages don't contain wrappers, and when, they are few and small.
+	bodyanalysis:
+		for n := range ast.Preorder(cand.body) {
+			switch n := n.(type) {
+			case *ast.CallExpr:
+				if matchCall(info, cand, n, wrapperCandidates, known, wrappers) {
+					propagate(wrappers, cand)
+					break bodyanalysis // first matching call only
 				}
-			}
 
-		case *ast.UnaryExpr:
-			if n.Op == token.AND {
-				if matchArgs(info, n.X, cand.srcVar, cand.tgtVar) {
-					return // Argument has address taken
+			case *ast.AssignStmt:
+				for _, lhs := range n.Lhs {
+					if matchArgs(info, lhs, cand.srcVar, cand.tgtVar) {
+						break bodyanalysis // Argument is modified
+					}
+				}
+
+			case *ast.UnaryExpr:
+				if n.Op == token.AND {
+					if matchArgs(info, n.X, cand.srcVar, cand.tgtVar) {
+						break bodyanalysis // Argument has address taken
+					}
 				}
 			}
 		}
 	}
+
+	return wrappers
 }
 
-func matchCall(info *types.Info, cand *wrapperCandidate, call *ast.CallExpr, wrapperCandidates map[*types.Func]*wrapperCandidate, known, wrappers result.ErrorFuncs) bool {
+func matchCall(info *types.Info, cand *wrapperCandidate, call *ast.CallExpr, wrapperCandidates map[types.Object]*wrapperCandidate, known, wrappers result.ErrorFuncs) bool {
 	fun, ok := typeutil.FuncOf(info, call)
 	if !ok {
 		return false // Could not resolve the function, might be a func variable.
 	}
 
-	// 1. Is it a call to an already known wrapper?
+	// Is it a call to an already known wrapper?
 	ef, ok := known[fun.Func]
 	if !ok {
 		ef, ok = wrappers[fun.Func]
@@ -69,7 +77,7 @@ func matchCall(info *types.Info, cand *wrapperCandidate, call *ast.CallExpr, wra
 		return checkKnownWrapper(info, fun, call.Args, ef, cand)
 	}
 
-	// 2. Is it a call to another wrapperCandidate wrapper?
+	// Is it a call to another wrapperCandidate wrapper?
 	if callee, ok := wrapperCandidates[fun.Func]; ok {
 		registerCaller(info, fun, call.Args, callee, cand)
 	}
@@ -79,11 +87,11 @@ func matchCall(info *types.Info, cand *wrapperCandidate, call *ast.CallExpr, wra
 
 func checkKnownWrapper(info *types.Info, fun typeutil.ResolvedFunc, args []ast.Expr, ef result.ErrorFunc, cand *wrapperCandidate) bool {
 	switch typ := cand.errorFunc.Type; typ {
-	case result.WrapperIs, result.WrapperAs:
-		return matchIsAs(info, fun, args, ef, typ, cand.srcVar, cand.tgtVar)
+	case result.WrapperIs, result.WrapperAs, result.WrapperErrorf:
+		return matchWrapperArgs(info, fun, args, ef, typ, cand.srcVar, cand.tgtVar)
 
 	case result.WrapperAsType:
-		return matchAsType(info, fun, args, ef, cand.srcVar, cand.tParam)
+		return matchWrapperType(info, fun, args, ef, cand.srcVar, cand.tParam)
 	}
 
 	return false
@@ -91,13 +99,13 @@ func checkKnownWrapper(info *types.Info, fun typeutil.ResolvedFunc, args []ast.E
 
 func registerCaller(info *types.Info, fun typeutil.ResolvedFunc, args []ast.Expr, callee, cand *wrapperCandidate) {
 	switch typ := cand.errorFunc.Type; typ {
-	case result.WrapperIs, result.WrapperAs:
-		if matchIsAs(info, fun, args, callee.errorFunc, typ, cand.srcVar, cand.tgtVar) {
+	case result.WrapperIs, result.WrapperAs, result.WrapperErrorf:
+		if matchWrapperArgs(info, fun, args, callee.errorFunc, typ, cand.srcVar, cand.tgtVar) {
 			callee.callers = append(callee.callers, cand)
 		}
 
 	case result.WrapperAsType:
-		if matchAsType(info, fun, args, callee.errorFunc, cand.srcVar, cand.tParam) {
+		if matchWrapperType(info, fun, args, callee.errorFunc, cand.srcVar, cand.tParam) {
 			callee.callers = append(callee.callers, cand)
 		}
 	}
@@ -121,8 +129,7 @@ func propagate(wrappers result.ErrorFuncs, cand *wrapperCandidate) {
 			// AsType calling As
 
 		default:
-			// Mismatched wrapper types
-			continue
+			continue // Mismatched wrapper types
 		}
 
 		propagate(wrappers, caller)

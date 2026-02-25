@@ -27,16 +27,16 @@ func ErrorIs() error {
 
 	switch rand.Int() {
 	case 0:
-		err = c.ErrorWithIs1{} // want "POINTER"
+		err = c.WithIs1Error{} // want "POINTER"
 
 	case 1:
-		err = c.ErrorWithIs2{} // want "UNDECIDED"
+		err = c.WithIs2Error{} // want "UNDECIDED"
 
 	case 2:
-		err = c.ErrorWithoutIs1{} // want "UNDECIDED"
+		err = c.WithoutIs1Error{} // want "UNDECIDED"
 
 	case 3:
-		err = c.ErrorWithoutIs2{} // want "UNDECIDED"
+		err = c.WithoutIs2Error{} // want "UNDECIDED"
 
 	default:
 		err = nil

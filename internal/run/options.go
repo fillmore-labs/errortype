@@ -22,32 +22,25 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	"fillmore-labs.com/errortype/internal/analyze"
+	"fillmore-labs.com/errortype/internal/detect"
 )
 
 // Options provide configurations for analysis passes, including type detection and AST-related behavior customization.
 type Options struct {
-	analyze.Options
-
-	DetectTypes *analysis.Analyzer
-
+	DetectOptions *detect.Options
+	DetectTypes   *analysis.Analyzer
 	// Suggest appends suggestions to a file
-	Suggest string
-
+	Suggest      string
 	suggestwrite sync.Mutex
+	Options      analyze.Options
 }
 
 // DefaultOptions returns a [Options] struct initialized with default values.
 func DefaultOptions() *Options {
 	return &Options{ // Default options
-		Options:     analyze.DefaultOptions,
-		DetectTypes: nil,
-		Suggest:     "",
+		DetectOptions: detect.DefaultOptions(),
+		DetectTypes:   nil,
+		Suggest:       "",
+		Options:       analyze.DefaultOptions,
 	}
-}
-
-// SetOption modifies the state of a specific option flag in the Options configuration
-// based on the provided boolean value. The flag parameter should be a single option
-// constant (e.g., [analyze.OptionCheckIs], [analyze.OptionStyleCheck]).
-func (o *Options) SetOption(flag analyze.Options, v bool) {
-	analyze.SetOption(&o.Options, flag, v)
 }

@@ -23,6 +23,8 @@
 //   - Incorrect type assertions on error types
 //   - Misuse of errors.As with wrong pointer/value semantics
 //   - Switch statements with inconsistent error type handling
+//   - Errors wrapped with the wrong pointer/value form by %w verbs in
+//     fmt.Errorf-style calls
 //
 // This package integrates with the golang.org/x/tools/go/analysis framework
 // and depends on the internal/detect package for error type discovery.

@@ -28,7 +28,7 @@ import (
 
 	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/analyze"
-	"fillmore-labs.com/errortype/internal/naming"
+	"fillmore-labs.com/errortype/internal/astutil"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -38,15 +38,15 @@ var ErrResultMissing = errors.New("analyzer result missing")
 // Run executes the analysis pass using the provided options. It processes detected types,
 // analyzes the abstract syntax tree (AST), and calculates the final result. If any step fails,
 // an error is returned. Otherwise, the computed result is returned.
-func (o *Options) Run(ap *analysis.Pass) (any, error) {
-	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+func (o *Options) Run(pass *analysis.Pass) (any, error) {
+	in, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
+		return nil, fmt.Errorf("%s: %w", inspect.Analyzer.Name, ErrResultMissing)
 	}
 
-	detectedResult, ok := ap.ResultOf[o.DetectTypes].(result.Result)
+	detectedResult, ok := pass.ResultOf[o.DetectTypes].(result.Result)
 	if !ok {
-		return nil, fmt.Errorf("errortype: %s: %w", o.DetectTypes.Name, ErrResultMissing)
+		return nil, fmt.Errorf("%s: %w", o.DetectTypes.Name, ErrResultMissing)
 	}
 
 	ctx := context.Background()
@@ -55,22 +55,20 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	defer task.End()
 
 	if trace.IsEnabled() {
-		trace.Log(ctx, "pkg", typeutil.PkgPath(ap))
+		trace.Log(ctx, "pkg", typeutil.PkgPath(pass.Fset, pass.Pkg))
 	}
 
-	if o.Naming() {
-		naming.CheckNaming(ctx, ap)
+	p := analyze.NewPass(pass, detectedResult, o.Options)
+
+	fileMap := astutil.NewFileMap(pass.Fset, pass.Files)
+	if err := p.ProcessAST(ctx, in, fileMap); err != nil {
+		return nil, err
 	}
-
-	p := analyze.NewPass(ap, detectedResult, o.Options)
-
-	p.ProcessAST(ctx, in)
 
 	if o.Suggest != "" {
 		suggestions := p.Suggestions(ctx)
 
-		pkgPath := typeutil.PkgPath(p.Pass)
-
+		pkgPath := typeutil.PkgPath(pass.Fset, pass.Pkg)
 		if err := o.writeSuggestions(ctx, suggestions, pkgPath); err != nil {
 			return nil, err
 		}

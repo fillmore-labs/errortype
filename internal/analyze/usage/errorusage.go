@@ -49,3 +49,10 @@ func (e ErrorUsage) ProcessDetectedTypes(eTypes result.ErrorTypes) {
 		e[tn] = usage
 	}
 }
+
+// IsValueError returns whether the given type name should be a value error.
+func (e ErrorUsage) IsValueError(tn *types.TypeName) bool {
+	usage, ok := e[tn]
+
+	return ok && usage&ExpectedMask == ValueExpected
+}

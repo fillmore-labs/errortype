@@ -18,6 +18,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,7 +26,7 @@ import (
 	"fillmore-labs.com/errortype/internal/overrides"
 )
 
-func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) error {
+func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) (err error) {
 	if o.Suggest == "" || (len(suggestions.Types) == 0 && len(suggestions.Wrappers) == 0) {
 		return nil
 	}
@@ -37,14 +38,16 @@ func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Ov
 	if o.Suggest == "-" {
 		out = os.Stdout
 	} else {
-		var err error
-
-		out, err = os.OpenFile(filepath.Clean(o.Suggest), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o666) //nolint:gosec
+		out, err = os.OpenFile(filepath.Clean(o.Suggest), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0o644) // #nosec G302 -- no sensitive data.
 		if err != nil {
 			return fmt.Errorf("can't write suggestion file: %w", err)
 		}
 
-		defer out.Close() // ignore error
+		defer func() {
+			if closeErr := out.Close(); closeErr != nil {
+				err = errors.Join(err, closeErr)
+			}
+		}()
 	}
 
 	return overrides.Write(ctx, out, suggestions, pkgPath)

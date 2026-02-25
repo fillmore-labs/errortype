@@ -44,13 +44,13 @@ func TestAnalyzerInternal(t *testing.T) {
 	analysistest.Run(t, testdata, testAnalyzer, "test/internal")
 }
 
-func run(ap *analysis.Pass) (any, error) {
-	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+func run(pass *analysis.Pass) (any, error) {
+	in, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
 		return nil, fmt.Errorf("testanalyzer: %s reuslt missing", inspect.Analyzer.Name)
 	}
 
-	p := NewPass(ap, result.Result{}, DefaultOptions)
+	p := NewPass(pass, result.Result{}, DefaultOptions)
 
 	var count int
 	for n := range inspector.All[*ast.ValueSpec](in) {

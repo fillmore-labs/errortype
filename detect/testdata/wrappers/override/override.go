@@ -28,6 +28,16 @@ func AsType[E error](err error) (E, bool) { // want AsType:`astype\(0, 0\)`
 	return *new(E), false
 }
 
+func Errorf(format string, a ...any) error { // want Errorf:`errorf\(0, 1\)`
+	return nil
+}
+
+func WrapsIs(err, target error) bool { // want WrapsIs:`is\(0, 1\)`
+	return Is(err, target)
+}
+
+type suite struct{}
+
 func (suite) Is(err, target error) bool { // want Is:`is\(0, 1\)`
 	return false
 }
@@ -36,4 +46,6 @@ func (suite) As(err error, target any) bool { // want As:`as\(0, 1\)`
 	return false
 }
 
-type suite struct{}
+func (suite) Errorf(format string, a ...any) error { // want Errorf:`errorf\(0, 1\)`
+	return nil
+}

@@ -1,5 +1,5 @@
 ---
-version: "2"
+version: '2'
 
 run:
   modules-download-mode: readonly
@@ -18,23 +18,21 @@ formatters:
         - fillmore-labs.com/errortype
 
 linters:
+  default: none
   enable:
     # keep-sorted start
     - copyloopvar
     - errcheck
     - exptostd
-    - gocheckcompilerdirectives
     - gochecksumtype
     - gocritic
     - godot
     - goheader
-    - gomoddirectives
     - gosec
     - govet
     - iface
     - inamedparam
     - ineffassign
-    - intrange
     - mirror
     - misspell
     - modernize
@@ -50,7 +48,6 @@ linters:
     - tagliatelle
     - testableexamples
     - thelper
-    - tparallel
     - unconvert
     - unused
     - usestdlibvars
@@ -66,8 +63,7 @@ linters:
         description: errortype helps prevent subtle bugs in error handling.
         original-url: https://fillmore-labs.com/errortype
         settings:
-          naming: true
-          style-check: true
+          recommended: true
           check-unused: true
           unchecked-assert: true
           check-is: true
@@ -79,7 +75,6 @@ linters:
           scopes.
         original-url: https://fillmore-labs.com/scopeguard
         settings:
-          conservative: true
           max-lines: 10
     # keep-sorted start
     errcheck:
@@ -89,15 +84,17 @@ linters:
         - (io/fs.File).Close
         - (*os.File).Close
         - (*github.com/goccy/go-yaml.Encoder).Close
+        - (*github.com/modelcontextprotocol/go-sdk/mcp.ClientSession).Close
+        - (*github.com/modelcontextprotocol/go-sdk/mcp.ServerSession).Close
       verbose: true
     goheader:
       values:
         const:
           AUTHOR: Oliver Eikemeier
         regexp:
-          RANGE: '((2025\-2026)|2025|2026)'
+          RANGE: ((2025-2026)|2025|2026)
       template: |-
-        Copyright {{ RANGE }} {{ AUTHOR }}. All Rights Reserved.
+        Copyright {{RANGE}} {{AUTHOR}}. All Rights Reserved.
 
         Licensed under the Apache License, Version 2.0 (the "License");
         you may not use this file except in compliance with the License.
@@ -112,12 +109,6 @@ linters:
         limitations under the License.
 
         SPDX-License-Identifier: Apache-2.0
-    govet:
-      enable-all: true
-      disable:
-        - errorsas
-        - fieldalignment
-        - shadow
     gosec:
       config:
         G104:
@@ -125,10 +116,19 @@ linters:
             - Fprint
           format:
             - Node
+      excludes:
+        - G304
+        - G703
+    govet:
+      enable-all: true
+      disable:
+        - errorsas
+        - fieldalignment
+        - shadow
     nlreturn:
       block-size: 2
     predeclared:
-      ignore: ["new"]
+      ignore: ['new']
     revive:
       rules:
         # keep-sorted start
@@ -137,12 +137,11 @@ linters:
         - name: context-as-argument
         - name: context-keys-type
         - name: dot-imports
-          exclude: ["TEST"]
+          exclude: ['TEST']
         - name: early-return
           arguments:
             - allow-jump: true
         - name: empty-block
-        - name: error-naming
         - name: error-return
         - name: error-strings
         - name: errorf
@@ -160,24 +159,28 @@ linters:
         - name: var-declaration
         - name: var-naming
           # keep-sorted end
+    staticcheck:
+      checks:
+        - all
+        - -ST1000
+        - -ST1012
     tagliatelle:
       case:
         rules:
-          json: kebab
+          json: snake
           yaml: kebab
         use-field-name: true
+        overrides:
+          - pkg: gclplugin
+            rules:
+              json: kebab
     wsl_v5:
       disable:
         - assign
         # keep-sorted end
   exclusions:
-    rules:
-      - path: examples/
-        source: .
-      - path: ^main\.go$
-        linters:
-          - gocheckcompilerdirectives
-        text: "go:debug"
+    paths:
+      - ^examples/
 
 output:
   sort-order: [file, linter]

@@ -17,55 +17,55 @@
 package c
 
 type (
-	ValueDefault    struct{}          // want ValueDefault:"value"
-	ValueFunc       struct{}          // want ValueFunc:"value"
-	ValueVar        struct{}          // want ValueVar:"value"
-	PointerDefault  struct{}          // want PointerDefault:"pointer"
-	PointerFunc     struct{}          // want PointerFunc:"pointer"
-	PointerVar      struct{}          // want PointerVar:"pointer"
-	EmbeddedDefault struct{ error }   // want EmbeddedDefault:"undecided"
-	EmbeddedFunc    struct{ error }   // want EmbeddedFunc:"pointer"
-	EmbeddedVar     struct{ error }   // want EmbeddedVar:"value"
-	Alias           = ValueDefault    // want Alias:"value"
-	PointerAlias    = *PointerDefault // want PointerAlias:"value"
+	ValueDefaultError    struct{}               // want ValueDefaultError:"value"
+	ValueFuncError       struct{}               // want ValueFuncError:"value"
+	ValueVarError        struct{}               // want ValueVarError:"value"
+	PointerDefaultError  struct{}               // want PointerDefaultError:"pointer"
+	PointerFuncError     struct{}               // want PointerFuncError:"pointer"
+	PointerVarError      struct{}               // want PointerVarError:"pointer"
+	EmbeddedDefaultError struct{ error }        // want EmbeddedDefaultError:"undecided"
+	EmbeddedFuncError    struct{ error }        // want EmbeddedFuncError:"pointer"
+	EmbeddedVarError     struct{ error }        // want EmbeddedVarError:"value"
+	AliasError           = ValueDefaultError    // want AliasError:"value"
+	PointerAliasError    = *PointerDefaultError // want PointerAliasError:"value"
 )
 
-func (ValueDefault) Error() string { return "" } // value type
-func (ValueFunc) Error() string    { return "" } // overwritten by func
-func (ValueVar) Error() string     { return "" } // overwritten by var
+func (ValueDefaultError) Error() string { return "" } // value type
+func (ValueFuncError) Error() string    { return "" } // overwritten by func
+func (ValueVarError) Error() string     { return "" } // overwritten by var
 
-func (*PointerDefault) Error() string { return "" } // pointer type
-func (PointerFunc) Error() string     { return "" } // overwritten by func
-func (PointerVar) Error() string      { return "" } // overwritten by var
+func (*PointerDefaultError) Error() string { return "" } // pointer type
+func (PointerFuncError) Error() string     { return "" } // overwritten by func
+func (PointerVarError) Error() string      { return "" } // overwritten by var
 
-func NewValueFunc() error { return ValueFunc{} } // value type
-func NewValueVar() error  { return &ValueVar{} } // overwritten by var
+func NewValueFunc() error { return ValueFuncError{} } // value type
+func NewValueVar() error  { return &ValueVarError{} } // overwritten by var
 
-func NewPointerFunc() error { return &PointerFunc{} } // pointer type
-func NewPointerVar() error  { return PointerVar{} }   // overwritten by var
+func NewPointerFunc() error { return &PointerFuncError{} } // pointer type
+func NewPointerVar() error  { return PointerVarError{} }   // overwritten by var
 
-func NewEmbeddedFunc() error { return &EmbeddedFunc{} } // pointer type
-func NewEmbeddedVar() error  { return &EmbeddedVar{} }  // overwritten by var
+func NewEmbeddedFunc() error { return &EmbeddedFuncError{} } // pointer type
+func NewEmbeddedVar() error  { return &EmbeddedVarError{} }  // overwritten by var
 
-func NewEmbeddedDefault1() error { return EmbeddedDefault{} }  // contradictory, ignored
-func NewEmbeddedDefault2() error { return &EmbeddedDefault{} } // contradictory, ignored
+func NewEmbeddedDefault1() error { return EmbeddedDefaultError{} }  // contradictory, ignored
+func NewEmbeddedDefault2() error { return &EmbeddedDefaultError{} } // contradictory, ignored
 
-func NewPointerDefault() any { return PointerDefault{} } // ignored, doesn't implement error
+func NewPointerDefault() any { return PointerDefaultError{} } // ignored, doesn't implement error
 
 func Ignored() error {
-	err := func() error { return ValueDefault{} }()
+	err := func() error { return ValueDefaultError{} }()
 
 	return err
 }
 
 var (
-	_ error = ValueVar{} // value type
+	_ error = ValueVarError{} // value type
 
-	_ error = (*PointerVar)(nil) // pointer type
+	_ error = (*PointerVarError)(nil) // pointer type
 
-	_ error = EmbeddedVar{} // value type
+	_ error = EmbeddedVarError{} // value type
 
-	_, _ error = EmbeddedDefault{}, (*EmbeddedDefault)(nil) // contradictory, ignored
+	_, _ error = EmbeddedDefaultError{}, (*EmbeddedDefaultError)(nil) // contradictory, ignored
 
 	// _ error = PointerDefault{} // type error.
 )

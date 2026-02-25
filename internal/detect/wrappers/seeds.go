@@ -30,13 +30,13 @@ func LookupSeeds(pkg *types.Package) result.ErrorFuncs {
 		return nil
 	}
 
-	return LookupWrappers(pkg.Scope(), pkgFuncs)
+	return LookupWrappers(pkg, pkgFuncs, false)
 }
 
 // ExplicitWrapper defines a function to be recognized as a specific type of error wrapper.
 type ExplicitWrapper struct {
 	typeutil.LocalFuncName
-	Typ result.WrapperType
+	Type result.WrapperType
 }
 
 // _seeds are seed values that would otherwise not be recognized.
@@ -45,6 +45,9 @@ var _seeds = map[string][]ExplicitWrapper{
 		{typeutil.LocalFuncName{Name: "Is"}, result.WrapperIs},
 		{typeutil.LocalFuncName{Name: "As"}, result.WrapperAs},
 		{typeutil.LocalFuncName{Name: "AsType"}, result.WrapperAsType},
+	},
+	"fmt": {
+		{typeutil.LocalFuncName{Name: "Errorf"}, result.WrapperErrorf},
 	},
 	"reflect": {
 		{typeutil.LocalFuncName{Name: "TypeAssert"}, result.FuncAssert},

@@ -30,16 +30,16 @@ import (
 // createResult combines all determined type information into the final analyzer result.
 // It merges types from the current package and dependencies (facts) and local overrides,
 // with local overrides having the highest precedence.
-func (p pass) createResult(ctx context.Context, eTypes result.ErrorTypes) result.Result {
+func (d dpass) createResult(ctx context.Context, eTypes result.ErrorTypes) result.Result {
 	defer trace.StartRegion(ctx, "result").End()
 
-	for tn, prop := range p.ErrorTypes {
+	for tn, prop := range d.ErrorTypes {
 		errorType := prop.DeterminedType()
 
-		if p.inCurrentPkg(tn) {
+		if d.inCurrentPkg(tn) {
 			// Export this information as a fact when the type is defined in the current package.
 			// These facts can then be consumed by analyzers running on packages dependent on this one.
-			p.ExportObjectFact(tn, errorType.Fact())
+			d.ExportObjectFact(tn, errorType.Fact())
 		}
 
 		// Add type to the result.
@@ -48,14 +48,14 @@ func (p pass) createResult(ctx context.Context, eTypes result.ErrorTypes) result
 	}
 
 	// Convert map to slice for the result.
-	return result.New(eTypes, p.ErrorFuncs)
+	return result.New(eTypes, d.ErrorFuncs)
 }
 
-func (p pass) extractFacts() (result.ErrorTypes, result.ErrorFuncs) {
+func (d dpass) extractFacts() (result.ErrorTypes, result.ErrorFuncs) {
 	eTypes := make(result.ErrorTypes)
 	eFuncs := make(result.ErrorFuncs)
 
-	for _, fact := range p.AllObjectFacts() {
+	for _, fact := range d.AllObjectFacts() {
 		switch f := fact.Fact.(type) {
 		case *result.ErrorType:
 			if tn, ok := fact.Object.(*types.TypeName); ok {
@@ -63,9 +63,7 @@ func (p pass) extractFacts() (result.ErrorTypes, result.ErrorFuncs) {
 			}
 
 		case *result.ErrorFunc:
-			if fn, ok := fact.Object.(*types.Func); ok {
-				eFuncs[fn] = *f
-			}
+			eFuncs[fact.Object] = *f
 		}
 	}
 
@@ -82,11 +80,11 @@ func (w wrapperType) cmp(o wrapperType) int {
 }
 
 // logResults logs the properties and the determined error type for each type in the PropertyMap.
-func (p pass) logResults(_ context.Context, logger *log.Logger) {
-	pkgPath := typeutil.PkgPath(p.Pass)
-	qf := types.RelativeTo(p.Pkg)
+func (d dpass) logResults(_ context.Context, logger *log.Logger) {
+	pkgPath := typeutil.PkgPath(d.Fset, d.Pkg)
+	qf := types.RelativeTo(d.Pkg)
 
-	for tn, errortype := range p.ErrorTypes.AllSorted {
+	for tn, errortype := range d.ErrorTypes.AllSorted {
 		typeName := types.TypeString(tn.Type(), qf)
 		determinedType := errortype.DeterminedType()
 
@@ -95,8 +93,8 @@ func (p pass) logResults(_ context.Context, logger *log.Logger) {
 
 	var wrappers []wrapperType
 
-	for fun, wrapper := range p.ErrorFuncs {
-		if fun.Pkg() != p.Pkg {
+	for fun, wrapper := range d.ErrorFuncs {
+		if fun.Pkg() != d.Pkg {
 			continue
 		}
 

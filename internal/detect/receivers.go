@@ -23,13 +23,12 @@ import (
 
 	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect/properties"
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-func (p pass) processReceivers(ctx context.Context) {
+func (d dpass) processReceivers(ctx context.Context) {
 	defer trace.StartRegion(ctx, "receivers").End()
 
-	for tn, errorType := range p.ErrorTypes {
+	for tn, errorType := range d.ErrorTypes {
 		if errorType.DeterminedType() != result.Undecided {
 			continue
 		}
@@ -49,7 +48,7 @@ func (p pass) processReceivers(ctx context.Context) {
 			property = properties.PointerReceivers
 		}
 
-		p.ErrorTypes[tn] |= property
+		d.ErrorTypes[tn] |= property
 	}
 }
 
@@ -62,7 +61,7 @@ func pureReceivers(named *types.Named) (ptr, ok bool) {
 	first := true
 
 	for m := range named.Methods() {
-		switch _, ptrcv := typeutil.IsPointerReceiver(m.Signature().Recv()); {
+		switch _, ptrcv := isPointerReceiver(m.Signature().Recv()); {
 		case first:
 			ptr, ok = ptrcv, true
 			first = false
@@ -73,4 +72,18 @@ func pureReceivers(named *types.Named) (ptr, ok bool) {
 	}
 
 	return ptr, ok
+}
+
+// isPointerReceiver determines whether the given method receiver is a pointer.
+// It returns true if the receiver is a pointer type, and false otherwise.
+func isPointerReceiver(recv *types.Var) (elem types.Type, ptr bool) {
+	if recv == nil {
+		return nil, false // Not a method
+	}
+
+	if p, ok := types.Unalias(recv.Type()).(*types.Pointer); ok {
+		return p.Elem(), true
+	}
+
+	return nil, false
 }

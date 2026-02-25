@@ -26,8 +26,7 @@ import (
 
 const maxParamIndex = math.MaxInt8 - 1 // reserves room for srcIdx+1 in int8
 
-func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.ErrorFunc, bool) {
-	sig := fun.Signature()
+func findParameters(sig *types.Signature, wrapperType result.WrapperType) (result.ErrorFunc, bool) {
 	params := sig.Params()
 
 	switch nParams := min(params.Len(), maxParamIndex); wrapperType {
@@ -37,7 +36,7 @@ func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.Err
 			break
 		}
 
-		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec:G115 -- limited by nParams
+		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec G115 -- limited by nParams.
 
 	case result.WrapperAs:
 		srcIdx := firstErrorParameter(params, nParams-1)
@@ -45,7 +44,7 @@ func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.Err
 			break
 		}
 
-		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec:G115 -- limited by nParams
+		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec G115 -- limited by nParams.
 
 	case result.WrapperAsType:
 		srcIdx := firstErrorParameter(params, nParams)
@@ -61,7 +60,19 @@ func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.Err
 			break
 		}
 
-		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(tgtIdx)}, true // #nosec:G115 -- limited by nParams, nTParams
+		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(tgtIdx)}, true // #nosec G115 -- limited by nParams, nTParams.
+
+	case result.WrapperErrorf:
+		if !sig.Variadic() {
+			break
+		}
+
+		srcIdx := params.Len() - 2
+		if srcIdx < 0 || srcIdx >= maxParamIndex || params.At(srcIdx).Type() != types.Typ[types.String] {
+			break
+		}
+
+		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true
 
 	case result.FuncIsType, result.FuncEqual:
 		srcIdx := firstAnyParameter(params, nParams-1)
@@ -69,7 +80,7 @@ func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.Err
 			break
 		}
 
-		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec:G115 -- limited by nParams
+		return result.ErrorFunc{Type: wrapperType, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, true // #nosec G115 -- limited by nParams.
 
 	case result.FuncAssert:
 		tParams := sig.TypeParams()
@@ -83,7 +94,7 @@ func findParameters(fun *types.Func, wrapperType result.WrapperType) (result.Err
 		return result.ErrorFunc{
 			Type:   wrapperType,
 			Source: -1,
-			Target: int8(tgtIdx), // #nosec:G115 -- limited by nTParams
+			Target: int8(tgtIdx), // #nosec G115 -- limited by nTParams.
 		}, true
 	}
 

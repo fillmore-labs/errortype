@@ -14,47 +14,41 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-//go:build go1.25
-
 package a
 
 import (
+	"errors"
 	"math/rand/v2"
 	"reflect"
 )
 
 type (
-	PointerCast struct{ error } // want PointerCast:"pointer"
-	ValueCast   struct{ error } // want ValueCast:"value"
+	IsCalledError         struct{ error } // want IsCalledError:"pointer"
+	AsCalledError         struct{ error } // want AsCalledError:"pointer"
+	TypeAssertCalledError struct{ error } // want TypeAssertCalledError:"pointer"
 )
 
-func IsPointerCast(err error) bool {
-	v := reflect.ValueOf(err)
-	_, ok := reflect.TypeAssert[*PointerCast](v)
-
-	return ok
-}
-
-func IsValueCast(err error) bool {
-	v := reflect.ValueOf(err)
-	_, ok := reflect.TypeAssert[ValueCast](v)
-
-	return ok
-}
-
-func ReturnL() error {
-	var err error
+func ReturnL(err error) error {
+	_ = errors.Is(err, &IsCalledError{err})
+	_ = errors.As(err, new(*AsCalledError))
+	_, _ = reflect.TypeAssert[*TypeAssertCalledError](reflect.ValueOf(err))
 
 	switch rand.Int() {
 	case 0:
-		err = PointerCast{} // want "POINTER"
+		err = IsCalledError{} // want "POINTER"
 
 	case 1:
-		err = &ValueCast{} // want "VALUE"
+		err = AsCalledError{} // want "POINTER"
+
+	case 2:
+		err = TypeAssertCalledError{} // want "POINTER"
 
 	default:
 		err = nil
 	}
+
+	_ = func(error, error) bool { return false }(err, &IsCalledError{err})
+	_ = func(error, error) bool { return false }(err, IsCalledError{err})
 
 	return err
 }

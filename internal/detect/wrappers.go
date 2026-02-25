@@ -24,42 +24,36 @@ import (
 	"fillmore-labs.com/errortype/internal/detect/wrappers"
 )
 
+// WrapperOverrides maps a package path to a map of function names to their corresponding error wrapper metadata.
+type WrapperOverrides map[string][]wrappers.ExplicitWrapper
+
 // processWrappers finds functions wrapping error type checking functions like [errors.As] and [errors.Is].
-func (p pass) processWrappers(ctx context.Context, overrides WrapperOverrides) {
+func (d dpass) processWrappers(ctx context.Context, overrides WrapperOverrides, debug bool) {
 	defer trace.StartRegion(ctx, "wrappers").End()
 
-	pkg := p.Pkg
+	pkg := d.Pkg
 
-	// Seed with known functions.
+	// Seed with known functions for this package (e.g. the standard "errors" package).
 	if seeds := wrappers.LookupSeeds(pkg); len(seeds) > 0 {
-		p.exportWrappers(seeds)
+		d.exportWrappers(seeds)
 	}
 
-	var pkgOverrides []wrappers.ExplicitWrapper
-
-	for name, wrapperType := range overrides {
-		if name.Path != pkg.Path() {
-			continue
-		}
-
-		pkgOverrides = append(pkgOverrides, wrappers.ExplicitWrapper{LocalFuncName: name.LocalFuncName, Typ: wrapperType})
+	// Resolve explicit overrides for this package. These are authoritative: they
+	// participate as known wrappers during autodetection but are not themselves
+	// re-derived as candidates.
+	if pkgOverrides := overrides[pkg.Path()]; len(pkgOverrides) > 0 {
+		d.exportWrappers(wrappers.LookupWrappers(pkg, pkgOverrides, debug))
 	}
 
-	var funcs result.ErrorFuncs
-	if len(pkgOverrides) > 0 {
-		// Skip autodetection when the package is overridden
-		funcs = wrappers.LookupWrappers(pkg.Scope(), pkgOverrides)
-	} else {
-		funcs = wrappers.DetectWrappers(p.Pass, p.ErrorFuncs)
-	}
-
-	p.exportWrappers(funcs)
+	// Autodetect wrappers, treating imported facts, seeds, and overrides (all in p.ErrorFuncs)
+	// as the known set. Functions already classified are skipped as candidates.
+	d.exportWrappers(wrappers.DetectWrappers(d.TypesInfo, d.Files, d.ErrorFuncs))
 }
 
 // exportWrappers exposes the given wrapped functions to downstream analyzers.
-func (p pass) exportWrappers(funcs result.ErrorFuncs) {
+func (d dpass) exportWrappers(funcs result.ErrorFuncs) {
 	for fun, wrapper := range funcs {
-		p.ErrorFuncs[fun] = wrapper
-		p.ExportObjectFact(fun, &wrapper)
+		d.ErrorFuncs[fun] = wrapper
+		d.ExportObjectFact(fun, &wrapper)
 	}
 }

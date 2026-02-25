@@ -10,11 +10,19 @@ suppress:
 wrappers:
   is:
     - test/wrappers/override.Is
+    - test/wrappers/override.VarIs
     - (test/wrappers/override.suite).Is
     - (test/wrappers/override.Suite).Is
   as:
     - test/wrappers/override.As
+    - test/wrappers/override.VarAs
     - (test/wrappers/override.suite).As
     - (test/wrappers/override.Suite).As
   astype:
     - test/wrappers/override.AsType
+    - (test/wrappers/override.suite).AsType
+  errorf:
+    - test/wrappers/override.Errorf
+    - test/wrappers/override.VarErrorf
+    - (test/wrappers/override.suite).Errorf
+    - (test/wrappers/override.Suite).Errorf

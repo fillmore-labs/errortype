@@ -22,17 +22,17 @@ import (
 	"test/a/c"
 )
 
-type Interface interface{ error }
+type InterfaceError interface{ error }
 
-func NewInterface() Interface { return nil }
+func NewInterfaceError() InterfaceError { return nil }
 
 func NewStruct() error { return &struct{ error }{} }
 
-func NewValueDefault() *c.ValueDefault { return nil }
+func NewValueDefaultError() *c.ValueDefaultError { return nil }
 
 func NewAny() interface{} { return nil }
 
-var _ error = Interface(nil)
+var _ error = InterfaceError(nil)
 
 var _ error = (*struct{ error })(nil)
 
@@ -41,16 +41,16 @@ func Return2() error {
 
 	switch rand.Int() {
 	case 0:
-		err = NewInterface() // want "NOT IN RESULTS"
+		err = NewInterfaceError() // want "NOT IN RESULTS"
 
 	case 1:
 		err = NewStruct() // want "NOT IN RESULTS"
 
 	case 2:
-		err = NewValueDefault() // want "VALUE"
+		err = NewValueDefaultError() // want "VALUE"
 
 	case 3:
-		err = &c.ValueDefault{} // want "VALUE"
+		err = &c.ValueDefaultError{} // want "VALUE"
 
 	default:
 		err = nil

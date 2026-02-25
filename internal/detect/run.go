@@ -35,24 +35,26 @@ import (
 //
 // It then exports the determined properties as facts for downstream packages and
 // returns a result containing all relevant properties for the current analysis pass.
-func (o *Options) Run(ap *analysis.Pass) (any, error) {
+func (o *Options) Run(pass *analysis.Pass) (any, error) {
 	ctx := context.Background()
 
 	ctx, task := trace.NewTask(ctx, "detecttypes")
 	defer task.End()
 
 	if trace.IsEnabled() {
-		trace.Log(ctx, "pkg", typeutil.PkgPath(ap))
+		trace.Log(ctx, "pkg", typeutil.PkgPath(pass.Fset, pass.Pkg))
 	}
 
-	p := newPass(ap)
+	debug := o.Trace != nil && o.Trace.MatchString(pass.Pkg.Path())
+
+	p := newPass(pass)
 
 	// Add types from dependencies (via facts).
 	var eTypes result.ErrorTypes
 	eTypes, p.ErrorFuncs = p.extractFacts()
 
 	// Detect error wrappers in the current package.
-	p.processWrappers(ctx, o.WrapperOverrides)
+	p.processWrappers(ctx, o.WrapperOverrides, debug)
 
 	// Process type declarations in the current package.
 	p.processTypeDecls(ctx)
@@ -62,17 +64,17 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 		p.processOverrides(o.UsageOverrides)
 	}
 
-	if o.Heuristics&HeuristicVar != 0 && p.ErrorTypes.HasUndeterminedErrors() {
+	if o.Heuristics.Has(HeuristicVar) && p.ErrorTypes.HasUndeterminedErrors() {
 		// Process variable declarations, identifying properties for local types.
 		p.processVarDecls(ctx)
 	}
 
-	if o.Heuristics&HeuristicUsage != 0 && p.ErrorTypes.HasUndeterminedErrors() {
+	if o.Heuristics.Has(HeuristicUsage) && p.ErrorTypes.HasUndeterminedErrors() {
 		// Process error value usage in the current package.
 		p.processUsage(ctx)
 	}
 
-	if o.Heuristics&HeuristicReceivers != 0 && p.ErrorTypes.HasUndeterminedErrors() {
+	if o.Heuristics.Has(HeuristicReceivers) && p.ErrorTypes.HasUndeterminedErrors() {
 		// Last resort.
 		p.processReceivers(ctx)
 	}
@@ -80,7 +82,7 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	// Process alias declarations in the current package.
 	p.processAliases(ctx, eTypes)
 
-	if o.Trace != nil && o.Trace.MatchString(p.Pkg.Path()) {
+	if debug {
 		p.logResults(ctx, log.Default())
 	}
 

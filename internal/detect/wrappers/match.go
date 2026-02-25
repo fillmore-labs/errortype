@@ -24,8 +24,8 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// matchIsAs determines if the arguments of a function call match the expected arguments for an errors.Is or errors.As wrapper.
-func matchIsAs(
+// matchWrapperArgs determines if the arguments of a function call match the expected arguments for a wrapper.
+func matchWrapperArgs(
 	info *types.Info, fun typeutil.ResolvedFunc, args []ast.Expr, ef result.ErrorFunc,
 	wantType result.WrapperType, srcVar, tgtVar *types.Var,
 ) bool {
@@ -46,7 +46,7 @@ func matchIsAs(
 	return matchArg(info, args[src], srcVar) && matchArg(info, args[tgt], tgtVar)
 }
 
-func matchAsType(
+func matchWrapperType(
 	info *types.Info, fun typeutil.ResolvedFunc, args []ast.Expr, ef result.ErrorFunc,
 	srcVar *types.Var, tParam *types.TypeParam,
 ) bool {

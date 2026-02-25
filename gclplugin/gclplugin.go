@@ -23,7 +23,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 
 	errortype "fillmore-labs.com/errortype/analyzer"
-	"fillmore-labs.com/errortype/detect"
 )
 
 func init() {
@@ -37,12 +36,19 @@ func New(rawSettings any) (register.LinterPlugin, error) {
 		return nil, err
 	}
 
-	return Plugin{settings: settings}, nil
+	options, err := settings.options()
+	if err != nil {
+		return nil, fmt.Errorf("settings: %w", err)
+	}
+
+	p := Plugin{options: options}
+
+	return p, nil
 }
 
 // Plugin is the errortype linter as a [register.LinterPlugin].
 type Plugin struct {
-	settings Settings
+	options []errortype.Option
 }
 
 // GetLoadMode returns the golangci load mode.
@@ -52,17 +58,7 @@ func (Plugin) GetLoadMode() string {
 
 // BuildAnalyzers returns the [analysis.Analyzer]s for an errortype run.
 func (p Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
-	dopts := detectOption(p.settings)
-
-	d, err := detect.New(dopts...)
-	if err != nil {
-		return nil, fmt.Errorf("settings: %w", err)
-	}
-
-	eopts := p.settings.Options()
-	eopts = append(eopts, errortype.WithDetectTypes(d))
-
-	e, err := errortype.New(eopts...)
+	e, err := errortype.New(p.options...)
 	if err != nil {
 		return nil, fmt.Errorf("settings: %w", err)
 	}

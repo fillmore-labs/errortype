@@ -26,7 +26,7 @@ import (
 )
 
 // handleIs identifies calls of errors.Is inside Is(error) methods.
-func (p Pass) handleIs(body inspector.Cursor, target *types.Var) {
+func (p Pass) handleIs(body inspector.Cursor, param *types.Var) {
 	for c := range body.Preorder((*ast.CallExpr)(nil)) {
 		call := c.Node().(*ast.CallExpr)
 
@@ -52,12 +52,12 @@ func (p Pass) handleIs(body inspector.Cursor, target *types.Var) {
 		arg := call.Args[srcIdx]
 
 		codeSuffix := ""
-		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.TypesInfo.Uses[id] == target {
+		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.TypesInfo.Uses[id] == param {
 			codeSuffix = "+"
-		} else if !p.DeepIsCheck() {
+		} else if !p.Has(OptionDeepIsCheck) {
 			continue
 		}
 
-		p.ReportRangef(call, "An Is method should only shallowly compare %s. (et:unw%s)", target.Name(), codeSuffix)
+		p.ReportRangef(call, "An Is method should only shallowly compare %s. (et:unw%s)", param.Name(), codeSuffix)
 	}
 }

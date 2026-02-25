@@ -16,7 +16,12 @@
 
 package report
 
-import "go/types"
+import (
+	"go/ast"
+	"go/types"
+
+	"fillmore-labs.com/errortype/internal/typeutil"
+)
 
 // CheckStyle reports a diagnostic if the target of an errors.As-style function is not an address operation on a variable, suggesting a proper syntax.
 func (r ErrorsAs) CheckStyle(tn types.Type) {
@@ -28,7 +33,7 @@ func (r ErrorsAs) CheckStyle(tn types.Type) {
 		return // errors.As(err, new(..Error))
 	}
 
-	fname := r.exprToString(r.Fun)
+	fname := exprToString(r.Fset, r.Fun)
 
 	pkg := r.Pkg
 	qf := func(other *types.Package) string {
@@ -43,4 +48,16 @@ func (r ErrorsAs) CheckStyle(tn types.Type) {
 
 	r.ReportRangef(r.Expr, `Target is not an address operation on a variable, use "var target %s; ... %s(err, &target)" instead. (et:sty)`,
 		tname, fname)
+}
+
+// newWithType tests the target variable for the expression "new(T)".
+func (r ErrorsAs) newWithType() bool {
+	call, ok := ast.Unparen(r.Expr).(*ast.CallExpr)
+	if !ok || !typeutil.BuiltinNew(r.TypesInfo, call) {
+		return false
+	}
+
+	tv, ok := r.TypesInfo.Types[call.Args[0]]
+
+	return ok && tv.IsType()
 }

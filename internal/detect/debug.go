@@ -24,13 +24,13 @@ import (
 )
 
 // LogErrorf reports an internal ("should not happen") failure message.
-func (p pass) LogErrorf(n ast.Node, format string, args ...any) {
+func (d dpass) LogErrorf(n ast.Node, format string, args ...any) {
 	var sb strings.Builder
-	sb.WriteString("Internal error: ") // ignore error
-	fmt.Fprintf(&sb, format, args...)  // ignore error
-	sb.WriteByte('\n')                 // ignore error
+	_, _ = sb.WriteString("Internal error: ") // ignore error
+	_, _ = fmt.Fprintf(&sb, format, args...)  // ignore error
+	_ = sb.WriteByte('\n')                    // ignore error
 
-	ast.Fprint(&sb, p.Fset, n, ast.NotNilFilter) // ignore error
+	_ = ast.Fprint(&sb, d.Fset, n, ast.NotNilFilter) // ignore error
 
 	log.Println(sb.String())
 }

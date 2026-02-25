@@ -17,11 +17,8 @@
 package detect
 
 import (
-	"reflect"
-
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect"
 )
 
@@ -34,27 +31,14 @@ func New(opts ...Option) (*analysis.Analyzer, error) {
 		return nil, err
 	}
 
-	a := &analysis.Analyzer{
-		Name:             "detecttypes",
-		Doc:              "Determines how error types are used (pointer vs. value) for use by other analyzers.",
-		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/detect",
-		Run:              o.Run,
-		RunDespiteErrors: true,
-		FactTypes:        []analysis.Fact{(*result.ErrorType)(nil), (*result.ErrorFunc)(nil)},
-		ResultType:       reflect.TypeFor[result.Result](),
-	}
-
-	registerFlags(o, &a.Flags)
+	a := o.Analyzer()
 
 	return a, nil
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting error types in Go programs.
 var Analyzer = func() *analysis.Analyzer {
-	a, err := New()
-	if err != nil {
-		panic(err)
-	}
+	o := detect.DefaultOptions()
 
-	return a
+	return o.Analyzer()
 }()

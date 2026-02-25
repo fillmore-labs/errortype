@@ -18,7 +18,7 @@ package a
 
 import "errors"
 
-type GenericError[T any] struct{ _ T }
+type GenericError[T any] struct{ _ int }
 
 func (GenericError[T]) Error() string { return "" }
 

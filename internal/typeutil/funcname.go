@@ -25,9 +25,9 @@ import (
 	"strings"
 )
 
-// FuncName represents the fully qualified name of a function or method.
-// It deconstructs a function's identity into its constituent parts: package path,
-// receiver type, function name and ignores type parameters.
+// FuncName represents the fully qualified name of a function, method, or variable.
+// It deconstructs an identity into its constituent parts: package path,
+// receiver type, and name, ignoring type parameters.
 type FuncName struct {
 	// Path is the package path ("encoding/json").
 	Path string
@@ -36,27 +36,31 @@ type FuncName struct {
 	LocalFuncName
 }
 
-// LocalFuncName is a package-local name of a function or method.
+// LocalFuncName is a package-local name of a function, method, or variable.
 type LocalFuncName struct {
 	// Receiver is the name of the receiver type ("Decoder").
-	// It is empty for regular functions.
+	// It is empty for regular functions and variables.
 	Receiver string
 
-	// Name is the function or method name ("Decode").
+	// Name is the function, method, or variable name.
 	Name string
 }
 
-// FuncNameOf extracts the name components of a given *[types.Func].
-// It populates a FuncName struct, which is simplified and canonicalized
-// from fun.Fullname() and can then be used as a map index or to get a
-// string representation.
-func FuncNameOf(fun *types.Func) FuncName {
+// FuncNameOf extracts the name components of a given types.Object
+// (which can be a *types.Func or a *types.Var).
+// It populates a FuncName struct, which is simplified and canonicalized,
+// and can then be used as a map index or to get a string representation.
+func FuncNameOf(obj types.Object) FuncName {
 	var f FuncName
-	f.Name = fun.Name()
+	f.Name = obj.Name()
 
-	recv := fun.Signature().Recv()
+	var recv *types.Var
+	if fun, ok := obj.(*types.Func); ok {
+		recv = fun.Signature().Recv()
+	}
+
 	if recv == nil { // It's a regular function.
-		if pkg := fun.Pkg(); pkg != nil {
+		if pkg := obj.Pkg(); pkg != nil {
 			f.Path = pkg.Path()
 		}
 
@@ -96,8 +100,8 @@ recvloop:
 // For a method, the format is "(<path>.<receiver>).<name>".
 // For a function, the format is "<path>.<name>".
 func (f FuncName) String() string {
-	buf, _ := f.AppendText(nil)
-	return string(buf)
+	txt, _ := f.MarshalText()
+	return string(txt)
 }
 
 // String returns the local function name as a string.

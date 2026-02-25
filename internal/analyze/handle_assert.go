@@ -29,17 +29,20 @@ func (p Pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 		return // Type switches are handled in handleTypeSwitch
 	}
 
-	eTyp := p.TypesInfo.Types[n.X].Type
+	info := p.TypesInfo
+
+	eTyp := info.Types[n.X].Type
 	if !typeutil.IsInterfaceWithError(eTyp) {
 		return // We are only interested in assertions on interfaces that implement error.
 	}
 
-	// The type is of course n.Type, but we can check whether it is used in the special form "v, ok"
-	typ := p.TypesInfo.Types[n].Type
+	// The type is of course info.Types[n.Type], but we can check whether it is used in the special form "v, ok"
+	typ := info.Types[n].Type
 
 	if t, ok := typ.(*types.Tuple); ok {
 		typ = t.At(0).Type()
-	} else if p.UncheckedAssert() {
+		// TODO: warn if p.Has(OptionLegacy) and not in an error wrapper
+	} else if p.Has(OptionUncheckedAssert) {
 		p.reportUnchecked(n, eTyp, typ)
 	}
 

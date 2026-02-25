@@ -30,18 +30,20 @@ import (
 //
 // For each such type, it determines whether the "Error" method has a pointer or value receiver
 // and records this property in the propertyMap. Types that are interfaces are skipped.
-func (p pass) processTypeDecls(ctx context.Context) {
+func (d dpass) processTypeDecls(ctx context.Context) {
 	defer trace.StartRegion(ctx, "typeDecls").End()
 
-	for typeDecl := range typeutil.AllTypeDecls(p.Files) {
-		tn, ok := p.TypesInfo.Defs[typeDecl.Name].(*types.TypeName)
+	for typeDecl := range typeutil.AllTypeDecls(d.Files) {
+		tn, ok := d.TypesInfo.Defs[typeDecl.Name].(*types.TypeName)
 		if !ok { // should not happen
-			p.LogErrorf(typeDecl.Name, "Not a TypeName: %s", typeDecl.Name.Name)
+			if len(d.TypeErrors) == 0 {
+				d.LogErrorf(typeDecl.Name, "not a TypeName: %s", typeDecl.Name.Name)
+			}
 
 			continue
 		}
 
-		res, ok := typeutil.LookupMethod(tn.Type(), "Error", typeutil.HasErrorSig)
+		res, ok := typeutil.ErrorMethod.Lookup(tn.Type())
 		if !ok {
 			continue // No "Error" method
 		}
@@ -78,7 +80,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 		ptrRecv := false
 		if !res.Indirect {
 			// The `Error() string` method is direct or embedded without indirections
-			_, ptrRecv = typeutil.IsPointerReceiver(res.Recv)
+			_, ptrRecv = isPointerReceiver(res.Recv)
 		}
 
 		if ptrRecv {
@@ -86,7 +88,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 			prop |= properties.PointerReceiver
 		}
 
-		ptr, emb := p.HasErrorMethods(tn)
+		ptr, emb := hasErrorMethods(tn)
 		if ptr {
 			// An error-wrapping-related method has a pointer receiver
 			prop |= properties.PointerMethod
@@ -99,31 +101,28 @@ func (p pass) processTypeDecls(ctx context.Context) {
 
 		// Otherwise the type has a (possibly embedded) `Error() string` method, either with value receiver
 		// or the receiver type is not relevant because of indirection. We need to rely on heuristics.
-		p.ErrorTypes[tn] |= prop
+		d.ErrorTypes[tn] |= prop
 	}
 }
 
 // _errorMethods defines a list of error-related method names and functions to check their signature validity.
-var _errorMethods = [...]struct {
-	name     string
-	sigCheck func(*types.Signature) bool
-}{
-	{"Unwrap", typeutil.HasUnwrapSig},
-	{"Is", typeutil.HasIsSig},
-	{"As", typeutil.HasAsSig},
+var _errorMethods = [...]typeutil.Method{
+	typeutil.UnwrapMethod,
+	typeutil.IsMethod,
+	typeutil.AsMethod,
 }
 
-// HasErrorMethods inspects a type for error-wrapping related methods, embedded or with pointer receivers.
-func (p pass) HasErrorMethods(tn *types.TypeName) (ptrRecv, embedded bool) {
-	for i, lookup := range _errorMethods {
-		res, ok := typeutil.LookupMethod(tn.Type(), lookup.name, lookup.sigCheck)
+// hasErrorMethods inspects a type for error-wrapping related methods, embedded or with pointer receivers.
+func hasErrorMethods(tn *types.TypeName) (ptrRecv, embedded bool) {
+	for i, method := range _errorMethods {
+		res, ok := method.Lookup(tn.Type())
 		if !ok {
 			continue // No such method with matching signature
 		}
 
 		if !res.Indirect {
 			// The method is direct or embedded without indirections
-			if _, ptr := typeutil.IsPointerReceiver(res.Recv); ptr {
+			if _, ptr := isPointerReceiver(res.Recv); ptr {
 				ptrRecv = true
 			}
 		}

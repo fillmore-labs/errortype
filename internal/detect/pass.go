@@ -25,25 +25,25 @@ import (
 	"fillmore-labs.com/errortype/internal/detect/properties"
 )
 
-// pass holds the state for a single run of the detecttypes analyzer on a package.
+// dpass holds the state for a single run of the detecttypes analyzer on a package.
 // It embeds the underlying *analysis.Pass to provide direct access to its fields
 // and methods, and it holds the map of properties discovered for types defined
 // within the current package.
-type pass struct {
+type dpass struct {
 	*analysis.Pass
 	ErrorTypes properties.Properties
 	ErrorFuncs result.ErrorFuncs
 }
 
 // newPass creates and initializes a new pass for the detecttypes analyzer.
-func newPass(ap *analysis.Pass) pass {
-	return pass{
-		Pass:       ap,
+func newPass(pass *analysis.Pass) dpass {
+	return dpass{
+		Pass:       pass,
 		ErrorTypes: make(properties.Properties),
 		ErrorFuncs: nil,
 	}
 }
 
-func (p pass) inCurrentPkg(tn *types.TypeName) bool {
-	return tn.Pkg() == p.Pkg
+func (d dpass) inCurrentPkg(tn *types.TypeName) bool {
+	return tn.Pkg() == d.Pkg
 }

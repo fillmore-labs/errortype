@@ -27,10 +27,10 @@ import (
 
 // processAliases transfers properties from aliased types to the aliases themselves.
 // Aliases do not have their own methods or properties, but inherit the behavior of the type they alias.
-func (p pass) processAliases(ctx context.Context, eTypes result.ErrorTypes) {
+func (d dpass) processAliases(ctx context.Context, eTypes result.ErrorTypes) {
 	defer trace.StartRegion(ctx, "aliases").End()
 
-	for alias := range p.ErrorTypes {
+	for alias := range d.ErrorTypes {
 		if !alias.IsAlias() {
 			continue // We are only interested in aliases.
 		}
@@ -50,7 +50,7 @@ func (p pass) processAliases(ctx context.Context, eTypes result.ErrorTypes) {
 		}
 
 		var property properties.ErrorProperty
-		if oldp, ok := p.ErrorTypes[tn]; ok {
+		if oldp, ok := d.ErrorTypes[tn]; ok {
 			// If the original type is in the same package, its properties
 			// have already been computed by processTypeDecls. We can copy them.
 			property = oldp &^ properties.OverrideMask // Copy all but override flags.
@@ -75,6 +75,6 @@ func (p pass) processAliases(ctx context.Context, eTypes result.ErrorTypes) {
 		}
 
 		// We have either found the type in our property map or imported an ErrorType fact.
-		p.ErrorTypes[alias] |= property
+		d.ErrorTypes[alias] |= property
 	}
 }

@@ -27,31 +27,31 @@ func Return4() error {
 
 	switch rand.Int() {
 	case 0:
-		err = c.AmbiguousPointer{} // want "POINTER"
+		err = c.AmbiguousPointerError{} // want "POINTER"
 
 	case 1:
-		err = &c.AmbiguousValue{} // want "VALUE"
+		err = &c.AmbiguousValueError{} // want "VALUE"
 
 	case 2:
-		err = c.AmbiguousAmbiguous{} // want "UNDECIDED"
+		err = c.AmbiguousAmbiguousError{} // want "UNDECIDED"
 
 	case 3:
-		err = &c.EmbeddedPointer{} // want "POINTER"
+		err = &c.EmbeddedPointerError{} // want "POINTER"
 
 	case 4:
-		err = c.EmbeddedValue{} // want "UNDECIDED"
+		err = c.EmbeddedValueError{} // want "UNDECIDED"
 
 	case 5:
-		err = c.EmbeddedAmbiguous{} // want "UNDECIDED"
+		err = c.EmbeddedAmbiguousError{} // want "UNDECIDED"
 
 	case 6:
-		err = c.EmbeddedPPointer{} // want "UNDECIDED"
+		err = c.EmbeddedPPointerError{} // want "UNDECIDED"
 
 	case 7:
-		err = c.EmbeddedPValue{} // want "UNDECIDED"
+		err = c.EmbeddedPValueError{} // want "UNDECIDED"
 
 	case 8:
-		err = c.EmbeddedPAmbiguous{} // want "UNDECIDED"
+		err = c.EmbeddedPAmbiguousError{} // want "UNDECIDED"
 
 	default:
 		err = nil

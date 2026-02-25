@@ -25,15 +25,12 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// UsageOverrides is a type alias for mapping a fully qualified type name to its corresponding error usage type.
+// UsageOverrides maps a fully qualified type name to its corresponding error usage type.
 type UsageOverrides map[typeutil.TypeName]result.ErrorType
 
-// WrapperOverrides is a type alias for mapping a package path to a map of function names to their corresponding error wrapper metadata.
-type WrapperOverrides map[typeutil.FuncName]result.WrapperType
-
 // processOverrides applies error usage overrides to the property map, validating and logging invalid configurations.
-func (p pass) processOverrides(overrides UsageOverrides) {
-	for tn, property := range p.ErrorTypes {
+func (d dpass) processOverrides(overrides UsageOverrides) {
+	for tn, property := range d.ErrorTypes {
 		typeName := typeutil.NewTypeName(tn)
 
 		usage, ok := overrides[typeName]
@@ -68,6 +65,6 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			continue
 		}
 
-		p.ErrorTypes[tn] = property
+		d.ErrorTypes[tn] = property
 	}
 }

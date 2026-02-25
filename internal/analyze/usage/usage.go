@@ -16,10 +16,9 @@
 
 package usage
 
-import (
-	"fillmore-labs.com/errortype/detect/result"
-	"fillmore-labs.com/errortype/internal/bitflag"
-)
+import "fillmore-labs.com/errortype/detect/result"
+
+//go:generate go tool bitmask -type Usage
 
 // Usage represents the expected and observed usage of an error type.
 type Usage uint8
@@ -27,39 +26,26 @@ type Usage uint8
 // Constants defining the possible usages of an error type.
 const (
 	// PointerExpected indicates the error type should be used as a pointer ("&MyError{}").
-	PointerExpected Usage = 1 << iota
+	PointerExpected Usage = 1 << iota // PointerExpected
 
 	// ValueExpected indicates the error type should be used as a value ("MyError{}").
-	ValueExpected
+	ValueExpected // ValueExpected
 
 	// PointerObserved is set when a pointer usage was observed.
-	PointerObserved
+	PointerObserved // PointerObserved
 
 	// ValueObserved is set when a value usage was observed.
-	ValueObserved
-
-	None Usage = 0
+	ValueObserved // ValueObserved
 
 	// SuppressExpected indicates that analysis for this error type should be suppressed.
 	SuppressExpected = PointerExpected | ValueExpected
 
-	// ExpectedMask is the mask to get only ...Expected usages.
+	// ExpectedMask selects the ...Expected usages.
 	ExpectedMask = PointerExpected | ValueExpected
 
-	// ObservedMask is the mask to get only ...Observed usages.
+	// ObservedMask selects the ...Observed usages.
 	ObservedMask = PointerObserved | ValueObserved
 )
-
-var _usages = [...]string{
-	"PointerExpected",
-	"ValueExpected",
-	"PointerObserved",
-	"ValueObserved",
-}
-
-func (u Usage) String() string {
-	return bitflag.ToString(u, _usages[:], "None")
-}
 
 // DeterminedType analyzes the usage pattern of the Usage value and determines
 // if there is an observed usage type (consistent pointer, consistent value, or mixed)

@@ -33,9 +33,9 @@ func BuiltinNew(info *types.Info, call *ast.CallExpr) bool {
 		return false // not new(...)
 	}
 
-	if _, ok := info.Uses[fun].(*types.Builtin); !ok {
-		return false // not the built-in "new"
-	}
+	f, ok := info.Uses[fun]
 
-	return true
+	return ok && f == builtinNew
 }
+
+var builtinNew = types.Universe.Lookup("new").(*types.Builtin)

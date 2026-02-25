@@ -19,12 +19,11 @@ package result
 import "go/types"
 
 type (
-
 	// ErrorTypes is a map associating *[types.TypeName] with its detected [ErrorType].
 	ErrorTypes map[*types.TypeName]ErrorType
 
 	// ErrorFuncs maps functions to their corresponding error wrapper function metadata.
-	ErrorFuncs map[*types.Func]ErrorFunc
+	ErrorFuncs map[types.Object]ErrorFunc
 
 	// Result is the result of the detecttypes analyzer. It contains a list of all
 	// error types whose pointer-ness could be unambiguously determined.

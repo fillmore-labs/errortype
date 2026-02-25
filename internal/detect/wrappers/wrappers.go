@@ -17,45 +17,65 @@
 package wrappers
 
 import (
+	"go/ast"
 	"go/types"
 	"iter"
 	"log"
 
-	"golang.org/x/tools/go/analysis"
-
 	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // LookupWrappers resolves explicitly defined wrapper functions within the package scope.
-func LookupWrappers(pkgScope *types.Scope, explicitWrappers []ExplicitWrapper) result.ErrorFuncs {
+func LookupWrappers(pkg *types.Package, explicitWrappers []ExplicitWrapper, debug bool) result.ErrorFuncs {
+	scope := pkg.Scope()
+
 	wrappers := make(result.ErrorFuncs, len(explicitWrappers))
 	for _, known := range explicitWrappers {
-		var fun *types.Func
+		var (
+			fun types.Object
+			sig *types.Signature
+		)
+
 		if known.Receiver == "" {
-			fun, _ = pkgScope.Lookup(known.Name).(*types.Func)
+			fun = scope.Lookup(known.Name)
+			if fun == nil {
+				if debug {
+					log.Printf("%s %s: not found in this pass", pkg.Path(), known.Name)
+				}
+
+				continue // not in this pass; may resolve in a test variant
+			}
+
+			sig = typeutil.SignatureOf(fun)
+			if sig == nil {
+				log.Printf("%s %s: is not a function or function-typed variable", pkg.Path(), known.Name)
+				continue
+			}
 		} else {
-			recv := pkgScope.Lookup(known.Receiver)
+			recv := scope.Lookup(known.Receiver)
 			if recv == nil {
 				continue
 			}
 
 			named, ok := types.Unalias(recv.Type()).(*types.Named)
 			if !ok {
-				log.Printf("Wrapper receiver \"%s\" is not a type", known.Receiver)
+				log.Printf("%s %s: is not a type", pkg.Path(), known.Receiver)
 
 				continue
 			}
 
-			fun = findDirectMethod(named, known.Name)
+			method := findDirectMethod(named, known.Name)
+			if method == nil {
+				continue
+			}
+
+			fun, sig = method, method.Signature()
 		}
 
-		if fun == nil {
-			continue
-		}
-
-		wrapper, ok := findParameters(fun, known.Typ)
+		wrapper, ok := findParameters(sig, known.Type)
 		if !ok {
-			log.Printf("Wrapper parameters of \"%s\" can not be determined", fun.FullName())
+			log.Printf("%s %s: parameters can not be determined", pkg.Path(), known.LocalFuncName)
 
 			continue
 		}
@@ -89,19 +109,16 @@ func allMethods(named *types.Named) iter.Seq[*types.Func] {
 }
 
 // DetectWrappers performs graph-based AST analysis to automatically detect functions that wrap known error type checking functions.
-func DetectWrappers(p *analysis.Pass, known result.ErrorFuncs) result.ErrorFuncs {
-	// Phase 1: gather wrapperCandidate wrapper functions
-	wrapperCandidates := findCandidates(p)
+func DetectWrappers(info *types.Info, files []*ast.File, known result.ErrorFuncs) result.ErrorFuncs {
+	// candidate wrapper functions
+	wrapperCandidates := findCandidates(info, files, known)
 
 	if len(wrapperCandidates) == 0 {
 		return nil
 	}
 
-	// Phase 2: verify bodies and build call graph
-	wrappers := make(result.ErrorFuncs)
-	for _, cand := range wrapperCandidates {
-		resolveCandidate(p.TypesInfo, cand, wrapperCandidates, known, wrappers)
-	}
+	// verify bodies and build call graph
+	wrappers := resolveCandidates(info, wrapperCandidates, known)
 
 	return wrappers
 }

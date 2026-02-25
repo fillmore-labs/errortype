@@ -30,30 +30,30 @@ import (
 
 // processUsage processes all function declarations in the current package,
 // visiting their bodies to perform error usage analysis.
-func (p pass) processUsage(ctx context.Context) {
+func (d dpass) processUsage(ctx context.Context) {
 	defer trace.StartRegion(ctx, "usage").End()
 
-	for f := range typeutil.AllFuncDecls(p.Files) {
-		p.walkFunctionBody(f)
+	for f := range typeutil.AllFuncDecls(d.Files) {
+		d.walkFunctionBody(f)
 	}
 }
 
 // walkFunctionBody walks the function body with a usage visitor to analyze error usage.
-func (p pass) walkFunctionBody(f *ast.FuncDecl) {
+func (d dpass) walkFunctionBody(f *ast.FuncDecl) {
 	if f.Body == nil {
 		return
 	}
 
 	v := usageVisitor{
-		pass:       p,
-		lastResult: typeutil.ErrorResultIndex(p.TypesInfo, f.Type.Results),
+		dpass:      d,
+		lastResult: typeutil.ErrorResultIndex(d.TypesInfo, f.Type),
 		inExpr:     false,
 	}
 	ast.Walk(v, f.Body)
 }
 
 type usageVisitor struct {
-	pass
+	dpass
 	lastResult int
 	inExpr     bool // true when visiting expressions in assignment/return contexts
 }
@@ -97,8 +97,8 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 		// A function literal defines a new function.
 		// We inspect its body for how it returns error types.
 		u := usageVisitor{
-			pass:       v.pass,
-			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, n.Type.Results),
+			dpass:      v.dpass,
+			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, n.Type),
 			inExpr:     false,
 		}
 
@@ -166,18 +166,18 @@ func (v usageVisitor) Visit(node ast.Node) ast.Visitor {
 }
 
 // handleTypeAssert processes a type assertion expression, e.g., v.(T).
-func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
+func (d dpass) handleTypeAssert(n *ast.TypeAssertExpr) {
 	if n.Type == nil {
 		return // This is a type switch, not an assertion.
 	}
 
-	tv, ok := p.TypesInfo.Types[n.Type]
+	tv, ok := d.TypesInfo.Types[n.Type]
 	if !ok {
 		return // !ok means errors in type parsing
 	}
 
 	if !tv.IsType() {
-		p.LogErrorf(n.Type, "Expected type in assertion, got %#v", tv)
+		d.LogErrorf(n.Type, "expected type in assertion, got %#v", tv)
 
 		return
 	}
@@ -193,11 +193,11 @@ func (p pass) handleTypeAssert(n *ast.TypeAssertExpr) {
 		prop = properties.PointerAssert
 	}
 
-	p.addTypePropertyInCurrentPackage(tn, prop)
+	d.addTypePropertyInCurrentPackage(tn, prop)
 }
 
 // handleCast processes a type conversion, e.g., T(v).
-func (p pass) handleCast(typ types.Type) {
+func (d dpass) handleCast(typ types.Type) {
 	// We can only analyze named types.
 	tn, ptr, ok := typeutil.TypeNameOf(typ)
 	if !ok {
@@ -209,18 +209,18 @@ func (p pass) handleCast(typ types.Type) {
 		prop = properties.PointerCast
 	}
 
-	p.addTypePropertyInCurrentPackage(tn, prop)
+	d.addTypePropertyInCurrentPackage(tn, prop)
 }
 
 // handleCompositeLit processes a composite literal, e.g., T{} or &T{}.
-func (p pass) handleCompositeLit(n *ast.CompositeLit, isAddrOf bool) {
+func (d dpass) handleCompositeLit(n *ast.CompositeLit, isAddrOf bool) {
 	if n.Type == nil {
 		return // Within a composite literal of array, slice, or map
 	}
 
-	tv := p.TypesInfo.Types[n.Type]
+	tv := d.TypesInfo.Types[n.Type]
 	if !tv.IsType() {
-		p.LogErrorf(n.Type, "Expected type in composite literal, got %#v", tv)
+		d.LogErrorf(n.Type, "expected type in composite literal, got %#v", tv)
 
 		return
 	}
@@ -254,7 +254,7 @@ func (p pass) handleCompositeLit(n *ast.CompositeLit, isAddrOf bool) {
 		property = properties.PointerLiteral
 	}
 
-	p.addTypePropertyInCurrentPackage(tn, property)
+	d.addTypePropertyInCurrentPackage(tn, property)
 }
 
 // handleReturn processes returned values, T{} or &T{}.
@@ -273,7 +273,7 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 	}
 
 	if !resType.IsValue() { // should not happen
-		v.LogErrorf(ret, "Expected returned value in %d , got %#v", v.lastResult, resType)
+		v.LogErrorf(ret, "expected returned value in %d , got %#v", v.lastResult, resType)
 	}
 
 	tn, ptr, ok := typeutil.TypeNameOf(resType.Type)
@@ -289,37 +289,43 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 	v.addTypePropertyInCurrentPackage(tn, property)
 }
 
-// handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
+// handleErrorWrapper analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
 // It returns the target argument or nil if the function is not of interest.
-func (p pass) handleErrorAs(call *ast.CallExpr) types.Type {
-	fun, ok := typeutil.FuncOf(p.TypesInfo, call)
+func (d dpass) handleErrorWrapper(call *ast.CallExpr) types.Type {
+	fun, ok := typeutil.FuncOf(d.TypesInfo, call)
 	if !ok {
 		return nil // Could not resolve function, might be a func variable.
 	}
 
-	wrapper, ok := p.ErrorFuncs[fun.Func]
+	wrapper, ok := d.ErrorFuncs[fun.Func]
 	if !ok {
 		return nil // Not a function we are interested in.
 	}
 
-	var targetArgIndex, typeParam int
+	var (
+		targetArgIndex, typeParam int
+		address                   bool
+	)
 
 	switch wrapper.Type {
+	case result.WrapperIs:
+		targetArgIndex, typeParam, address = int(wrapper.Target), -1, false
+
 	case result.WrapperAs:
-		targetArgIndex, typeParam = int(wrapper.Target), -1
+		targetArgIndex, typeParam, address = int(wrapper.Target), -1, true
 
 	case result.WrapperAsType:
-		targetArgIndex, typeParam = int(wrapper.Source), int(wrapper.Target)
+		targetArgIndex, typeParam, address = int(wrapper.Source), int(wrapper.Target), true
 
 	case result.FuncAssert:
-		targetArgIndex, typeParam = -1, int(wrapper.Target)
+		targetArgIndex, typeParam, address = -1, int(wrapper.Target), false
 
 	default:
 		return nil // Not a function we are interested in.
 	}
 
 	if typeParam >= 0 { // Handle generic functions like `errors.AsType[T]`.
-		if instance, ok := p.TypesInfo.Instances[fun.Ident]; ok && typeParam < instance.TypeArgs.Len() {
+		if instance, ok := d.TypesInfo.Instances[fun.Ident]; ok && typeParam < instance.TypeArgs.Len() {
 			if typ := instance.TypeArgs.At(typeParam); typeutil.HasErrorMethod(typ) {
 				return typ
 			}
@@ -344,9 +350,13 @@ func (p pass) handleErrorAs(call *ast.CallExpr) types.Type {
 
 	targetArg := call.Args[targetArgIndex]
 
-	typ, ok := p.TypesInfo.Types[targetArg]
+	typ, ok := d.TypesInfo.Types[targetArg]
 	if !ok {
-		return nil // !ok means errors in type parsing
+		return nil // errors in type parsing
+	}
+
+	if !address {
+		return typ.Type
 	}
 
 	ptr, ok := typ.Type.Underlying().(*types.Pointer)
@@ -358,7 +368,7 @@ func (p pass) handleErrorAs(call *ast.CallExpr) types.Type {
 }
 
 func (v usageVisitor) handleCallExpr(call *ast.CallExpr) {
-	if target := v.handleErrorAs(call); target != nil {
+	if target := v.handleErrorWrapper(call); target != nil {
 		tn, ptr, ok := typeutil.TypeNameOf(target)
 		if !ok {
 			return // Not a named type.
@@ -374,15 +384,13 @@ func (v usageVisitor) handleCallExpr(call *ast.CallExpr) {
 		return
 	}
 
-	// not an `errors.As`-like function
+	// not an errors wrapper
 	v.walkExprs(call.Args...)
 
-	// TODO: handle target arguments of `errors.Is`
-
-	if f, ok := call.Fun.(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
+	if f, ok := ast.Unparen(call.Fun).(*ast.FuncLit); ok { // For immediately invoked function literals, examine their body.
 		u := usageVisitor{
-			pass:       v.pass,
-			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, f.Type.Results),
+			dpass:      v.dpass,
+			lastResult: typeutil.ErrorResultIndex(v.TypesInfo, f.Type),
 			inExpr:     false,
 		}
 
@@ -392,12 +400,12 @@ func (v usageVisitor) handleCallExpr(call *ast.CallExpr) {
 
 // addTypePropertyInCurrentPackage sets a property on a type if it's a known error type
 // in the current package and the property isn't yet set.
-func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property properties.ErrorProperty) {
-	if !p.inCurrentPkg(tn) {
+func (d dpass) addTypePropertyInCurrentPackage(tn *types.TypeName, property properties.ErrorProperty) {
+	if !d.inCurrentPkg(tn) {
 		return // Only relevant for types defined in the current package
 	}
 
-	if old, ok := p.ErrorTypes[tn]; ok && old&property != property { // known, but property isn't set.
-		p.ErrorTypes[tn] |= property
+	if old, ok := d.ErrorTypes[tn]; ok && old&property != property { // known, but property isn't set.
+		d.ErrorTypes[tn] |= property
 	}
 }

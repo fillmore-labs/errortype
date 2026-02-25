@@ -22,7 +22,7 @@ import (
 )
 
 // Overrides associates an error type with a list of fully qualified type names,
-// and wrapper functions to their target names.
+// and wrapper functions, methods, or variables to their target names.
 type Overrides struct {
 	Types    map[result.ErrorType][]typeutil.TypeName
 	Wrappers map[result.WrapperType][]typeutil.FuncName
@@ -30,20 +30,11 @@ type Overrides struct {
 
 // errorFileType represents the configuration for error type overrides in files.
 //
-// It categorizes type names into four groups.
+// It categorizes type names into five groups.
 type errorFileType struct {
-	// Types that should be treated as pointer errors.
-	Pointer []typeutil.TypeName `yaml:"pointer,omitempty"`
-
-	// Types that should be treated as value errors.
-	Value []typeutil.TypeName `yaml:"value,omitempty"`
-
-	// Types for which error type checks should be suppressed - never written.
-	Suppress []typeutil.TypeName `yaml:"suppress,omitempty"`
-
-	// Types that have inconsistent error type usage - ignored on read.
-	Inconsistent []typeutil.TypeName `yaml:"inconsistent,omitempty"`
-
-	// Wrapper function overrides.
-	Wrappers map[result.WrapperType][]typeutil.FuncName `yaml:"wrappers,omitempty"`
+	Wrappers     map[result.WrapperType][]typeutil.FuncName `yaml:"wrappers,omitempty"`
+	Pointer      []typeutil.TypeName                        `yaml:"pointer,omitempty"`
+	Value        []typeutil.TypeName                        `yaml:"value,omitempty"`
+	Suppress     []typeutil.TypeName                        `yaml:"suppress,omitempty"`
+	Inconsistent []typeutil.TypeName                        `yaml:"inconsistent,omitempty"`
 }

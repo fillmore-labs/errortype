@@ -16,10 +16,9 @@
 
 package properties
 
-import (
-	"fillmore-labs.com/errortype/detect/result"
-	"fillmore-labs.com/errortype/internal/bitflag"
-)
+import "fillmore-labs.com/errortype/detect/result"
+
+//go:generate go tool bitmask -type ErrorProperty
 
 // ErrorProperty is a bitmask representing properties of an error type's definition
 // and usage. These properties are collected to determine whether a type should be
@@ -31,102 +30,102 @@ const (
 	// --- Properties from user-defined overrides ---.
 
 	// SuppressOverride is set if usage checks for this type are explicitly suppressed.
-	SuppressOverride ErrorProperty = 1 << posSuppressOverride
+	SuppressOverride ErrorProperty = 1 << iota // SuppressOverride
 	// PointerOverride is set if the type is explicitly marked as a pointer type in overrides.
-	PointerOverride ErrorProperty = 1 << posPointerOverride
+	PointerOverride // PointerOverride
 	// ValueOverride is set if the type is explicitly marked as a value type in overrides.
-	ValueOverride ErrorProperty = 1 << posValueOverride
+	ValueOverride // ValueOverride
 
 	// --- Properties from method receivers ---.
 
 	// PointerReceiver is set if the `Error` method has a pointer receiver,
 	// e.g., `func (e *MyError) Error() string`. This forces the error to be a pointer type.
-	PointerReceiver ErrorProperty = 1 << posPointerReceiver
+	PointerReceiver // PointerReceiver
 
 	// PointerMethod is set if one of the `error` methods `Unwrap`, `Is` or `As`
 	// have a pointer receiver, e.g., `func (e *MyError) Unwrap() error`.
-	PointerMethod ErrorProperty = 1 << posPointerMethod
+	PointerMethod // PointerMethod
 
 	// Embedded is set if the `Error` method is not directly defined on the type,
 	// but embedded. This is no indicator and for diagnostics only.
-	Embedded ErrorProperty = 1 << posEmbedded
+	Embedded // Embedded
 	// EmbeddedMethod is set if one of the `error` methods `Is` or `As` is not
 	// directly defined on the type, but embedded. This is no indicator and for diagnostics only.
-	EmbeddedMethod ErrorProperty = 1 << posEmbeddedMethod
+	EmbeddedMethod // EmbeddedMethod
 
 	// --- Properties from type aliases (e.g., `type T = V`) ---.
 
 	// PointerAlias is set for an alias to an imported pointer-type error.
-	PointerAlias ErrorProperty = 1 << posPointerAlias
+	PointerAlias // PointerAlias
 	// ValueAlias is set for an alias to an imported value-type error.
-	ValueAlias ErrorProperty = 1 << posValueAlias
+	ValueAlias // ValueAlias
 
 	// --- Properties from variable declarations (e.g., `var ErrSomething = ...`) ---.
 
 	// PointerVar is set for pointer usage, e.g., `var _ error = &T{}` or `var Err = &T{}`.
-	PointerVar ErrorProperty = 1 << posPointerVar
+	PointerVar // PointerVar
 	// ValueVar is set for value usage, e.g., `var _ error = T{}` or `var Err = T{}`.
-	ValueVar ErrorProperty = 1 << posValueVar
+	ValueVar // ValueVar
 
 	// --- Properties from usage in return statements ---.
 
 	// PointerReturn is set for pointer usage, e.g., `return &T{}`.
-	PointerReturn ErrorProperty = 1 << posPointerReturn
+	PointerReturn // PointerReturn
 	// ValueReturn is set for value usage, e.g., `return T{}`.
-	ValueReturn ErrorProperty = 1 << posValueReturn
+	ValueReturn // ValueReturn
 
 	// --- Properties from usage in type assertions ---.
 
 	// PointerAssert is set for pointer usage, e.g., `err.(*T)`.
-	PointerAssert ErrorProperty = 1 << posPointerAssert
+	PointerAssert // PointerAssert
 	// ValueAssert is set for value usage, e.g., `err.(T)`.
-	ValueAssert ErrorProperty = 1 << posValueAssert
+	ValueAssert // ValueAssert
 
 	// --- Properties from targets in errors.As-like functions ---.
 
 	// PointerTarget is set for pointer usage, e.g., `val target *T; ... errors.As(err, &target)`.
-	PointerTarget ErrorProperty = 1 << posPointerTarget
+	PointerTarget // PointerTarget
 	// ValueTarget is set for value usage, e.g., `val target T; ... errors.As(err, &target)`.
-	ValueTarget ErrorProperty = 1 << posValueTarget
+	ValueTarget // ValueTarget
 
 	// --- Properties from usage in composite literals ---.
 
 	// PointerLiteral is set for pointer usage, e.g., `&T{}`.
-	PointerLiteral ErrorProperty = 1 << posPointerLiteral
+	PointerLiteral // PointerLiteral
 	// ValueLiteral is set for value usage, e.g., `T{}`.
-	ValueLiteral ErrorProperty = 1 << posValueLiteral
+	ValueLiteral // ValueLiteral
 
 	// --- Properties from usage in type casts ---.
 
 	// PointerCast is set for pointer usage, e.g., `(*T)(v)`.
-	PointerCast ErrorProperty = 1 << posPointerCast
+	PointerCast // PointerCast
 	// ValueCast is set for value usage, e.g., `(T)(v)`.
-	ValueCast ErrorProperty = 1 << posValueCast
+	ValueCast // ValueCast
 
 	// --- Properties from other method receivers ---.
 
 	// PointerReceivers is set if all methods on the type have pointer receivers (a weak indicator).
-	PointerReceivers ErrorProperty = 1 << posPointerReceivers
+	PointerReceivers // PointerReceivers
 	// ValueReceivers is set if all methods on the type have value receivers (a weak indicator).
-	ValueReceivers ErrorProperty = 1 << posValueReceivers
+	ValueReceivers // ValueReceivers
 
 	// --- Properties from type definition ---.
 
 	// PointerDef is set for defined pointer types, e.g., `type T *S`. Such types are used like values.
-	PointerDef ErrorProperty = 1 << posPointerDef
+	PointerDef // PointerDef
 
 	// NonStruct is set if the defined type is not a structure.
-	NonStruct ErrorProperty = 1 << posNonStruct
+	NonStruct // NonStruct
 
 	// ZeroSized is set if the defined type is a zero-sized structure or pointer.
-	ZeroSized ErrorProperty = 1 << posZeroSized
+	ZeroSized // ZeroSized
 
 	// --- Others ---.
 
-	// OverrideMask is a bitmask to identify any override property.
+	// OverrideMask identifies any override property.
 	OverrideMask = PointerOverride | ValueOverride | SuppressOverride
 
-	// ReceiverMask is a bitmask to identify error method receivers.
+	// ReceiverMask identifies error method receivers.
 	ReceiverMask = PointerReceiver | PointerMethod
 )
 
@@ -187,69 +186,4 @@ func (e ErrorProperty) DeterminedType() result.ErrorType {
 
 	// No unambiguous usage was found.
 	return result.Undecided
-}
-
-const (
-	posSuppressOverride = 25 - iota
-	posPointerOverride
-	posValueOverride
-	posPointerReceiver
-	posPointerMethod
-	posEmbedded
-	posEmbeddedMethod
-	posPointerAlias
-	posValueAlias
-	posPointerVar
-	posValueVar
-	posPointerReturn
-	posValueReturn
-	posPointerAssert
-	posValueAssert
-	posPointerTarget
-	posValueTarget
-	posPointerLiteral
-	posValueLiteral
-	posPointerCast
-	posValueCast
-	posPointerReceivers
-	posValueReceivers
-	posPointerDef
-	posNonStruct
-	posZeroSized
-)
-
-var _errorPropertyNames = [...]string{
-	posSuppressOverride: "SuppressOverride",
-	posPointerOverride:  "PointerOverride",
-	posValueOverride:    "ValueOverride",
-	posPointerReceiver:  "PointerReceiver",
-	posPointerMethod:    "PointerMethod",
-	posEmbedded:         "Embedded",
-	posEmbeddedMethod:   "EmbeddedMethod",
-	posPointerAlias:     "PointerAlias",
-	posValueAlias:       "ValueAlias",
-	posPointerVar:       "PointerVar",
-	posValueVar:         "ValueVar",
-	posPointerReturn:    "PointerReturn",
-	posValueReturn:      "ValueReturn",
-	posPointerAssert:    "PointerAssert",
-	posValueAssert:      "ValueAssert",
-	posPointerTarget:    "PointerTarget",
-	posValueTarget:      "ValueTarget",
-	posPointerLiteral:   "PointerLiteral",
-	posValueLiteral:     "ValueLiteral",
-	posPointerCast:      "PointerCast",
-	posValueCast:        "ValueCast",
-	posPointerReceivers: "PointerReceivers",
-	posValueReceivers:   "ValueReceivers",
-	posPointerDef:       "PointerDef",
-	posNonStruct:        "NonStruct",
-	posZeroSized:        "ZeroSized",
-}
-
-// String returns the string representation of a TypeProperty.
-// If multiple flags are set, it returns a comma-separated list of names.
-// If no flags are set, it returns "None".
-func (e ErrorProperty) String() string {
-	return bitflag.ToString(e, _errorPropertyNames[:], "None")
 }

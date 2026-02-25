@@ -22,7 +22,7 @@ Package gclplugin provides golangci-lint plugin integration for the [errortype] 
 1. Add a file `.custom-gcl.yaml` to your source with:
 
 	---
-	version: v2.11.3
+	version: v2.12.2
 
 	name: golangci-lint
 	destination: .
@@ -30,7 +30,7 @@ Package gclplugin provides golangci-lint plugin integration for the [errortype] 
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.11
+	    version: v0.0.12
 
 2. Run `golangci-lint custom` from your project root.
 
@@ -39,7 +39,7 @@ This will create a custom `golangci-lint` executable in your project root.
 3. Configure the linter in `.golangci.yaml`:
 
 	---
-	version: "2"
+	version: '2'
 	linters:
 	  default: none
 	  enable:
@@ -51,23 +51,25 @@ This will create a custom `golangci-lint` executable in your project root.
 	        description: errortype helps prevent subtle bugs in error handling.
 	        original-url: https://fillmore-labs.com/errortype
 	        settings:
-	          overrides:
-	            pointer:
-	              - test/a.PointerOverrideError
-	            value:
-	              - test/a.ValueOverrideError
-	            suppress:
-	              - test/a.SuppressOverrideError
+	          naming: true
 	          style-check: true
 	          deep-is-check: false
 	          check-is: true
 	          unchecked-assert: false
 	          check-unused: false
+	          prefix-filter: true
+	          overrides:
+	            pointer:
+	              - your.pkg/a.PointerOverrideError
+	            value:
+	              - your.pkg/a.ValueOverrideError
+	            suppress:
+	              - your.pkg/a.SuppressOverrideError
 
 4. Run the linter:
 
 	./golangci-lint run .
 
-[errortype]: https://github.com/fillmore-labs/errortype#errortype
+[errortype]: https://pkg.go.dev/fillmore-labs.com/errortype#section-readme
 */
 package gclplugin

@@ -19,16 +19,16 @@ package a
 import "math/rand/v2"
 
 type (
-	PointerLiteralAlias = PointerLiteral1 // want PointerLiteralAlias:"pointer"
-	ValueLiteralAlias   = ValueLiteral    // want ValueLiteralAlias:"value"
+	PointerLiteralAliasError = PointerLiteral1Error // want PointerLiteralAliasError:"pointer"
+	ValueLiteralAliasError   = ValueLiteralError    // want ValueLiteralAliasError:"value"
 )
 
 func ReturnLiteralAlias(err error) error {
-	err1 := []*PointerLiteralAlias{
+	err1 := []*PointerLiteralAliasError{
 		{err},
 	}
 
-	err2 := []ValueLiteralAlias{
+	err2 := []ValueLiteralAliasError{
 		{err},
 	}
 

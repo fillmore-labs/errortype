@@ -11,6 +11,8 @@ suppress:
 
 wrappers:
   is:
+    - test/wrappers/vars.Is
     - (test/wrappers/iface.Suite).Is
   as:
+    - test/wrappers/vars.As
     - (test/wrappers/iface.Suite).As

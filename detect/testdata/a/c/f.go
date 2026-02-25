@@ -17,16 +17,16 @@
 package c
 
 type (
-	ValueVarFunc    struct{}        // want ValueVarFunc:"value"
-	PointerVarFunc  struct{}        // want PointerVarFunc:"pointer"
-	EmbeddedVarFunc struct{ error } // want EmbeddedVarFunc:"pointer"
+	ValueVarFuncError    struct{}        // want ValueVarFuncError:"value"
+	PointerVarFuncError  struct{}        // want PointerVarFuncError:"pointer"
+	EmbeddedVarFuncError struct{ error } // want EmbeddedVarFuncError:"pointer"
 )
 
-func (ValueVarFunc) Error() string   { return "" }
-func (PointerVarFunc) Error() string { return "" }
+func (ValueVarFuncError) Error() string   { return "" }
+func (PointerVarFuncError) Error() string { return "" }
 
 var (
-	Err1, Err2 error = func() (ValueVarFunc, *PointerVarFunc) { return ValueVarFunc{}, nil }()
+	Err1, Err2 error = func() (ValueVarFuncError, *PointerVarFuncError) { return ValueVarFuncError{}, nil }()
 
-	_ error = func() *EmbeddedVarFunc { return nil }()
+	_ error = func() *EmbeddedVarFuncError { return nil }()
 )

@@ -17,10 +17,10 @@
 package c
 
 type (
-	PurePointer struct{ error } // want PurePointer:"pointer"
-	PureValue   struct{ error } // want PureValue:"value"
+	PurePointerError struct{ error } // want PurePointerError:"pointer"
+	PureValueError   struct{ error } // want PureValueError:"value"
 )
 
-func (p *PurePointer) String() string { return p.error.Error() }
+func (p *PurePointerError) String() string { return p.error.Error() }
 
-func (p PureValue) String() string { return p.error.Error() }
+func (p PureValueError) String() string { return p.error.Error() }

@@ -18,11 +18,30 @@ package wrappers
 
 import (
 	"errors"
+	"fmt"
 	"testing"
+
+	"test/wrappers/override"
 )
 
 func myErrorAs(err error, target interface{}) bool { // want myErrorAs:`as\(0, 1\)`
 	return errors.As(err, target)
+}
+
+func myErrorf(format string, a ...any) error { // want myErrorf:`errorf\(0, 1\)`
+	return fmt.Errorf(format, a...)
+}
+
+func myVaris(err, target error) bool { // want myVaris:`is\(0, 1\)`
+	return override.VarIs(err, target)
+}
+
+func myVarAs(err error, target interface{}) bool { // want myVarAs:`as\(0, 1\)`
+	return override.VarAs(err, target)
+}
+
+func myVarErrorf(format string, a ...any) error { // want myVarErrorf:`errorf\(0, 1\)`
+	return override.Errorf(format, a...)
 }
 
 type Suite struct{}

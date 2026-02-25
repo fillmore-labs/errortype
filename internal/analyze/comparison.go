@@ -30,15 +30,15 @@ import (
 // a function call like `errors.Is`) to detect problematic comparisons.
 //
 // It checks for two types of issues:
-// 1. Comparisons with new pointers (&T{} or new(T)) - always false
-// 2. Comparisons with non-comparable types - always false
+//   - Comparisons with new pointers (&T{} or new(T)) - always false
+//   - Comparisons with not comparable types - always false
 //
 // Reports diagnostics for such comparisons, with special handling for
 // zero-sized types and error interfaces.
 func (p Pass) comparison(n analysis.Range, left, right ast.Expr, direct bool) {
 	// First, check if one of the operands is a new pointer (&T{} or new(T)), checking the left first.
 	switch {
-	case p.isNewPointer(left):
+	case isNewPointer(p.TypesInfo, left):
 		if tv, ok := p.TypesInfo.Types[left]; ok {
 			typ, other, isLeft := tv.Type, right, true
 			p.diagNewComparison(n, typ, other, direct, isLeft)
@@ -46,7 +46,7 @@ func (p Pass) comparison(n analysis.Range, left, right ast.Expr, direct bool) {
 
 		return
 
-	case p.isNewPointer(right):
+	case isNewPointer(p.TypesInfo, right):
 		if tv, ok := p.TypesInfo.Types[right]; ok {
 			typ, other, isLeft := tv.Type, left, false
 			p.diagNewComparison(n, typ, other, direct, isLeft)
@@ -55,17 +55,17 @@ func (p Pass) comparison(n analysis.Range, left, right ast.Expr, direct bool) {
 		return
 	}
 
-	// Check for uncomparable types
-	if tv, ok := p.TypesInfo.Types[left]; ok && !typeutil.Comparable(tv.Type) {
+	// Check for not comparable types
+	if tv, ok := p.TypesInfo.Types[left]; ok && !tv.IsNil() && !types.Comparable(tv.Type) {
 		typ, other, isLeft := tv.Type, right, true
-		p.diagUncomparable(n, typ, other, direct, isLeft)
+		p.diagNonComparable(n, typ, other, direct, isLeft)
 
 		return
 	}
 
-	if tv, ok := p.TypesInfo.Types[right]; ok && !typeutil.Comparable(tv.Type) {
+	if tv, ok := p.TypesInfo.Types[right]; ok && !tv.IsNil() && !types.Comparable(tv.Type) {
 		typ, other, isLeft := tv.Type, left, false
-		p.diagUncomparable(n, typ, other, direct, isLeft)
+		p.diagNonComparable(n, typ, other, direct, isLeft)
 
 		return
 	}
@@ -100,7 +100,7 @@ func (p Pass) diagNewComparison(n analysis.Range, typ types.Type, other ast.Expr
 
 	// If the type implements the error interface, it may be a valid comparison
 	// in the context of errors.Is, which has special unwrapping rules.
-	if !direct && p.CheckIs() && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+	if !direct && p.Has(OptionCheckIs) && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
 		return
 	}
 
@@ -115,15 +115,15 @@ func (p Pass) diagNewComparison(n analysis.Range, typ types.Type, other ast.Expr
 		msg = "Result of comparison of %q with address of new variable of type %q is always false. (et:%s+)"
 	}
 
-	otherName := p.exprToString(other)
+	otherName := exprToString(p.Fset, other)
 	typeName := types.TypeString(tn.Elem(), types.RelativeTo(p.Pkg))
 
 	p.ReportRangef(n, msg, otherName, typeName, tag)
 }
 
-// diagUncomparable reports diagnostics for comparisons with non-comparable types.
+// diagNonComparable reports diagnostics for comparisons with not comparable types.
 // These comparisons are always false or panic.
-func (p Pass) diagUncomparable(n analysis.Range, typ types.Type, other ast.Expr, direct, isLeft bool) {
+func (p Pass) diagNonComparable(n analysis.Range, typ types.Type, other ast.Expr, direct, isLeft bool) {
 	if otherType, ok := p.TypesInfo.Types[other]; ok && otherType.IsNil() {
 		return
 	}
@@ -135,24 +135,28 @@ func (p Pass) diagUncomparable(n analysis.Range, typ types.Type, other ast.Expr,
 
 	// If the type implements the error interface, it may be a valid comparison
 	// in the context of errors.Is, which has special unwrapping rules.
-	if !direct && p.CheckIs() && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
+	if !direct && p.Has(OptionCheckIs) && typeutil.HasErrorMethod(typ) && shouldSuppressDiagnostic(typ, isLeft) {
 		return
 	}
 
 	// Report diagnostic
-	const msg = "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
-	otherName := p.exprToString(other)
+	const msg = "Result of comparison of %q with not comparable variable of type %q is always false. (et:%s+)"
+	otherName := exprToString(p.Fset, other)
 	typeName := types.TypeString(typ, types.RelativeTo(p.Pkg))
 
 	p.ReportRangef(n, msg, otherName, typeName, tag)
 }
 
 // isNewPointer checks if an expression `x` is one of the following:
-// 1. The address of a new composite literal: `&T{...}`
-// 2. A call to the built-in `new()` function: `new(T)`
+//   - The address of a new composite literal: `&T{...}`
+//   - A call to the built-in `new()` function: `new(T)`
+//
 // It returns the type of the expression and a boolean for success.
-func (p Pass) isNewPointer(x ast.Expr) bool {
+func isNewPointer(info *types.Info, x ast.Expr) bool {
 	switch e := ast.Unparen(x).(type) {
+	case *ast.CallExpr:
+		return typeutil.BuiltinNew(info, e)
+
 	case *ast.UnaryExpr:
 		if e.Op != token.AND {
 			return false // not &...
@@ -163,9 +167,6 @@ func (p Pass) isNewPointer(x ast.Expr) bool {
 		}
 
 		return true
-
-	case *ast.CallExpr:
-		return typeutil.BuiltinNew(p.TypesInfo, e)
 
 	default:
 		return false
@@ -185,15 +186,15 @@ func shouldSuppressDiagnostic(typ types.Type, isLeft bool) bool {
 	//    Since we do not have dynamic runtime types, we rely on heuristics and assume when
 	//    `target` could be matched by an `Is(error) bool` method of `err`, it would be the
 	//    `Is(error) bool` method of `target` and suppress the diagnostic in this case.
-	if typeutil.HasMethod(typ, "Is", typeutil.HasIsSig) {
+	if typeutil.IsMethod.HasMethod(typ, false) {
 		return true
 	}
 
 	// 2. `err.Unwrap()`: If `err` is the newly created literal (`isLeft` is true),
-	//    and its type `*T` implements an `Unwrap` method, `errors.Is` will traverse
+	//    and its type implements an `Unwrap` method, `errors.Is` will traverse
 	//    the unwrapped errors. The comparison might then be valid against an unwrapped error.
 	//    Thus, we suppress the diagnostic in this case.
-	if isLeft && typeutil.HasMethod(typ, "Unwrap", typeutil.HasUnwrapSig) {
+	if isLeft && typeutil.UnwrapMethod.HasMethod(typ, false) {
 		return true
 	}
 

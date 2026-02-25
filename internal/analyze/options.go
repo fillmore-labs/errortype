@@ -16,87 +16,56 @@
 
 package analyze
 
-import "fillmore-labs.com/errortype/internal/bitflag"
+import "strconv"
+
+//go:generate go tool bitmask -type Options -boolflag
 
 // Options represent configuration flags to control the behavior of style and correctness checks for errors.
-type Options uint8
+type Options uint16
 
 const (
 	// OptionCheckIs controls whether to check for `Is(error) bool` methods.
-	OptionCheckIs Options = 1 << iota
+	OptionCheckIs Options = 1 << iota // check-is
 	// OptionCheckUnused flags unchecked results of `errors.Is` calls.
-	OptionCheckUnused
+	OptionCheckUnused // check-unused
 	// OptionDeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
-	OptionDeepIsCheck
+	OptionDeepIsCheck // deep-is-check
 	// OptionStyleCheck controls the target style check in `errors.As` calls.
-	OptionStyleCheck
+	OptionStyleCheck // style-check
 	// OptionUncheckedAssert flags all unchecked asserts on errors.
-	OptionUncheckedAssert
-	// OptionNaming checks errors for naming.
-	OptionNaming
+	OptionUncheckedAssert // unchecked-assert
 	// OptionPrefixFilter restricts variable declaration analysis to variables with an 'err' or 'Err' prefix.
-	OptionPrefixFilter
+	OptionPrefixFilter // prefix-filter
+
+	// OptionNotComparable has extended checks for not comparable types.
+	OptionNotComparable // non-comparable
+
+	// OptionNaming checks sentinel and error type naming.
+	OptionNaming // naming
+
+	// OptionLegacy checks for pre-Go 1.13 legacy error assertion queries.
+	OptionLegacy // legacy
+
+	// OptionGenerated diagnoses in generated files, too.
+	OptionGenerated // generated
 
 	// DefaultOptions is the default configuration for error analysis.
-	DefaultOptions = OptionCheckIs | OptionCheckUnused | OptionPrefixFilter
+	DefaultOptions = OptionCheckIs | OptionCheckUnused | OptionPrefixFilter | OptionGenerated
+
+	// RecommendedOptions are additional recommended option.
+	RecommendedOptions = OptionStyleCheck | OptionNotComparable | OptionNaming | OptionLegacy
 )
 
-var _options = [...]string{
-	"checkIs",
-	"checkUnused",
-	"deepIsCheck",
-	"styleCheck",
-	"uncheckedAssert",
-	"naming",
-	"prefixFilter",
-}
-
-func (o Options) String() string {
-	return bitflag.ToString(o, _options[:], "none")
-}
-
-// CheckIs controls whether to check for `Is(error) bool` methods.
-func (o Options) CheckIs() bool {
-	return o&OptionCheckIs != 0
-}
-
-// CheckUnused flags unchecked results of `errors.Is` calls.
-func (o Options) CheckUnused() bool {
-	return o&OptionCheckUnused != 0
-}
-
-// DeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
-func (o Options) DeepIsCheck() bool {
-	return o&OptionDeepIsCheck != 0
-}
-
-// StyleCheck controls the target style check in `errors.As` calls.
-func (o Options) StyleCheck() bool {
-	return o&OptionStyleCheck != 0
-}
-
-// UncheckedAssert flags all unchecked asserts on errors.
-func (o Options) UncheckedAssert() bool {
-	return o&OptionUncheckedAssert != 0
-}
-
-// Naming checks error types and variables for naming conventions.
-func (o Options) Naming() bool {
-	return o&OptionNaming != 0
-}
-
-// PrefixFilter checks only prefixed variables declarations.
-func (o Options) PrefixFilter() bool {
-	return o&OptionPrefixFilter != 0
-}
-
-// SetOption modifies the state of a specific option flag in the Options configuration
-// based on the provided boolean value. The flag parameter should be a single option
-// constant (e.g., [OptionCheckIs], [OptionStyleCheck]).
-func SetOption(o *Options, flag Options, v bool) {
-	if v {
-		*o |= flag
-	} else {
-		*o &^= flag
+// Recommended is a function to set recommended options with [flag.BoolFunc].
+func (o *Options) Recommended(s string) error {
+	value, err := strconv.ParseBool(s)
+	if err != nil {
+		return err
 	}
+
+	if value { // redommended=false is a no-op.
+		o.Set(RecommendedOptions, true)
+	}
+
+	return nil
 }

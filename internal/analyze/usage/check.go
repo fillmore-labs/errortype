@@ -55,7 +55,7 @@ func (e ErrorUsage) Check(t types.Type, reporter Reporter) {
 		return
 	}
 
-	if tn.Parent() != tn.Pkg().Scope() {
+	if !typeutil.PackageLevel(tn) {
 		return // local type with embedded error
 	}
 
@@ -77,14 +77,11 @@ func (e ErrorUsage) Check(t types.Type, reporter Reporter) {
 	case SuppressExpected:
 		// Analysis for this type is suppressed.
 
-	case None:
+	default:
 		// The type's usage is not determined. This often happens when a struct
 		// embeds an error type without defining its own Error() method.
 		// We report this to suggest adding it to the configuration.
 		reporter.UndeterminedUsage(tn, ptr)
-
-	default: // should not happen
-		panic("Misconfigured type in usage map: " + tn.Name())
 	}
 
 	// Record the observed.

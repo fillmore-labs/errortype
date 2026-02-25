@@ -20,8 +20,6 @@ import (
 	"go/ast"
 	"go/types"
 
-	"golang.org/x/tools/go/analysis"
-
 	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
@@ -29,33 +27,38 @@ import (
 // wrapperCandidate represents a function with a signature matching a potential wrapper, tracking its context to build a call graph.
 type wrapperCandidate struct {
 	fun       *types.Func
-	errorFunc result.ErrorFunc
 	body      *ast.BlockStmt
 	srcVar    *types.Var
-	tgtVar    *types.Var       // non-nil for Is/As candidates
-	tParam    *types.TypeParam // non-nil for AsType candidates
+	tgtVar    *types.Var
+	tParam    *types.TypeParam
 	callers   []*wrapperCandidate
+	errorFunc result.ErrorFunc
 }
 
 // findCandidates scans the package-level declarations to discover functions whose signatures make them potential wrapper candidates.
-func findCandidates(p *analysis.Pass) map[*types.Func]*wrapperCandidate {
-	var wrapperCandidates map[*types.Func]*wrapperCandidate
+// Functions already classified as wrappers (seeds or explicit overrides in known) are skipped, so their classification stays authoritative.
+func findCandidates(info *types.Info, files []*ast.File, known result.ErrorFuncs) map[types.Object]*wrapperCandidate {
+	var wrapperCandidates map[types.Object]*wrapperCandidate
 
-	for decl := range typeutil.AllFuncDecls(p.Files) {
+	for decl := range typeutil.AllFuncDecls(files) {
 		if decl.Body == nil {
 			continue
 		}
 
-		fun, ok := p.TypesInfo.Defs[decl.Name].(*types.Func)
+		fun, ok := info.Defs[decl.Name].(*types.Func)
 		if !ok { // should not happen
 			continue
 		}
 
-		if cand := candidateWrapper(fun, decl.Body); cand != nil {
+		if _, ok := known[fun]; ok {
+			continue // already classified as a seed or override; do not re-derive
+		}
+
+		if wrapper := candidateWrapper(fun, decl.Body); wrapper != nil {
 			if wrapperCandidates == nil {
-				wrapperCandidates = make(map[*types.Func]*wrapperCandidate)
+				wrapperCandidates = make(map[types.Object]*wrapperCandidate)
 			}
-			wrapperCandidates[fun] = cand
+			wrapperCandidates[fun] = wrapper
 		}
 	}
 
@@ -70,29 +73,19 @@ func candidateWrapper(fun *types.Func, body *ast.BlockStmt) *wrapperCandidate {
 	srcIdx := firstErrorParameter(params, nParams)
 
 	if srcIdx < 0 {
-		return nil
+		// Only check for Errorf wrappers when no error parameters are found
+		return errorfCandidate(fun, body, sig, params)
 	}
 
 	srcParam := params.At(srcIdx)
 	if srcIdx < nParams-1 {
-		switch tgtParam := params.At(srcIdx + 1); {
+		tgtIdx := srcIdx + 1
+		switch tgtParam := params.At(tgtIdx); {
 		case typeutil.IsErrorInterface(tgtParam.Type()):
-			return &wrapperCandidate{
-				fun:       fun,
-				errorFunc: result.ErrorFunc{Type: result.WrapperIs, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, // #nosec:G115 -- limited by nParams
-				body:      body,
-				srcVar:    srcParam,
-				tgtVar:    tgtParam,
-			}
+			return candidate(fun, body, result.WrapperIs, srcParam, tgtParam, srcIdx, tgtIdx)
 
 		case typeutil.IsAnyInterface(tgtParam.Type()):
-			return &wrapperCandidate{
-				fun:       fun,
-				errorFunc: result.ErrorFunc{Type: result.WrapperAs, Source: int8(srcIdx), Target: int8(srcIdx + 1)}, // #nosec:G115 -- limited by nParams
-				body:      body,
-				srcVar:    srcParam,
-				tgtVar:    tgtParam,
-			}
+			return candidate(fun, body, result.WrapperAs, srcParam, tgtParam, srcIdx, tgtIdx)
 		}
 
 		// Not a wrapper of type Is or As, check for AsType
@@ -104,14 +97,53 @@ func candidateWrapper(fun *types.Func, body *ast.BlockStmt) *wrapperCandidate {
 	if tgtIdx := firstErrorTypeParameter(tParams, nTParams); tgtIdx >= 0 {
 		tParam := tParams.At(tgtIdx)
 
-		return &wrapperCandidate{
-			fun:       fun,
-			errorFunc: result.ErrorFunc{Type: result.WrapperAsType, Source: int8(srcIdx), Target: int8(tgtIdx)}, // #nosec:G115 -- limited by nParams, nTParams
-			body:      body,
-			srcVar:    srcParam,
-			tParam:    tParam,
-		}
+		return candidateT(fun, body, result.WrapperAsType, srcParam, tParam, srcIdx, tgtIdx)
 	}
 
 	return nil
+}
+
+func errorfCandidate(fun *types.Func, body *ast.BlockStmt, sig *types.Signature, params *types.Tuple) *wrapperCandidate {
+	if !sig.Variadic() {
+		return nil
+	}
+
+	srcIdx := params.Len() - 2
+	if srcIdx < 0 || srcIdx >= maxParamIndex {
+		return nil
+	}
+
+	srcParam := params.At(srcIdx)
+	if srcParam.Type() != types.Typ[types.String] {
+		return nil
+	}
+
+	tgtIdx := srcIdx + 1
+	tgtParam := params.At(tgtIdx)
+
+	if slice, ok := tgtParam.Type().(*types.Slice); !ok || !typeutil.IsAnyInterface(slice.Elem()) {
+		return nil
+	}
+
+	return candidate(fun, body, result.WrapperErrorf, srcParam, tgtParam, srcIdx, tgtIdx)
+}
+
+func candidate(fun *types.Func, body *ast.BlockStmt, typ result.WrapperType, srcParam, tgtParam *types.Var, srcIdx, tgtIdx int) *wrapperCandidate {
+	return &wrapperCandidate{
+		fun:       fun,
+		errorFunc: result.ErrorFunc{Type: typ, Source: int8(srcIdx), Target: int8(tgtIdx)}, // #nosec G115 -- limited by nParams.
+		body:      body,
+		srcVar:    srcParam,
+		tgtVar:    tgtParam,
+	}
+}
+
+func candidateT(fun *types.Func, body *ast.BlockStmt, typ result.WrapperType, srcParam *types.Var, tParam *types.TypeParam, srcIdx, tgtIdx int) *wrapperCandidate {
+	return &wrapperCandidate{
+		fun:       fun,
+		errorFunc: result.ErrorFunc{Type: typ, Source: int8(srcIdx), Target: int8(tgtIdx)}, // #nosec G115 -- limited by nParams, nTParams.
+		body:      body,
+		srcVar:    srcParam,
+		tParam:    tParam,
+	}
 }

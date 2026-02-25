@@ -1,0 +1,35 @@
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package c
+
+// Composite literals of type parameter type, whose element type is
+// determined by the core type of the type parameter.
+
+type (
+	TParamSliceValError struct{ error } // want TParamSliceValError:"value"
+	TParamArrayValError struct{ error } // want TParamArrayValError:"value"
+	TParamMapValError   struct{ error } // want TParamMapValError:"value"
+	TParamSlicePtrError struct{ error } // want TParamSlicePtrError:"pointer"
+)
+
+func testTParamSliceLit[S ~[]TParamSliceValError]() { _ = S{} }
+
+func testTParamArrayLit[A ~[1]TParamArrayValError]() { _ = A{} }
+
+func testTParamMapLit[M ~map[string]TParamMapValError]() { _ = M{} }
+
+func testTParamPtrSliceLit[S ~[]*TParamSlicePtrError]() { _ = &S{} }

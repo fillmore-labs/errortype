@@ -1,0 +1,104 @@
+// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package qualname
+
+import (
+	"bytes"
+	"fmt"
+	"go/types"
+	"slices"
+	"strings"
+)
+
+// Type represents the fully qualified name of a Go type,
+// consisting of its package path and its name.
+// It is a simplified representation of a [types.TypeName] without type parameters.
+type Type struct {
+	Path string
+	Name string
+}
+
+// NewType creates a new Type from a [types.TypeName].
+// It extracts the package path and the type's name.
+// If the type is from [types.Universe], the Path will be empty.
+func NewType(tn *types.TypeName) Type {
+	name := Type{
+		Name: tn.Name(),
+	}
+	if pkg := tn.Pkg(); pkg != nil {
+		name.Path = pkg.Path()
+	}
+
+	return name
+}
+
+// String returns the fully qualified name of the type ("pkg/path.TypeName").
+// If the type has no package path, it returns just the type name.
+func (t Type) String() string {
+	if t.Path == "" {
+		return t.Name
+	}
+
+	return t.Path + "." + t.Name
+}
+
+// Compare compares two [Type] instances lexicographically.
+// It first compares by Path, and if they are equal, it compares by Name.
+// It returns -1, 0, or 1.
+func (t Type) Compare(other Type) int {
+	if c := strings.Compare(t.Path, other.Path); c != 0 {
+		return c
+	}
+
+	return strings.Compare(t.Name, other.Name)
+}
+
+// MarshalText implements [encoding.TextMarshaler].
+func (t Type) MarshalText() ([]byte, error) {
+	return t.AppendText(nil)
+}
+
+// AppendText implements [encoding.TextAppender].
+func (t Type) AppendText(buf []byte) ([]byte, error) {
+	if t.Path != "" {
+		buf = slices.Grow(buf, len(t.Path)+1+len(t.Name))
+
+		buf = append(buf, t.Path...)
+		buf = append(buf, '.')
+	}
+
+	buf = append(buf, t.Name...)
+
+	return buf, nil
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (t *Type) UnmarshalText(text []byte) error {
+	if lastDotIndex := bytes.LastIndexByte(text, '.'); lastDotIndex >= 0 {
+		t.Path = string(text[:lastDotIndex])
+		t.Name = string(text[lastDotIndex+1:])
+	} else {
+		t.Path = ""
+		t.Name = string(text)
+	}
+
+	if t.Name == "" {
+		return fmt.Errorf("invalid type name %q", string(text))
+	}
+
+	return nil
+}

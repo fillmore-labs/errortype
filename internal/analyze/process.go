@@ -18,96 +18,184 @@ package analyze
 
 import (
 	"context"
+	"fmt"
 	"go/ast"
 	"runtime/trace"
 
 	"golang.org/x/tools/go/ast/edge"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/astutil"
+	"fillmore-labs.com/errortype/internal/errorconv"
+	"fillmore-labs.com/errortype/internal/errorlike"
+	"fillmore-labs.com/errortype/internal/naming"
+	"fillmore-labs.com/errortype/internal/naming/rules"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // ProcessAST traverses the abstract syntax tree of the package being analyzed.
 // It visits nodes relevant to error usage and dispatches each to its
 // corresponding handler function.
-func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
+func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector, fileMap astutil.FileMap) error {
 	defer trace.StartRegion(ctx, "AST").End()
 
+	var namingChecker *rules.Checker
+	if p.Has(settings.OptionNaming) {
+		namingChecker = rules.New(p.TypesInfo, fileMap, p.Analyzer.Name)
+	}
+
+	instancesByFile := p.groupInstanceTypeArgs(fileMap)
+
 	root := in.Root()
-	for c := range root.Preorder(
-		// keep-sorted start
-		(*ast.AssignStmt)(nil),
-		(*ast.BinaryExpr)(nil),
-		(*ast.CallExpr)(nil),
-		(*ast.FuncDecl)(nil),
-		(*ast.FuncLit)(nil),
-		(*ast.TypeAssertExpr)(nil),
-		(*ast.TypeSwitchStmt)(nil),
-		(*ast.ValueSpec)(nil),
-		// keep-sorted end
-	) {
-		var reg *trace.Region
-
-		switch n := c.Node().(type) {
-		// keep-sorted start newline_separated=yes
-		case *ast.AssignStmt:
-			reg = trace.StartRegion(ctx, "AssignStmt")
-
-			p.handleAssign(n)
-
-		case *ast.BinaryExpr:
-			reg = trace.StartRegion(ctx, "BinaryExpr")
-
-			p.handleBinaryExpr(n)
-
-		case *ast.CallExpr:
-			reg = trace.StartRegion(ctx, "CallExpr")
-
-			p.handleCall(c, n)
-
-		case *ast.FuncDecl:
-			reg = trace.StartRegion(ctx, "FuncDecl")
-
-			if n.Recv != nil {
-				p.handleMethodDecl(c, n)
-			}
-
-			if n.Body == nil {
-				break // Skip function declarations without a body.
-			}
-
-			if errResultIdx := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); errResultIdx >= 0 {
-				body := c.ChildAt(edge.FuncDecl_Body, -1)
-				p.handleReturns(body, errResultIdx)
-			}
-
-		case *ast.FuncLit:
-			reg = trace.StartRegion(ctx, "FuncLit")
-
-			if errResultIdx := typeutil.ErrorResultIndex(p.TypesInfo, n.Type.Results); errResultIdx >= 0 {
-				body := c.ChildAt(edge.FuncLit_Body, -1)
-				p.handleReturns(body, errResultIdx)
-			}
-
-		case *ast.TypeAssertExpr:
-			reg = trace.StartRegion(ctx, "TypeAssert")
-
-			p.handleTypeAssert(n)
-
-		case *ast.TypeSwitchStmt:
-			reg = trace.StartRegion(ctx, "TypeSwitch")
-
-			p.handleTypeSwitch(n)
-
-		case *ast.ValueSpec:
-			reg = trace.StartRegion(ctx, "ValueSpec")
-
-			p.handleVarDecls(n)
-			// keep-sorted end
+	for fileCursor, hasFile := root.FirstChild(); hasFile; fileCursor, hasFile = fileCursor.NextSibling() {
+		file := fileCursor.Node().(*ast.File)
+		if skipFile(fileMap, file, p.Analyzer.Name, p.Options) {
+			continue
 		}
 
-		if reg != nil {
-			reg.End()
+		for c := range fileCursor.Preorder(
+			// keep-sorted start
+			(*ast.AssignStmt)(nil),
+			(*ast.BinaryExpr)(nil),
+			(*ast.CallExpr)(nil),
+			(*ast.CompositeLit)(nil),
+			(*ast.FuncDecl)(nil),
+			(*ast.FuncLit)(nil),
+			(*ast.SendStmt)(nil),
+			(*ast.TypeAssertExpr)(nil),
+			(*ast.TypeSpec)(nil),
+			(*ast.TypeSwitchStmt)(nil),
+			(*ast.ValueSpec)(nil),
+			// keep-sorted end
+		) {
+			var reg *trace.Region
+
+			switch n := c.Node().(type) {
+			// keep-sorted start newline_separated=yes
+			case *ast.AssignStmt:
+				reg = trace.StartRegion(ctx, "AssignStmt")
+
+				p.handleAssign(n)
+
+			case *ast.BinaryExpr:
+				reg = trace.StartRegion(ctx, "BinaryExpr")
+
+				p.handleBinaryExpr(n)
+
+			case *ast.CallExpr:
+				reg = trace.StartRegion(ctx, "CallExpr")
+
+				p.handleCall(c, n)
+
+			case *ast.CompositeLit:
+				reg = trace.StartRegion(ctx, "CompositeLit")
+
+				for typ, expr := range errorconv.CompositeLitElts(p.TypesInfo, n) {
+					p.checkCompositeLit(typ, expr)
+				}
+
+			case *ast.FuncDecl:
+				reg = trace.StartRegion(ctx, "FuncDecl")
+
+				if n.Recv == nil {
+					p.handleFuncDecl(n, file)
+				} else {
+					p.handleMethodDecl(c, n, file)
+				}
+
+				if n.Body == nil {
+					break // Skip function declarations without a body.
+				}
+
+				if errResultIdx := errorlike.ResultIndex(p.TypesInfo, n.Type); errResultIdx >= 0 {
+					body := c.ChildAt(edge.FuncDecl_Body, -1)
+					p.handleReturns(body, errResultIdx)
+				}
+
+			case *ast.FuncLit:
+				reg = trace.StartRegion(ctx, "FuncLit")
+
+				if errResultIdx := errorlike.ResultIndex(p.TypesInfo, n.Type); errResultIdx >= 0 {
+					body := c.ChildAt(edge.FuncLit_Body, -1)
+					p.handleReturns(body, errResultIdx)
+				}
+
+			case *ast.SendStmt:
+				reg = trace.StartRegion(ctx, "SendStmt")
+
+				if typ, expr, ok := errorconv.SendValue(p.TypesInfo, n); ok {
+					p.checkSend(typ, expr)
+				}
+
+			case *ast.TypeAssertExpr:
+				reg = trace.StartRegion(ctx, "TypeAssert")
+
+				p.handleTypeAssert(n)
+
+			case *ast.TypeSpec:
+				reg = trace.StartRegion(ctx, "TypeSpec")
+
+				parent := c.Parent()
+				declNode := parent.Node()
+
+				decl, ok := declNode.(*ast.GenDecl)
+				if !ok {
+					return fmt.Errorf("internal error: unexpected parent of type spec: %#v", declNode)
+				}
+
+				// Package level TypeSpec?
+				if _, ok := parent.Parent().Node().(*ast.File); ok {
+					if namingChecker != nil {
+						// Check naming of error types
+						namingChecker.CheckTypeSpec(n, decl)
+					}
+
+					if ok && p.Has(settings.OptionNonComparable) {
+						p.handleTypeSpec(fileMap, n, decl)
+					}
+				}
+
+			case *ast.TypeSwitchStmt:
+				reg = trace.StartRegion(ctx, "TypeSwitch")
+
+				p.handleTypeSwitch(n)
+
+			case *ast.ValueSpec:
+				reg = trace.StartRegion(ctx, "ValueSpec")
+
+				parent := c.Parent()
+
+				decl, ok := parent.Node().(*ast.GenDecl)
+				if !ok {
+					return fmt.Errorf("internal error: unexpected parent of value spec: %#v", parent.Node())
+				}
+
+				_, packageLevel := parent.Parent().Node().(*ast.File)
+				if packageLevel && namingChecker != nil {
+					// Check naming of error sentinels
+					namingChecker.CheckValueSpec(n, decl)
+				}
+
+				p.handleValueSpec(n, packageLevel)
+				// keep-sorted end
+			}
+
+			if reg != nil {
+				reg.End()
+			}
+		}
+
+		if fileArgs := instancesByFile[file]; len(fileArgs) > 0 {
+			p.handleFileInstances(ctx, fileCursor, fileArgs)
 		}
 	}
+
+	if namingChecker != nil {
+		violations := namingChecker.Violations()
+		if err := naming.ReportViolations(p.Pass, fileMap, violations, namingMessage); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

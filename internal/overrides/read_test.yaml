@@ -1,8 +1,8 @@
 ---
+pointer:
+  - my/pkg.PointerErr
+value:
+  - my/pkg.ValueErr
 wrappers:
   is:
     - my/pkg.Is
-  istype:
-    - my/pkg.IsType
-  equal:
-    - my/pkg.Equal

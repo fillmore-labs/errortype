@@ -26,13 +26,13 @@ import (
 func TestGoTestTools(t *testing.T) {
 	var err *my1Error
 
-	assert.ErrorIs(t, err, &my1Error{}) // want "is false or undefined"
+	assert.ErrorIs(t, err, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	_ = cmp.ErrorIs(err, &my1Error{}) // want "is false or undefined"
+	_ = cmp.ErrorIs(err, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
 	assert.Equal(t, err, &my1Error{}) // want "is false or undefined"
 
-	assert.NilError(t, &my1Error{})
+	assert.NilError(t, &my1Error{}) // want ` \(et:arg\)$`
 
 	_ = cmp.Equal(err, &my1Error{}) // want "is false or undefined"
 

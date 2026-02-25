@@ -16,42 +16,52 @@
 
 package wrappers
 
-import "errors"
-
-func Is(err, target error) bool {
-	return errors.Is(err, target)
-}
-
-func As(err error, target any) bool {
-	return errors.As(err, target)
-}
+import (
+	"errors"
+	"fmt"
+)
 
 func AsType[E error](err error) (E, bool) {
-	var target E
-	ok := errors.As(err, &target)
-
-	return target, ok
+	return errors.AsType[E](err)
 }
 
-func HasType[E error](err error) bool {
-	return errors.As(err, new(E))
+func TestAsType() {
+	AsType[*MyError](nil) // want ` \(et:ast\)$` ` \(et:unu\)$`
 }
 
-type MyError struct{}
+func Errorf(format string, a ...any) error {
+	return fmt.Errorf(format, a...)
+}
 
-func (MyError) Error() string { return "my error" }
+func CustomErrorf(format string, a ...any) MyError {
+	_ = fmt.Errorf(format, a...)
 
-var _ error = MyError{}
+	return MyError{}
+}
 
-func Test() {
-	var err error
-	var target MyError
+type sender struct{ ch chan<- error }
 
-	_ = Is(err, &MyError{}) // want ` \(et:cmp\)$`
+func (s sender) SendErrorf(format string, a ...any) bool {
+	return SendErrorf(s.ch, format, a...)
+}
 
-	_ = As(err, target) // want ` \(et:arg\)$`
+func SendErrorf(ch chan<- error, format string, a ...any) bool {
+	ch <- fmt.Errorf(format, a...)
 
-	_, _ = AsType[*MyError](err) // want ` \(et:ast\)$`
+	return true
+}
 
-	_ = HasType[*MyError](err) // want ` \(et:ast\)$`
+func TestErrorf() {
+	Errorf("nil: %w", nil)       // want ` \(et:unu\)$`
+	CustomErrorf("nil: %w", nil) // want ` \(et:unu\)$`
+
+	ch := make(chan error)
+	s := sender{ch: ch}
+	s.SendErrorf("nil: %w", &MyError{}) // want ` \(et:wrp\)$`
+
+	SendErrorf(ch, "nil: %w", &MyError{}) // want ` \(et:wrp\)$`
+}
+
+func TestUnwrap() {
+	errors.Unwrap(nil) // want ` \(et:unu\)$`
 }

@@ -31,38 +31,38 @@ func wrap1(t assert.TestingT, err, target error) (assert.TestingT, error, error)
 func TestTestify(t *testing.T) {
 	var err *my1Error
 
-	_ = assert.ErrorIs(t, err, &my1Error{})         // want "is false or undefined"
-	_ = assert.ErrorIsf(t, err, &my1Error{}, "")    // want "is false or undefined"
-	_ = assert.NotErrorIs(t, err, &my1Error{})      // want "is false or undefined"
-	_ = assert.NotErrorIsf(t, err, &my1Error{}, "") // want "is false or undefined"
+	_ = assert.ErrorIs(t, err, &my1Error{})         // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = assert.ErrorIsf(t, err, &my1Error{}, "")    // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = assert.NotErrorIs(t, err, &my1Error{})      // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = assert.NotErrorIsf(t, err, &my1Error{}, "") // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	require.ErrorIs(t, err, &my1Error{})         // want "is false or undefined"
-	require.ErrorIsf(t, err, &my1Error{}, "")    // want "is false or undefined"
-	require.NotErrorIs(t, err, &my1Error{})      // want "is false or undefined"
-	require.NotErrorIsf(t, err, &my1Error{}, "") // want "is false or undefined"
+	require.ErrorIs(t, err, &my1Error{})         // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	require.ErrorIsf(t, err, &my1Error{}, "")    // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	require.NotErrorIs(t, err, &my1Error{})      // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	require.NotErrorIsf(t, err, &my1Error{}, "") // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	_ = assert.ErrorIs(wrap1(t, err, &my1Error{}))
+	_ = assert.ErrorIs(wrap1(t, err, &my1Error{})) // want ` \(et:arg\)$` ` \(et:arg\)$`
 
 	_ = assert.Equal(t, err, &my1Error{})
 
-	_ = assert.Error(t, &my1Error{})
+	_ = assert.Error(t, &my1Error{}) // want ` \(et:arg\)$`
 
 	var s suite.Suite
 
-	_ = s.ErrorIs(err, &my1Error{})         // want "is false or undefined"
-	_ = s.ErrorIsf(err, &my1Error{}, "")    // want "is false or undefined"
-	_ = s.NotErrorIs(err, &my1Error{})      // want "is false or undefined"
-	_ = s.NotErrorIsf(err, &my1Error{}, "") // want "is false or undefined"
+	_ = s.ErrorIs(err, &my1Error{})         // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = s.ErrorIsf(err, &my1Error{}, "")    // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = s.NotErrorIs(err, &my1Error{})      // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	_ = s.NotErrorIsf(err, &my1Error{}, "") // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
 	r := s.Require()
 
-	r.ErrorIs(err, &my1Error{})         // want "is false or undefined"
-	r.ErrorIsf(err, &my1Error{}, "")    // want "is false or undefined"
-	r.NotErrorIs(err, &my1Error{})      // want "is false or undefined"
-	r.NotErrorIsf(err, &my1Error{}, "") // want "is false or undefined"
+	r.ErrorIs(err, &my1Error{})         // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	r.ErrorIsf(err, &my1Error{}, "")    // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	r.NotErrorIs(err, &my1Error{})      // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	r.NotErrorIsf(err, &my1Error{}, "") // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	_ = (*assert.Assertions).ErrorIs(s.Assertions, err, &my1Error{}) // want "is false or undefined"
-	(*require.Assertions).ErrorIs(r, err, &my1Error{})               // want "is false or undefined"
+	_ = (*assert.Assertions).ErrorIs(s.Assertions, err, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
+	(*require.Assertions).ErrorIs(r, err, &my1Error{})               // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
 	_ = s.Equal(err, &my1Error{})
 	r.Equal(err, &my1Error{})

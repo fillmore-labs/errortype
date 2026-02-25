@@ -1,0 +1,8 @@
+---
+wrappers:
+  is:
+    - my/pkg.Is
+  astype:
+    - my/pkg.AsType
+  errorf:
+    - (my/pkg.Wrapper).Errorf

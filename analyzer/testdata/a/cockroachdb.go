@@ -37,4 +37,17 @@ func CockroachErrors() {
 	_ = errors.Is(err, &my1Error{}) // want "is false or undefined"
 
 	_ = markers.Is(err, &my1Error{}) // want "is false or undefined"
+
+	var (
+		errv error = my1Error{} // want ` \(et:var\+\)$`
+		errp error = &my1Error{}
+
+		ev = my1Error{}
+		ep = &my1Error{}
+
+		_ = errutil.Wrap(errv, "value")
+		_ = errutil.Wrap(errp, "pointer")
+		_ = errutil.Wrap(ev, "value") // want ` \(et:arg\+\)$`
+		_ = errutil.Wrap(ep, "pointer")
+	)
 }

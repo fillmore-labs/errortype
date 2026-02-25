@@ -18,6 +18,8 @@ package gclplugin_test
 
 import (
 	_ "embed"
+	"errors"
+	"io"
 	"strings"
 	"testing"
 
@@ -32,26 +34,40 @@ var _yamlsettings string
 func TestSettings(t *testing.T) {
 	t.Parallel()
 
-	rawSettings := decodeSettings(t, _yamlsettings)
+	for decoder := yaml.NewDecoder(strings.NewReader(_yamlsettings)); ; {
+		var rawSettings any
+		if err := decoder.DecodeContext(t.Context(), &rawSettings); err != nil {
+			if errors.Is(err, io.EOF) {
+				break
+			}
 
-	r, err := New(rawSettings)
-	if err != nil {
-		t.Fatal(err)
-	}
+			t.Fatal(err)
+		}
 
-	if r.GetLoadMode() != "typesinfo" {
-		t.Error("expected typesinfo load mode")
-	}
+		r, err := New(rawSettings)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-	if _, err := r.BuildAnalyzers(); err != nil {
-		t.Fatal(err)
+		if r.GetLoadMode() != "typesinfo" {
+			t.Error("expected typesinfo load mode")
+		}
+
+		if _, err := r.BuildAnalyzers(); err != nil {
+			t.Fatal(err)
+		}
 	}
 }
 
 func TestBrokenSettings(t *testing.T) {
 	t.Parallel()
 
-	rawSettings := decodeSettings(t, "---\nunknown: false")
+	decoder := yaml.NewDecoder(strings.NewReader("---\nunknown: false"))
+
+	var rawSettings any
+	if err := decoder.Decode(&rawSettings); err != nil {
+		t.Fatal(err)
+	}
 
 	want := "unknown field"
 
@@ -60,13 +76,24 @@ func TestBrokenSettings(t *testing.T) {
 	}
 }
 
-func decodeSettings(tb testing.TB, ys string) any {
-	tb.Helper()
+func TestInvalidOverrides(t *testing.T) {
+	t.Parallel()
+
+	decoder := yaml.NewDecoder(strings.NewReader("---\noverrides:\n  value:\n    - \"a.\""))
 
 	var rawSettings any
-	if err := yaml.NewDecoder(strings.NewReader(ys)).Decode(&rawSettings); err != nil {
-		tb.Fatal(err)
+	if err := decoder.Decode(&rawSettings); err != nil {
+		t.Fatal(err)
 	}
 
-	return rawSettings
+	r, err := New(rawSettings)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	want := `invalid type name "a."`
+
+	if _, err := r.BuildAnalyzers(); err == nil || !strings.Contains(err.Error(), want) {
+		t.Fatalf("expected error with %q, got %v", want, err)
+	}
 }

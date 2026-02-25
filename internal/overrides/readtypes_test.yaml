@@ -1,0 +1,9 @@
+---
+pointer:
+  - my/pkg.PointerErr
+value:
+  - my/pkg.ValueErr
+suppress:
+  - my/pkg.SuppressErr
+inconsistent:
+  - my/pkg.InconsistentErr

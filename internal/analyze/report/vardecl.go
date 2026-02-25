@@ -26,22 +26,22 @@ type VarDecl struct {
 
 // ShouldBeValue reports a diagnostic when a value error is assigned as a pointer.
 func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
-	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
+	if r.VarName == "_" {
 		r.ReportRangef(r.Expr,
-			`Compile‑time assertion should be a value ("... = %s{...}"), not a pointer. (et:var)`, relativeName)
+			`Compile-time assertion should be a value ("var _ error = %s"), not a pointer. (et:var)`, r.zeroValueForm(tn))
 	} else {
 		r.ReportRangef(r.Expr,
-			`Error %q should be a value ("... = %s{...}"), not a pointer. (et:var)`, r.VarName, relativeName)
+			`Error %q should be a value ("... = %s"), not a pointer. (et:var)`, r.VarName, r.valueForm(tn))
 	}
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is assigned as a value.
 func (r VarDecl) ShouldBePointer(tn *types.TypeName) {
-	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
+	if r.VarName == "_" {
 		r.ReportRangef(r.Expr,
-			`Compile‑time assertion should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, relativeName)
+			`Compile-time assertion should be a pointer ("var _ error = %s"), not a value. (et:var+)`, r.pointerZeroForm(tn))
 	} else {
 		r.ReportRangef(r.Expr,
-			`Error %q should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, r.VarName, relativeName)
+			`Error %q should be a pointer ("... = %s"), not a value. (et:var+)`, r.VarName, r.pointerForm(tn))
 	}
 }

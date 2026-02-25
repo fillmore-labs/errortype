@@ -22,42 +22,31 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // handleIs identifies calls of errors.Is inside Is(error) methods.
-func (p Pass) handleIs(body inspector.Cursor, target *types.Var) {
+func (p Pass) handleIs(body inspector.Cursor, param *types.Var) {
 	for c := range body.Preorder((*ast.CallExpr)(nil)) {
 		call := c.Node().(*ast.CallExpr)
 
-		fun, ok := typeutil.FuncOf(p.TypesInfo, call)
-		if !ok {
-			continue // Could not resolve the calls function, might be a func variable.
-		}
-
-		w, ok := p.ErrorFuncs[fun.Func]
+		fun, w, ok := p.Lookup(p.TypesInfo, call)
 		if !ok {
 			continue
 		}
 
-		srcIdx := int(w.Source)
-		if fun.MethodExpr {
-			srcIdx++
-		}
-
-		if len(call.Args) <= srcIdx {
+		arg, ok := w.SourceArg(call.Args, fun.MethodExpr)
+		if !ok {
 			continue
 		}
-
-		arg := call.Args[srcIdx]
 
 		codeSuffix := ""
-		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.TypesInfo.Uses[id] == target {
+		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.TypesInfo.Uses[id] == param {
 			codeSuffix = "+"
-		} else if !p.DeepIsCheck() {
+		} else if !p.Has(settings.OptionStrictIsMethod) {
 			continue
 		}
 
-		p.ReportRangef(call, "An Is method should only shallowly compare %s. (et:unw%s)", target.Name(), codeSuffix)
+		p.ReportRangef(call, "An Is method should only shallowly compare %s. (et:unw%s)", param.Name(), codeSuffix)
 	}
 }

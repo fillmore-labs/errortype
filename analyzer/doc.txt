@@ -1,0 +1,45 @@
+helps prevent subtle bugs in error handling
+
+It checks four categories of issues:
+
+ 1. Inconsistent Error Type Usage: Ensures each error type is used consistently,
+    either as a pointer or as a value.
+
+ 2. Pointless Comparisons: Detects comparisons against newly allocated addresses
+    (like errors.Is(err, &url.Error{}) or ptr == &MyStruct{}), which are almost always incorrect.
+
+ 3. Error Assertion Queries: Flags Is methods that only perform a type assertion and,
+    with -legacy, pre-Go 1.13 helpers like IsNotFound(err) that ignore wrapped errors.
+
+ 4. Error Naming Conventions (opt-in): Checks that sentinel error variables use the Err prefix (e.g.,
+    ErrNotFound) and structured error types use the Error suffix (e.g., ParseError).
+
+For inconsistent error type usage, it automatically determines the correct usage
+for most error types. Ambiguous cases can be resolved through compile-time
+assertions (`var _ error = ...`) or an override file; see the -overrides and
+-suggest flags.
+
+Use -recommended to enable the recommended opt-in checks during development, and -fix to apply
+automatic fixes for naming and legacy query findings.
+
+The short code at the end of each diagnostic, like (et:wrp), groups the diagnostics
+of a single run. Codes are not stable and change between versions without notice;
+do not rely on them in scripts, CI rules or suppressions.
+
+# Examples
+
+To check the current package:
+
+	errortype .
+
+To check all packages with the recommended checks during development:
+
+	errortype -recommended ./...
+
+To preview automatic naming fixes:
+
+	errortype -naming -fix -diff ./...
+
+To check errors across packages, using and suggesting overrides:
+
+	errortype -overrides=overrides.yaml -suggest=- ./...

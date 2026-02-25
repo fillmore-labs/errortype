@@ -56,9 +56,9 @@ func ErrorsAs(err error) {
 
 	_ = errors.As(func() (error, any) { return nil, nil }())
 
-	_ = errors.As(err, evv) // want ` \(et:arg\)$`
+	_ = errors.As(err, evv) // want ` \(et:eas\)$`
 	_ = errors.As(err, evp) // want ` \(et:sty\)$`
-	_ = errors.As(err, epv) // want ` \(et:arg\)$`
+	_ = errors.As(err, epv) // want ` \(et:eas\)$`
 	_ = errors.As(err, epp) // want ` \(et:err\+\)$` ` \(et:sty\)$`
 
 	// Those are readable
@@ -79,7 +79,7 @@ func TestErrorAs() {
 	var err TestError
 	// While valid, we flag this construct
 	var target interface{ F() } = &err
-	if errors.As(TestError{msg: "hello"}, target) { // want ` \(et:arg\+\)$`
+	if errors.As(TestError{msg: "hello"}, target) { // want ` \(et:eas\+\)$`
 		fmt.Println(err.Error())
 	}
 }

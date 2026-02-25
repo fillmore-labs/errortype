@@ -23,7 +23,7 @@ import (
 )
 
 func GoErrors() {
-	_ = errors.Is(my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = errors.Is(my1Error{}, &my1Error{}) // want ` \(et:arg\+\)$` "is false or undefined"
 
 	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 

@@ -23,8 +23,6 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
-
-	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ErrorsAs reports diagnostics related to targets in errors.As like functions.
@@ -35,7 +33,7 @@ type ErrorsAs struct {
 
 // ShouldBeValue reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
-	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.exprToString(r.Fun)
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), exprToString(r.Fset, r.Fun)
 
 	var (
 		varName string
@@ -62,7 +60,7 @@ func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
 
 // ShouldBePointer reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBePointer(tn *types.TypeName) {
-	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.exprToString(r.Fun)
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), exprToString(r.Fset, r.Fun)
 
 	var (
 		varName string
@@ -97,16 +95,4 @@ func (r ErrorsAs) varID() (*ast.Ident, bool) {
 	id, ok := ast.Unparen(e.X).(*ast.Ident)
 
 	return id, ok
-}
-
-// newWithType tests the target variable for the expression "new(T)".
-func (r ErrorsAs) newWithType() bool {
-	call, ok := ast.Unparen(r.Expr).(*ast.CallExpr)
-	if !ok || !typeutil.BuiltinNew(r.TypesInfo, call) {
-		return false
-	}
-
-	tv, ok := r.TypesInfo.Types[call.Args[0]]
-
-	return ok && tv.IsType()
 }

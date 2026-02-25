@@ -19,7 +19,7 @@ package analyze
 import (
 	"go/ast"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/errorlike"
 )
 
 // handleTypeSwitch checks for incorrect pointer/value usage of error types in type switch cases.
@@ -32,7 +32,7 @@ func (p Pass) handleTypeSwitch(n *ast.TypeSwitchStmt) {
 	}
 
 	// We are only interested in switches on an error type.
-	if tv, ok := p.TypesInfo.Types[expr]; !ok || !typeutil.HasErrorMethod(tv.Type) {
+	if tv, ok := p.TypesInfo.Types[expr]; !ok || !errorlike.Implements(tv.Type) {
 		return // Not a switch on an error type.
 	}
 

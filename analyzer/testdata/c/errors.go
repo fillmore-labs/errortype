@@ -44,39 +44,39 @@ func wrap(err, target error) (error, error) {
 }
 
 func Errors() {
-	_ = errors.Is(my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = errors.Is(my1Error{}, &my1Error{}) // want ` \(et:arg\)$` "is false or undefined"
 
-	_ = errors.Is(&my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = errors.Is(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	_ = errors.Is(&my1Error{}, &myEmbeddedError{}) // want "is false or undefined"
+	_ = errors.Is(&my1Error{}, &myEmbeddedError{}) // want ` \(et:arg\)$` "is false or undefined"
 
-	_ = errors.Is(&struct{ my1Error }{}, &my1Error{}) // want "is false or undefined"
+	_ = errors.Is(&struct{ my1Error }{}, &my1Error{}) // want ` \(et:arg\)$` "is false or undefined"
 
-	_ = Is(&my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = Is(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
-	_ = Is(wrap(&my1Error{}, &my1Error{}))
+	_ = Is(wrap(&my1Error{}, &my1Error{})) // want ` \(et:arg\)$` ` \(et:arg\)$`
 
 	var e my1Error
-	_ = errors.Is(nil, &e)
+	_ = errors.Is(nil, &e) // want ` \(et:arg\)$`
 
 	_ = errors.As(my1Error{}, &my1Error{})
 
-	_ = errors.Join(&my1Error{}, &my1Error{})
+	_ = errors.Join(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$`
 
-	_ = errors.Unwrap(&my1Error{})
+	_ = errors.Unwrap(&my1Error{}) // want ` \(et:arg\)$`
 
-	_ = errorsx.Is(&my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = errorsx.Is(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$` "is false or undefined"
 
 	_ = xerrors.Is(func() error { // want "is false or undefined"
 		return &myIsError{}
-	}(), &my1Error{})
+	}(), &my1Error{}) // want ` \(et:arg\)$`
 
-	(errors.Is(nil, &e)) // want ` \(et:unu\+\)$`
+	(errors.Is(nil, &e)) // want ` \(et:arg\)$` ` \(et:unu\+\)$`
 }
 
 func Errors2() {
 	errors := my1Error{}
-	_ = errors.Is(&my1Error{}, &my1Error{})
+	_ = errors.Is(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$`
 }
 
 type StructWithIsField struct {
@@ -86,7 +86,7 @@ type StructWithIsField struct {
 func Errors3() {
 	errors := StructWithIsField{Is: func(_, _ error) bool { return false }}
 
-	_ = errors.Is(&my1Error{}, &my1Error{})
+	_ = errors.Is(&my1Error{}, &my1Error{}) // want ` \(et:arg\)$` ` \(et:arg\)$`
 }
 
 type myIsError struct{}
@@ -126,75 +126,25 @@ func (myUnwrapArrayError) Unwrap() []error {
 }
 
 func Errors4() {
-	_ = errors.Is(&myIsError{}, &my1Error{})
+	_ = errors.Is(&myIsError{}, &my1Error{}) // want ` \(et:arg\)$`
 
-	_ = errors.Is(&struct{ *myIsError }{}, &my1Error{})
+	_ = errors.Is(&struct{ *myIsError }{}, &my1Error{}) // want ` \(et:arg\)$`
 
 	_ = errors.Is(&myUnwrapError{}, os.ErrProcessDone)
 
-	_ = errors.Is(&myUnwrapArrayError{}, os.ErrProcessDone)
+	_ = errors.Is(&myUnwrapArrayError{}, os.ErrProcessDone) // want ` \(et:arg\)$`
 
 	_ = errors.Is(os.ErrProcessDone, &myUnwrapError{}) // want `type "?myUnwrapError"?`
-
-	_ = errors.Is(UnnamedIsError{}, UnnamedIsError{})
-
-	_ = errors.Is(UnderscoreIsError{}, UnderscoreIsError{})
 }
 
 func Interface() {
 	var errors interface{ Is(err, target error) bool }
 
-	_ = errors.Is(my1Error{}, &my1Error{})
+	_ = errors.Is(my1Error{}, &my1Error{}) // want ` \(et:arg\)$`
 }
 
 func Index() {
 	var Is [1]func(err, target error) bool
 
-	_ = Is[0](my1Error{}, &my1Error{})
-}
-
-type comparableError struct{ _ [0]byte }
-
-func (comparableError) Error() string {
-	return ""
-}
-
-type nonComparableError struct{ _ [0][]byte }
-
-func (nonComparableError) Error() string {
-	return ""
-}
-
-type nonComparableWithIsError struct{ _ [0][]byte }
-
-func (nonComparableWithIsError) Error() string {
-	return ""
-}
-
-func (nonComparableWithIsError) Is(err error) bool {
-	return errors.As(err, new(nonComparableWithIsError)) // want "only shallowly compare"
-}
-
-func NonComparable() {
-	_ = errors.Is(comparableError{}, comparableError{})
-
-	_ = errors.Is(nonComparableError{}, nonComparableError{}) // want "non-comparable .* is always false"
-
-	_ = errors.Is(nonComparableWithIsError{}, nonComparableWithIsError{})
-}
-
-type UnnamedIsError struct{}
-
-func (UnnamedIsError) Error() string { return "unnamed" }
-
-func (UnnamedIsError) Is(error) bool {
-	return false
-}
-
-type UnderscoreIsError struct{}
-
-func (_ UnderscoreIsError) Error() string { return "underscore" }
-
-func (_ UnderscoreIsError) Is(_ error) bool {
-	return false
+	_ = Is[0](my1Error{}, &my1Error{}) // want ` \(et:arg\)$`
 }

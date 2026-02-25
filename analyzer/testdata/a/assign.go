@@ -27,6 +27,8 @@ type IntegerError int
 
 func (i IntegerError) Error() string { return "error " + strconv.Itoa(int(i)) }
 
+var _ error = IntegerError(0)
+
 func Assign() (err net.Error) {
 	a, err := IntegerError(1), &d.ValueError{} // want ` \(et:asn\)$`
 

@@ -15,14 +15,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Package overrides provides functionality for reading and writing YAML configuration
-// files that specify error type handling overrides.
+// files that specify error type handling overrides and wrapper function overrides.
 //
 // The package handles configuration files that allow users to explicitly specify
-// how ambiguous error types should be treated by the errortype analyzer.
+// how ambiguous error types should be treated by the detecttypes analyzer and which
+// functions or methods should be treated as error wrappers by the detectwrappers analyzer.
+//
 // It supports four categories of error type overrides:
 //
 //   - Pointer: Types that should always be used as pointers (*PointerError)
 //   - Value: Types that should always be used as values (ValueError)
 //   - Suppress: Types for which error diagnostics should be disabled
 //   - Inconsistent: Types with mixed usage patterns
+//
+// As well as wrapper function overrides:
+//
+//   - Wrappers: Functions or methods that wrap errors.Is, errors.As, errors.AsType, or fmt.Errorf
 package overrides

@@ -27,9 +27,9 @@ func (m *myError) f() (*myError, bool) { return m, true }
 type myEmbeddedError struct{ *myError }
 
 func Exception1() {
-	var err error = myEmbeddedError{&myError{Msg: "embedded"}} // want ` \(et:emb\)$`
+	var err error = myEmbeddedError{&myError{Msg: "embedded"}} // want `var _ error = .*\(et:emb\)$`
 
-	var _ error = &myEmbeddedError{} // want ` \(et:emb\+\)$`
+	var _ error = &myEmbeddedError{} // want `var _ error = .*\(et:emb\+\)$`
 
 	var emb myEmbeddedError
 

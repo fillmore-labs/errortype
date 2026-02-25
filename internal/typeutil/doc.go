@@ -14,10 +14,10 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package typeutil provides utility functions for Go type analysis and manipulation.
+// Package typeutil provides generic helpers for Go type analysis: resolving
+// called functions and named types, core types of type parameters, call
+// results, zero-sized types and declaration iterators.
 //
-// This package contains helper functions and types used throughout the errortype
-// analyzer for working with Go types for error type detection and analysis.
-// It provides functionality for extracting type names, checking error interfaces,
-// and handling pointer/value semantics.
+// Error-specific predicates live in package errorlike, serializable type and
+// function names in package qualname.
 package typeutil

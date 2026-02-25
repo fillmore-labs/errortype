@@ -21,6 +21,8 @@ import (
 	"go/token"
 	"go/types"
 
+	"fillmore-labs.com/errortype/internal/errorlike"
+	"fillmore-labs.com/errortype/internal/settings"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -52,12 +54,12 @@ func (p Pass) handleAssign(stmt *ast.AssignStmt) {
 			v, ok := p.TypesInfo.Uses[id]
 
 			if !ok { // We have a newly declared variable, handle it as a variable declaration.
-				if p.PrefixFilter() && !hasErrPrefix(id.Name) {
+				if p.Has(settings.OptionPrefixFilter) && !conformantVar(id.Name) {
 					continue
 				}
 
 				rTyp, expr := typeutil.ResultOf(p.TypesInfo, stmt.Rhs, idx)
-				if rTyp == nil || !typeutil.HasErrorMethod(rTyp) {
+				if rTyp == nil || !errorlike.Implements(rTyp) {
 					continue // Not an error type
 				}
 
@@ -77,7 +79,7 @@ func (p Pass) handleAssign(stmt *ast.AssignStmt) {
 			lTyp = tv.Type
 		}
 
-		if !typeutil.IsInterfaceWithError(lTyp) {
+		if !errorlike.IsInterface(lTyp) {
 			continue
 		}
 

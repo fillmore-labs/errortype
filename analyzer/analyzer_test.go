@@ -17,60 +17,90 @@
 package analyzer_test
 
 import (
-	"flag"
+	"os/exec"
 	"path"
+	"strings"
+	"sync"
 	"testing"
 
 	"golang.org/x/tools/go/analysis/analysistest"
 
 	. "fillmore-labs.com/errortype/analyzer"
-	"fillmore-labs.com/errortype/detect"
 )
 
 func TestAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	testdata := analysistest.TestData()
-	overrides := path.Join(testdata, "overrides.yaml")
-
-	d, err := detect.New(detect.WithOverrideFile(overrides))
+	testdata, err := testDir()
 	if err != nil {
-		t.Fatalf("Can't build detect analyzer: %v", err)
+		t.Fatal(err)
 	}
+	overrides := path.Join(testdata, "overrides.yaml")
 
 	tests := [...]struct {
 		name     string
-		patterns []string
+		flags    map[string]string
 		options  []Option
-		flags    func(*flag.FlagSet)
+		patterns []string
 	}{
-		{"a", []string{"test/a"}, []Option{WithDetectTypes(d), WithNaming(true), WithStyleCheck(true)}, nil},
-		{
-			"a with flags", []string{"test/a"}, nil, setFlags(t, map[string]string{
-				"overrides":   overrides,
-				"naming":      "true",
-				"style-check": "true",
+		{"a", nil, []Option{
+			WithOverrideFile(overrides),
+			WithNaming(true),
+			WithStyleCheck(true),
+		}, []string{"test/a"}},
+		{"a with flags", map[string]string{
+			"overrides":   overrides,
+			"naming":      "true",
+			"style-check": "true",
+		}, nil, []string{"test/a"}},
+		{"b", nil, []Option{
+			WithNaming(true),
+			WithStrictIsTarget(true),
+			WithStrictIsMethod(true),
+			WithUncheckedAssert(true),
+			WithCheckUnused(true),
+			WithStyleCheck(true),
+		}, []string{"test/b", "test/style", "test/main", "test/alias"}},
+		{"b with flags", map[string]string{
+			"naming":           "true",
+			"strict-is-target": "true",
+			"strict-is-method": "true",
+			"unchecked-assert": "true",
+			"check-unused":     "true",
+			"style-check":      "true",
+		}, nil, []string{"test/b", "test/style", "test/main", "test/alias"}},
+		{"c", nil, []Option{WithStyleCheck(false), WithNaming(true)}, []string{"test/c"}},
+		{"c with flags", map[string]string{
+			"style-check": "false",
+			"naming":      "true",
+		}, nil, []string{"test/c"}},
+		{"comparable", nil, []Option{WithNonComparable(true), WithNaming(true)}, []string{"test/comparable"}},
+		{"comparable with flags", map[string]string{
+			"non-comparable": "true",
+			"naming":         "true",
+		}, nil, []string{"test/comparable"}},
+		{"wrappers", nil, []Option{WithOverrideFile(overrides)}, []string{"test/wrappers"}},
+		{"wrap", nil, nil, []string{"test/wrap"}},
+		{"receivers", nil, nil, []string{"test/receivers"}},
+		{"go1.27", nil, nil, []string{"test/go127"}},
+		{"forms", nil, nil, []string{"test/forms"}},
+		{"receivers all", nil, []Option{WithReceivers(true)}, []string{"test/receiversall"}},
+		{"receivers all with flags", map[string]string{"receivers": "true"}, nil, []string{"test/receiversall"}},
+		{"a with override options", nil, []Option{
+			WithOverrides(map[string][]string{
+				"pointer":  {"test/a.PointerOverrideError"},
+				"value":    {"test/a.ValueOverrideError"},
+				"suppress": {"test/a.SuppressOverrideError"},
 			}),
-		},
-		{"b", []string{"test/b", "test/style", "test/main", "test/alias"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true), WithCheckUnused(true), WithNaming(true), WithStyleCheck(true)}, nil},
-		{
-			"b with flags", []string{"test/b", "test/style", "test/main", "test/alias"}, nil, setFlags(t, map[string]string{
-				"check-is":         "false",
-				"deep-is-check":    "true",
-				"unchecked-assert": "true",
-				"check-unused":     "true",
-				"naming":           "true",
-				"style-check":      "true",
+			WithNaming(true),
+			WithStyleCheck(true),
+		}, []string{"test/a"}},
+		{"wrappers with options", nil, []Option{
+			WithWrappers(map[string][]string{
+				"is": {"test/wrappers/vars.Is", "(test/wrappers/iface.Suite).Is"},
+				"as": {"test/wrappers/vars.As", "(test/wrappers/iface.Suite).As"},
 			}),
-		},
-		{"c", []string{"test/c"}, []Option{WithStyleCheck(false), WithNaming(true)}, nil},
-		{
-			"c with flags", []string{"test/c"}, nil, setFlags(t, map[string]string{
-				"style-check": "false",
-				"naming":      "true",
-			}),
-		},
-		{"wrappers", []string{"test/wrappers"}, []Option{WithDetectTypes(d)}, nil},
+		}, []string{"test/wrappers"}},
 	}
 
 	for _, tt := range tests {
@@ -82,8 +112,10 @@ func TestAnalyzer(t *testing.T) {
 				t.Fatalf("Can't build analyzer: %v", err)
 			}
 
-			if tt.flags != nil {
-				tt.flags(&a.Flags)
+			for name, value := range tt.flags {
+				if err := a.Flags.Set(name, value); err != nil {
+					t.Fatalf("can't set %s to %s: %v", name, value, err)
+				}
 			}
 
 			analysistest.Run(t, testdata, a, tt.patterns...)
@@ -91,14 +123,94 @@ func TestAnalyzer(t *testing.T) {
 	}
 }
 
-func setFlags(tb testing.TB, flags map[string]string) func(*flag.FlagSet) { //nolint:thelper
-	return func(fs *flag.FlagSet) {
-		tb.Helper()
+func TestAnalyzerFix(t *testing.T) {
+	t.Parallel()
 
-		for name, value := range flags {
-			if err := fs.Set(name, value); err != nil {
-				tb.Fatalf("can't set %s to %s: %v", name, value, err)
+	testdata, err := testDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := [...]struct {
+		name     string
+		flags    map[string]string
+		options  []Option
+		patterns []string
+	}{
+		{"naming", nil, []Option{WithStyleCheck(false), WithNaming(true)}, []string{"test/naming"}},
+		{"naming with flags", map[string]string{
+			"style-check": "false",
+			"naming":      "true",
+		}, nil, []string{"test/naming"}},
+		{"legacy", nil, []Option{WithLegacy(true)}, []string{"test/legacy"}},
+		{"legacy with flags", map[string]string{"legacy": "true"}, nil, []string{"test/legacy"}},
+		{"ismethod", nil, []Option{WithLegacy(true)}, []string{"test/ismethod"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			a, err := New(tt.options...)
+			if err != nil {
+				t.Fatalf("Can't build analyzer: %v", err)
+			}
+
+			for name, value := range tt.flags {
+				if err := a.Flags.Set(name, value); err != nil {
+					t.Fatalf("can't set %s to %s: %v", name, value, err)
+				}
+			}
+
+			analysistest.RunWithSuggestedFixes(t, testdata, a, tt.patterns...)
+		})
+	}
+}
+
+func TestAssertionsRelated(t *testing.T) {
+	t.Parallel()
+
+	testdata, err := testDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	a, err := New()
+	if err != nil {
+		t.Fatalf("Can't build analyzer: %v", err)
+	}
+
+	results := analysistest.Run(t, testdata, a, "test/assertions")
+
+	var found int
+
+	for _, r := range results {
+		for _, d := range r.Diagnostics {
+			if !strings.Contains(d.Message, "(et:cfl)") {
+				continue
+			}
+
+			found++
+
+			if len(d.Related) != 1 || !d.Related[0].Pos.IsValid() || d.Related[0].Pos == d.Pos {
+				t.Errorf("Related = %+v for %q (pos %v), want single valid related pos != %v",
+					d.Related, d.Message, d.Pos, d.Pos)
 			}
 		}
 	}
+
+	if found == 0 {
+		t.Error("expected at least one (et:cfl) diagnostic")
+	}
 }
+
+var testDir = sync.OnceValues(func() (string, error) {
+	testdata := analysistest.TestData()
+
+	cmd := exec.Command("go", "mod", "download")
+	cmd.Dir = testdata
+
+	err := cmd.Run()
+
+	return testdata, err
+})

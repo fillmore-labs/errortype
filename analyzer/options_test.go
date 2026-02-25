@@ -18,18 +18,15 @@ package analyzer_test
 
 import (
 	"log/slog"
+	"regexp"
 	"strings"
 	"testing"
-
-	"golang.org/x/tools/go/analysis"
 
 	. "fillmore-labs.com/errortype/analyzer"
 )
 
 func TestLogValue(t *testing.T) {
 	t.Parallel()
-
-	testDetect := &analysis.Analyzer{Name: "test-detect"}
 
 	testCases := [...]struct {
 		name     string
@@ -38,43 +35,53 @@ func TestLogValue(t *testing.T) {
 	}{
 		{
 			name:     "WithDetectTypes",
-			option:   WithDetectTypes(testDetect),
-			expected: `"detect":"test-detect"`,
+			option:   WithHeuristics(HeuristicUsage),
+			expected: `"heuristics":"usage"`,
 		},
 		{
 			name:     "WithStyleCheck",
 			option:   WithStyleCheck(true),
-			expected: `"styleCheck":true`,
+			expected: `"style-check":true`,
 		},
 		{
-			name:     "WithCheckIs",
-			option:   WithCheckIs(false),
-			expected: `"checkIs":false`,
+			name:     "WithStrictIsTarget",
+			option:   WithStrictIsTarget(true),
+			expected: `"strict-is-target":true`,
 		},
 		{
-			name:     "WithDeepIsCheck",
-			option:   WithDeepIsCheck(true),
-			expected: `"deepIsCheck":true`,
+			name:     "WithStrictIsMethod",
+			option:   WithStrictIsMethod(true),
+			expected: `"strict-is-method":true`,
 		},
 		{
 			name:     "WithUncheckedAssert",
 			option:   WithUncheckedAssert(false),
-			expected: `"uncheckedAssert":false`,
+			expected: `"unchecked-assert":false`,
 		},
 		{
 			name:     "WithCheckUnused",
 			option:   WithCheckUnused(true),
-			expected: `"checkUnused":true`,
+			expected: `"check-unused":true`,
+		},
+		{
+			name:     "WithOverrides",
+			option:   WithOverrides(map[string][]string{"value": {"a.ValueError", "a.OtherError"}}),
+			expected: `"overrides":{"value":"a.ValueError,a.OtherError"}`,
+		},
+		{
+			name:     "WithWrappers",
+			option:   WithWrappers(map[string][]string{"is": {"a.IsError"}}),
+			expected: `"wrappers":{"is":"a.IsError"}`,
 		},
 		{
 			name: "Options",
 			option: Join(
-				WithDetectTypes(testDetect),
+				WithTrace(regexp.MustCompile(".")),
 				WithStyleCheck(true),
-				WithCheckIs(false),
+				WithStrictIsTarget(true),
 				WithCheckUnused(true),
 			),
-			expected: `"options":{"detect":"test-detect","styleCheck":true,"checkIs":false,"checkUnused":true}}`,
+			expected: `"options":{"trace":".","style-check":true,"strict-is-target":true,"check-unused":true}}`,
 		},
 	}
 
@@ -88,6 +95,52 @@ func TestLogValue(t *testing.T) {
 
 			if got := sb.String(); !strings.Contains(got, tt.expected) {
 				t.Errorf("Expected %s to contain %s", got, tt.expected)
+			}
+		})
+	}
+}
+
+func TestInvalidNames(t *testing.T) {
+	t.Parallel()
+
+	testCases := [...]struct {
+		name   string
+		option Option
+		want   string
+	}{
+		{
+			name:   "override kind",
+			option: WithOverrides(map[string][]string{"pointers": {"a.PointerError"}}),
+			want:   `unknown override kind "pointers"`,
+		},
+		{
+			name:   "override type",
+			option: WithOverrides(map[string][]string{"value": {"a."}}),
+			want:   `invalid type name "a."`,
+		},
+		{
+			name:   "wrapper kind",
+			option: WithWrappers(map[string][]string{"iss": {"a.IsError"}}),
+			want:   `unknown wrapper type: "iss"`,
+		},
+		{
+			name:   "wrapper kind not configurable",
+			option: WithWrappers(map[string][]string{"unwrap": {"a.Unwrap"}}),
+			want:   `unknown wrapper type: "unwrap"`,
+		},
+		{
+			name:   "wrapper function",
+			option: WithWrappers(map[string][]string{"is": {"(a.Checker"}}),
+			want:   "invalid function name",
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if _, err := New(tt.option); err == nil || !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("Expected error containing %q, got %v", tt.want, err)
 			}
 		})
 	}

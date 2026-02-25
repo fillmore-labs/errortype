@@ -18,6 +18,7 @@ package wrappers
 
 import (
 	"test/wrappers/iface"
+	"test/wrappers/vars"
 	"test/wrappers/wrap"
 )
 
@@ -39,13 +40,17 @@ func TestSub(s iface.Suite) {
 		target MyError
 	)
 
-	_ = WrapIs(err, &MyError{}) // want ` \(et:cmp\)$`
+	_ = WrapIs(err, &MyError{}) // want ` \(et:arg\)$` ` \(et:cmp\)$`
 
-	_ = WrapAs(err, target) // want ` \(et:arg\)$`
+	_ = WrapAs(err, target) // want ` \(et:eas\)$`
 
 	_, _ = WrapAsType[*MyError](err) // want ` \(et:ast\)$`
 
-	_ = s.Is(err, &MyError{}) // want ` \(et:cmp\)$`
+	_ = s.Is(err, &MyError{}) // want ` \(et:arg\)$` ` \(et:cmp\)$`
 
-	_ = s.As(err, target) // want ` \(et:arg\)$`
+	_ = s.As(err, target) // want ` \(et:eas\)$`
+
+	_ = vars.Is(err, &MyError{}) // want ` \(et:arg\)$` ` \(et:cmp\)$`
+
+	_ = vars.As(err, target) // want ` \(et:eas\)$`
 }

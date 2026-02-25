@@ -1,0 +1,40 @@
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package report
+
+import "go/types"
+
+// CallArg reports diagnostics related to error arguments passed to function calls.
+type CallArg struct {
+	Base
+}
+
+// ShouldBeValue reports a diagnostic when a value error is passed as a pointer.
+func (r CallArg) ShouldBeValue(tn *types.TypeName) {
+	relativeName, form := r.relativeNameOf(tn), r.valueForm(tn)
+	// fn(&MyValueError{})
+	r.ReportRangef(r.Expr,
+		`Error type %q should be passed as a value ("%s"), not a pointer. (et:arg)`, relativeName, form)
+}
+
+// ShouldBePointer reports a diagnostic when a pointer error is passed as a value.
+func (r CallArg) ShouldBePointer(tn *types.TypeName) {
+	relativeName, form := r.relativeNameOf(tn), r.pointerForm(tn)
+	// fn(MyPointerError{})
+	r.ReportRangef(r.Expr,
+		`Error type %q should be passed as a pointer ("%s"), not a value. (et:arg+)`, relativeName, form)
+}

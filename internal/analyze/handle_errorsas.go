@@ -22,17 +22,11 @@ import (
 	"go/types"
 	"strings"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/errorlike"
 )
 
 // handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
-func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
-	if targetArgIndex >= len(call.Args) {
-		return // Not enough arguments, e.g. called with return values of another function.
-	}
-
-	targetArg := call.Args[targetArgIndex]
-
+func (p Pass) handleErrorsAs(call *ast.CallExpr, ex, targetArg ast.Expr) {
 	tv, ok := p.TypesInfo.Types[targetArg]
 	if !ok || !tv.IsValue() { // should not happen
 		p.ReportErrorf(targetArg, "Expected argument value, got %#v", tv)
@@ -51,9 +45,9 @@ func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int
 		}
 
 		// The pointed-to type must implement the error interface.
-		if !typeutil.HasErrorMethod(elemType) {
+		if !errorlike.Implements(elemType) {
 			typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
-			p.ReportRangef(targetArg, `Expected pointer to a type implementing "error", but %q does not. (et:arg)`, typeName)
+			p.ReportRangef(targetArg, `Expected pointer to a type implementing "error", but %q does not. (et:eas)`, typeName)
 
 			return
 		}
@@ -71,15 +65,19 @@ func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int
 		// that points either to an interface or a type implementing `error`
 		//
 		// While the interface itself does not have to be `any`, everything
-		// else is rare and error-prone:
+		// else is rare and error-prone. This works, but is confusing:
 		//
-		//	type TestError struct{ ... }
-		//	func (TestError) Error() string { ... }
+		//	type TestError struct{ msg string }
+		//	func (e TestError) Error() string { return e.msg }
 		//
-		//	var err error = &TestError{ ... }
-		//	if errors.As(TestError{...}, err) { ... }
+		//	func _() {
+		//		err := TestError{msg: "test error"}
+		//
+		//		var errTarget error = &TestError{}
+		//		if errors.As(err, errTarget) { fmt.Println(errTarget) }
+		//	}
 		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
-		p.ReportRangef(targetArg, `Expected pointer or "any" interface, but %q is a non-empty interface. (et:arg+)`, typeName)
+		p.ReportRangef(targetArg, `Expected pointer or "any" interface, but %q is a non-empty interface. (et:eas+)`, typeName)
 
 	default:
 		// The argument to an `errors.As`-like function must be a pointer or an interface.
@@ -94,6 +92,6 @@ func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int
 		}
 
 		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
-		p.ReportRangef(targetArg, `Target argument of %s must be a pointer or interface, got %q (type %s). (et:arg)`, funName, target, typeName)
+		p.ReportRangef(targetArg, `Target argument of %s must be a pointer or interface, got %q (type %s). (et:eas)`, funName, target, typeName)
 	}
 }

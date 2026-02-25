@@ -23,9 +23,14 @@ import (
 )
 
 func GoFasterErrors() {
-	_ = errors.Is(my1Error{}, &my1Error{}) // want "is false or undefined"
+	_ = errors.Is(my1Error{}, &my1Error{}) // want ` \(et:arg\+\)$` "is false or undefined"
 
 	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
+
+	_ = errors.Wrap(&b.AmbiguousError{}, "")  // want ` \(et:emb\+\)$`
+	_ = errors.Wrapf(&b.AmbiguousError{}, "") // want ` \(et:emb\+\)$`
+
+	_ = errors.Errorf("%w", &b.AmbiguousError{}) // want ` \(et:emb\+?\)$`
 
 	var (
 		err error

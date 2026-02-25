@@ -19,31 +19,16 @@ package analyze
 import (
 	"go/ast"
 
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/internal/errorlike"
 )
 
 // handleIsType processes type assertion functions that check if an error implements a specific type.
-// It handles functions with signatures like `assert.IsType`.
-func (p Pass) handleIsType(call *ast.CallExpr, methodExpr bool, argIndex int8) {
-	typeArg := int(argIndex)
-
-	// Receiver offset for method expressions
-	if methodExpr {
-		typeArg++
-	}
-
-	// Validate argument count
-	if len(call.Args) < typeArg+2 {
-		return // Multivalued argument or incorrect call
-	}
-
+// It handles functions with signatures like [github.com/stretchr/testify/assert.IsType].
+func (p Pass) handleIsType(typeExpr, targetExpr ast.Expr) {
 	// Only analyze if the target implements the error interface
-	targetExpr := call.Args[typeArg+1]
-	if targetType, ok := p.TypesInfo.Types[targetExpr]; !ok || !typeutil.HasErrorMethod(targetType.Type) {
+	if targetType, ok := p.TypesInfo.Types[targetExpr]; !ok || !errorlike.Implements(targetType.Type) {
 		return
 	}
-
-	typeExpr := call.Args[typeArg]
 
 	assertedType, ok := p.TypesInfo.Types[typeExpr]
 	if !ok { // should not happen

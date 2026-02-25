@@ -40,7 +40,7 @@ func (my1Error) As(_ error, _ any) bool { // want ` \(et:sig\)$`
 var ErrPointer error = &b.ValueError{} // want ` \(et:var\)$`
 
 func Errors(err error) {
-	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want `var _ error = .*\(et:emb\)$` ` \(et:sty\)$`
 
 	_ = As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
@@ -54,11 +54,11 @@ func Errors(err error) {
 
 	(errors.Is(err, nil)) // want ` \(et:unu\+\)$`
 
-	(errors.As(err, nil)) // want ` \(et:arg\)$` ` \(et:unu\)$`
+	(errors.As(err, nil)) // want ` \(et:eas\)$` ` \(et:unu\)$`
 }
 
 func Errors2() {
-	errors := my1Error{}
+	errors := my1Error{} // want ` \(et:var\+\)$`
 
 	_ = errors.As(&my1Error{}, &b.AmbiguousError{})
 }

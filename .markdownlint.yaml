@@ -2,6 +2,7 @@
 no-hard-tabs:
   ignore_code_languages:
     - go
+    - diff
   spaces_per_tab: 4
 line-length:
   line_length: 120
@@ -12,4 +13,4 @@ ol-prefix:
 no-blanks-blockquote:
   enabled: false
 no-inline-html:
-  allowed_elements: ["b", "code", "details", "summary", "p"]
+  allowed_elements: [b, code, details, summary, p]

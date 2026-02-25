@@ -1,0 +1,59 @@
+// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package a
+
+import (
+	"errors"
+	"math/rand/v2"
+	"reflect"
+)
+
+type (
+	IsCalledError         struct{ error } // want IsCalledError:"pointer"
+	AsCalledError         struct{ error } // want AsCalledError:"pointer"
+	TypeAssertCalledError struct{ error } // want TypeAssertCalledError:"pointer"
+	AsTypeCalledError     struct{ error } // want AsTypeCalledError:"pointer"
+)
+
+func ReturnL(err error) error {
+	_ = errors.Is(err, &IsCalledError{err})
+	_ = errors.As(err, new(*AsCalledError))
+	_, _ = reflect.TypeAssert[*TypeAssertCalledError](reflect.ValueOf(err))
+	_, _ = errors.AsType[*AsTypeCalledError](err)
+
+	switch rand.Int() {
+	case 0:
+		err = IsCalledError{} // want "POINTER"
+
+	case 1:
+		err = AsCalledError{} // want "POINTER"
+
+	case 2:
+		err = TypeAssertCalledError{} // want "POINTER"
+
+	case 3:
+		err = AsTypeCalledError{} // want "POINTER"
+
+	default:
+		err = nil
+	}
+
+	_ = func(error, error) bool { return false }(err, &IsCalledError{err})
+	_ = func(error, error) bool { return false }(err, IsCalledError{err})
+
+	return err
+}

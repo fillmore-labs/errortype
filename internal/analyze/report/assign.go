@@ -25,16 +25,16 @@ type Assign struct {
 
 // ShouldBeValue reports a diagnostic when a value error is assigned as a pointer.
 func (r Assign) ShouldBeValue(tn *types.TypeName) {
-	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
+	relativeName, form := r.relativeNameOf(tn), r.valueForm(tn)
 	// err := &MyValueError{}
 	r.ReportRangef(r.Expr,
-		`Error type %q should be assigned as a value ("= %s{...}"), not a pointer. (et:asn)`, relativeName, shortName)
+		`Error type %q should be assigned as a value ("= %s"), not a pointer. (et:asn)`, relativeName, form)
 }
 
 // ShouldBePointer reports a diagnostic when a pointer error is assigned as a value.
 func (r Assign) ShouldBePointer(tn *types.TypeName) {
-	relativeName, shortName := r.relativeNameOf(tn), r.shortNameOf(tn)
+	relativeName, form := r.relativeNameOf(tn), r.pointerForm(tn)
 	// err := MyPointerError{}
 	r.ReportRangef(r.Expr,
-		`Error type %q should be assigned as a pointer ("= &%s{...}"), not a value. (et:asn+)`, relativeName, shortName)
+		`Error type %q should be assigned as a pointer ("= %s"), not a value. (et:asn+)`, relativeName, form)
 }

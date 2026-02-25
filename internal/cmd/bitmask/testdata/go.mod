@@ -2,7 +2,7 @@ module fillmore-labs.com/errortype/internal/cmd/bitmask/testdata
 
 go 1.26.0
 
-require fillmore-labs.com/errortype v0.0.12
+require fillmore-labs.com/errortype v0.0.13
 
 require (
 	golang.org/x/mod v0.43.0 // indirect

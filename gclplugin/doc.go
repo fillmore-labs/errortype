@@ -30,7 +30,7 @@ Package gclplugin provides golangci-lint plugin integration for the [errortype] 
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.12
+	    version: v0.0.13
 
 2. Run `golangci-lint custom` from your project root.
 

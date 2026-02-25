@@ -1,10 +1,10 @@
 # errortype
 
 [![Go Reference](https://pkg.go.dev/badge/fillmore-labs.com/errortype.svg)](https://pkg.go.dev/fillmore-labs.com/errortype)
-[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml?query=branch%3Amain)
+[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml/badge.svg?branch=dev)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yaml?query=branch%3Adev)
 [![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/main/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
-[![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=main)](https://ci.codeberg.org/repos/15305/branches/main)
+[![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/dev/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
+[![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=dev)](https://ci.codeberg.org/repos/15305/branches/dev)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](https://www.apache.org/licenses/LICENSE-2.0)
 
 `errortype` is a static analysis tool with four kinds of checks:
@@ -657,7 +657,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.12
+    version: v0.0.13
 ```
 
 Run `golangci-lint custom` to build a custom executable. Configure in `.golangci.yaml`:

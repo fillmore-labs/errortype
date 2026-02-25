@@ -19,12 +19,15 @@ package analyze
 import (
 	"go/ast"
 	"go/printer"
+	"go/token"
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/analyze/usage"
+	typesresult "fillmore-labs.com/errortype/internal/detecttypes/result"
+	wrappersresult "fillmore-labs.com/errortype/internal/detectwrappers/result"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // Pass wraps an *analysis.Pass and tracks error usages within the analysis Pass.
@@ -32,28 +35,28 @@ import (
 type Pass struct {
 	*analysis.Pass
 	usage.ErrorUsage
-	result.ErrorFuncs
-	Options
+	wrappersresult.ErrorFuncs
+	settings.Options
 }
 
 // NewPass creates and returns a new Pass instance, initializing its errorUsages property map.
-// It takes an *analysis.Pass as input and embeds it within the returned Pass.
-func NewPass(ap *analysis.Pass, detectedResult result.Result, opt Options) Pass {
+// It takes an *[analysis.Pass] as input and embeds it within the returned Pass.
+func NewPass(pass *analysis.Pass, errorResult typesresult.Result, wrapperResult wrappersresult.Result, opt settings.Options) Pass {
 	errorUsage := make(usage.ErrorUsage)
-	errorUsage.ProcessDetectedTypes(detectedResult.Types)
+	errorUsage.ProcessDetectedTypes(errorResult.Types)
 
 	return Pass{
-		Pass:       ap,
+		Pass:       pass,
 		ErrorUsage: errorUsage,
-		ErrorFuncs: detectedResult.Funcs,
+		ErrorFuncs: wrapperResult.ErrorFuncs,
 		Options:    opt,
 	}
 }
 
 var rawfmt = &printer.Config{Mode: printer.RawFormat}
 
-func (p Pass) exprToString(expr ast.Expr) string {
-	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, p.Fset, expr) == nil {
+func exprToString(fset *token.FileSet, expr ast.Expr) string {
+	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, fset, expr) == nil {
 		return sb.String()
 	}
 

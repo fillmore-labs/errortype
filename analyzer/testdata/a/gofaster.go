@@ -27,6 +27,11 @@ func GoFasterErrors() {
 
 	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
+	_ = errors.Wrap(&b.AmbiguousError{}, "")
+	_ = errors.Wrapf(&b.AmbiguousError{}, "")
+
+	_ = errors.Errorf("%w", &b.AmbiguousError{}) // want ` \(et:emb\+?\)$`
+
 	var (
 		err error
 		pve *ValueError

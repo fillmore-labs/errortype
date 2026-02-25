@@ -24,7 +24,7 @@ import (
 // ResolvedFunc is the result of resolving a function expression.
 type ResolvedFunc struct {
 	Ident      *ast.Ident
-	Func       *types.Func
+	Func       types.Object
 	Expr       ast.Expr
 	MethodExpr bool
 }
@@ -35,18 +35,17 @@ func FuncOf(info *types.Info, call *ast.CallExpr) (res ResolvedFunc, ok bool) {
 	typeParams := false
 
 unwarp:
-	switch e := res.Expr.(type) {
+	switch expr := res.Expr.(type) {
 	case *ast.Ident:
-		res.Ident = e
-		res.Func, ok = info.Uses[e].(*types.Func)
-
-		return res, ok
+		return returnIdent(info, expr, res)
 
 	case *ast.SelectorExpr:
-		if sel, isSel := info.Selections[e]; isSel {
+		if sel, ok := info.Selections[expr]; ok {
+			// selector expression
+			res.Ident = expr.Sel
+
 			switch sel.Kind() {
 			case types.MethodVal:
-				res.MethodExpr = false
 
 			case types.MethodExpr:
 				res.MethodExpr = true
@@ -55,28 +54,25 @@ unwarp:
 				return res, false
 			}
 
-			res.Ident = e.Sel
-			res.Func = sel.Obj().(*types.Func)
+			res.Func = sel.Obj().(*types.Func).Origin()
 
 			return res, true
 		}
 
-		res.Ident = e.Sel
-		res.Func, ok = info.Uses[e.Sel].(*types.Func) // e.Sel is an identifier qualified by e.X
-
-		return res, ok
+		// qualified identifier, e.X is a package name
+		return returnIdent(info, expr.Sel, res)
 
 	case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
 		if typeParams { // should not happen, duplicate type parameters
 			return res, false
 		}
 
-		if !checkTypeParameters(info, []ast.Expr{e.Index}) {
+		if !checkTypeParameters(info, []ast.Expr{expr.Index}) {
 			return res, false // No type, but an array/slice index.
 		}
 
 		typeParams = true
-		res.Expr = e.X // Unwrap to the function identifier.
+		res.Expr = expr.X // Unwrap to the function identifier.
 
 		goto unwarp
 
@@ -85,20 +81,49 @@ unwarp:
 			return res, false
 		}
 
-		if !checkTypeParameters(info, e.Indices) { // should not happen
+		if !checkTypeParameters(info, expr.Indices) { // should not happen
 			return res, false
 		}
 
 		typeParams = true
-		res.Expr = e.X // Unwrap to the function identifier.
+		res.Expr = expr.X // Unwrap to the function identifier.
 
 		goto unwarp
 
 	case *ast.ParenExpr: // Parenthesized expression ("(myFunc)")
-		res.Expr = e.X // Unwrap to the inner expression.
+		res.Expr = expr.X // Unwrap to the inner expression.
+
 		goto unwarp
 
-	default: // Function variable, pointer, or other non-declarative function reference.
+	default: // Pointer or other non-declarative function reference.
+		return res, false
+	}
+}
+
+func returnIdent(info *types.Info, id *ast.Ident, res ResolvedFunc) (ResolvedFunc, bool) {
+	res.Ident = id
+
+	fun, ok := info.Uses[id]
+	if !ok {
+		return res, false
+	}
+
+	switch fun := fun.(type) {
+	case *types.Func:
+		res.Func = fun
+
+		return res, true
+
+	case *types.Var:
+		if !PackageLevel(fun) {
+			return res, false
+		}
+
+		res.Func = fun
+
+		return res, true
+
+	default:
 		return res, false
 	}
 }

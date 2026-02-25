@@ -17,6 +17,7 @@
 package typeutil_test
 
 import (
+	"cmp"
 	"go/token"
 	"go/types"
 	"testing"
@@ -63,55 +64,53 @@ func TestTypeName_Compare(t *testing.T) {
 	t.Parallel()
 
 	tests := [...]struct {
-		name  string
-		p1    TypeName
-		p2    TypeName
-		want  int // -1, 0, or 1
-		check func(int) bool
+		name   string
+		p1, p2 TypeName
+		want   int // -1, 0, or 1
 	}{
 		{
-			name:  "equal",
-			p1:    TypeName{Path: "a/b", Name: "C"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i == 0 },
+			name: "equal",
+			p1:   TypeName{Path: "a/b", Name: "C"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: 0,
 		},
 		{
-			name:  "path less",
-			p1:    TypeName{Path: "a/a", Name: "C"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i < 0 },
+			name: "path less",
+			p1:   TypeName{Path: "a/a", Name: "C"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: -1,
 		},
 		{
-			name:  "path greater",
-			p1:    TypeName{Path: "a/c", Name: "C"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i > 0 },
+			name: "path greater",
+			p1:   TypeName{Path: "a/c", Name: "C"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: 1,
 		},
 		{
-			name:  "name less",
-			p1:    TypeName{Path: "a/b", Name: "B"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i < 0 },
+			name: "name less",
+			p1:   TypeName{Path: "a/b", Name: "B"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: -1,
 		},
 		{
-			name:  "name greater",
-			p1:    TypeName{Path: "a/b", Name: "D"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i > 0 },
+			name: "name greater",
+			p1:   TypeName{Path: "a/b", Name: "D"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: 1,
 		},
 		{
-			name:  "path vs no path",
-			p1:    TypeName{Path: "", Name: "C"},
-			p2:    TypeName{Path: "a/b", Name: "C"},
-			check: func(i int) bool { return i < 0 },
+			name: "path vs no path",
+			p1:   TypeName{Path: "", Name: "C"},
+			p2:   TypeName{Path: "a/b", Name: "C"},
+			want: -1,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			if got := tt.p1.Compare(tt.p2); !tt.check(got) {
-				t.Errorf("TypeName.Compare() = %v, did not meet check", got)
+			if got := cmp.Compare(tt.p1.Compare(tt.p2), 0); got != tt.want {
+				t.Errorf("TypeName.Compare() sign = %v, want %v", got, tt.want)
 			}
 		})
 	}

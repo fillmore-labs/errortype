@@ -22,12 +22,12 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/detecttypes/result"
 )
 
 // Write serializes the provided overrides suggestions into YAML format and writes it to the given io.Writer.
-func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath string) error {
-	var suggestFile errorFileType
+func Write(ctx context.Context, w io.Writer, suggestions Types, pkgPath string) error {
+	var suggestFile errorFileTypes
 
 	for errortype, s := range suggestions.Types {
 		switch errortype {
@@ -41,8 +41,6 @@ func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath stri
 			suggestFile.Inconsistent = s
 		}
 	}
-
-	suggestFile.Wrappers = suggestions.Wrappers
 
 	if _, err := io.WriteString(w, "---\n"); err != nil {
 		return err

@@ -1,22 +1,25 @@
 ---
+recommended: true
+non-comparable: true
 naming: true
+legacy: true
 style-check: true
 deep-is-check: false
 check-is: true
 unchecked-assert: false
 check-unused: false
-prefix-filter: false
+prefix-filter: true
 overrides:
   pointer:
-    - test/a.PointerOverride
+    - your.pkg/a.PointerOverrideError
   value:
-    - test/a.ValueOverride
+    - your.pkg/a.ValueOverrideError
   suppress:
-    - test/a.SuppressOverride
+    - your.pkg/a.SuppressOverrideError
 wrappers:
   is:
-    - test/a.Is
+    - your.pkg/a.Is
   as:
-    - test/a.As
+    - your.pkg/a.As
   astype:
-    - test/a.AsType
+    - your.pkg/a.AsType

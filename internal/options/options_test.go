@@ -33,7 +33,7 @@ func TestJoin_Apply(t *testing.T) {
 		nilOpt Option
 	)
 
-	tests := []struct {
+	tests := [...]struct {
 		name     string
 		opts     []Option
 		expected int
@@ -95,17 +95,17 @@ func TestJoin_LogValue(t *testing.T) {
 		nilOpt = Option(nil)
 	)
 
-	tests := []struct {
+	tests := [...]struct {
 		name     string
-		opts     []Option
 		expected string
+		opts     []Option
 	}{
-		{"empty", nil, "msg=test\n"},
-		{"single", []Option{o1}, "msg=test options.count=1\n"},
-		{"multiple", []Option{o1, o2}, "msg=test options.count=1 options.count=2\n"},
-		{"with nil", []Option{o1, nil, o2}, "msg=test options.count=1 options.count=2\n"},
-		{"nested", []Option{o1, Join(o2, o1), o2}, "msg=test options.count=1 options.count=2 options.count=1 options.count=2\n"},
-		{"nested with nil", []Option{o1, Join(o2, nilOpt), nil}, "msg=test options.count=1 options.count=2\n"},
+		{"empty", "msg=test\n", nil},
+		{"single", "msg=test options.count=1\n", []Option{o1}},
+		{"multiple", "msg=test options.count=1 options.count=2\n", []Option{o1, o2}},
+		{"with nil", "msg=test options.count=1 options.count=2\n", []Option{o1, nil, o2}},
+		{"nested", "msg=test options.count=1 options.count=2 options.count=1 options.count=2\n", []Option{o1, Join(o2, o1), o2}},
+		{"nested with nil", "msg=test options.count=1 options.count=2\n", []Option{o1, Join(o2, nilOpt), nil}},
 	}
 
 	for _, tt := range tests {

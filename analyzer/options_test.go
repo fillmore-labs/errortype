@@ -18,18 +18,15 @@ package analyzer_test
 
 import (
 	"log/slog"
+	"regexp"
 	"strings"
 	"testing"
-
-	"golang.org/x/tools/go/analysis"
 
 	. "fillmore-labs.com/errortype/analyzer"
 )
 
 func TestLogValue(t *testing.T) {
 	t.Parallel()
-
-	testDetect := &analysis.Analyzer{Name: "test-detect"}
 
 	testCases := [...]struct {
 		name     string
@@ -38,43 +35,43 @@ func TestLogValue(t *testing.T) {
 	}{
 		{
 			name:     "WithDetectTypes",
-			option:   WithDetectTypes(testDetect),
-			expected: `"detect":"test-detect"`,
+			option:   WithHeuristics(HeuristicUsage),
+			expected: `"heuristics":"usage"`,
 		},
 		{
 			name:     "WithStyleCheck",
 			option:   WithStyleCheck(true),
-			expected: `"styleCheck":true`,
+			expected: `"style-check":true`,
 		},
 		{
 			name:     "WithCheckIs",
 			option:   WithCheckIs(false),
-			expected: `"checkIs":false`,
+			expected: `"check-is":false`,
 		},
 		{
 			name:     "WithDeepIsCheck",
 			option:   WithDeepIsCheck(true),
-			expected: `"deepIsCheck":true`,
+			expected: `"deep-is-check":true`,
 		},
 		{
 			name:     "WithUncheckedAssert",
 			option:   WithUncheckedAssert(false),
-			expected: `"uncheckedAssert":false`,
+			expected: `"unchecked-assert":false`,
 		},
 		{
 			name:     "WithCheckUnused",
 			option:   WithCheckUnused(true),
-			expected: `"checkUnused":true`,
+			expected: `"check-unused":true`,
 		},
 		{
 			name: "Options",
 			option: Join(
-				WithDetectTypes(testDetect),
+				WithTrace(regexp.MustCompile(".")),
 				WithStyleCheck(true),
 				WithCheckIs(false),
 				WithCheckUnused(true),
 			),
-			expected: `"options":{"detect":"test-detect","styleCheck":true,"checkIs":false,"checkUnused":true}}`,
+			expected: `"options":{"trace":".","style-check":true,"check-is":false,"check-unused":true}}`,
 		},
 	}
 

@@ -135,10 +135,6 @@ func Errors4() {
 	_ = errors.Is(&myUnwrapArrayError{}, os.ErrProcessDone)
 
 	_ = errors.Is(os.ErrProcessDone, &myUnwrapError{}) // want `type "?myUnwrapError"?`
-
-	_ = errors.Is(UnnamedIsError{}, UnnamedIsError{})
-
-	_ = errors.Is(UnderscoreIsError{}, UnderscoreIsError{})
 }
 
 func Interface() {
@@ -151,50 +147,4 @@ func Index() {
 	var Is [1]func(err, target error) bool
 
 	_ = Is[0](my1Error{}, &my1Error{})
-}
-
-type comparableError struct{ _ [0]byte }
-
-func (comparableError) Error() string {
-	return ""
-}
-
-type nonComparableError struct{ _ [0][]byte }
-
-func (nonComparableError) Error() string {
-	return ""
-}
-
-type nonComparableWithIsError struct{ _ [0][]byte }
-
-func (nonComparableWithIsError) Error() string {
-	return ""
-}
-
-func (nonComparableWithIsError) Is(err error) bool {
-	return errors.As(err, new(nonComparableWithIsError)) // want "only shallowly compare"
-}
-
-func NonComparable() {
-	_ = errors.Is(comparableError{}, comparableError{})
-
-	_ = errors.Is(nonComparableError{}, nonComparableError{}) // want "non-comparable .* is always false"
-
-	_ = errors.Is(nonComparableWithIsError{}, nonComparableWithIsError{})
-}
-
-type UnnamedIsError struct{}
-
-func (UnnamedIsError) Error() string { return "unnamed" }
-
-func (UnnamedIsError) Is(error) bool {
-	return false
-}
-
-type UnderscoreIsError struct{}
-
-func (_ UnderscoreIsError) Error() string { return "underscore" }
-
-func (_ UnderscoreIsError) Is(_ error) bool {
-	return false
 }

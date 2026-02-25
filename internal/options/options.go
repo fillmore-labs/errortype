@@ -30,7 +30,7 @@ type Option[T any] interface {
 //
 //	slog.LogAttrs(ctx, slog.LevelInfo, "settings", Join(opts...).LogAttr())
 func Join[T any, O Option[T]](opts []O) Options[T, O] {
-	return Options[T, O](opts)
+	return opts
 }
 
 // Options is a collection of functional Options.

@@ -28,7 +28,7 @@ type VarDecl struct {
 func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
 	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
 		r.ReportRangef(r.Expr,
-			`Compile‑time assertion should be a value ("... = %s{...}"), not a pointer. (et:var)`, relativeName)
+			`Compile-time assertion should be a value ("... = %s{...}"), not a pointer. (et:var)`, relativeName)
 	} else {
 		r.ReportRangef(r.Expr,
 			`Error %q should be a value ("... = %s{...}"), not a pointer. (et:var)`, r.VarName, relativeName)
@@ -39,7 +39,7 @@ func (r VarDecl) ShouldBeValue(tn *types.TypeName) {
 func (r VarDecl) ShouldBePointer(tn *types.TypeName) {
 	if relativeName := r.relativeNameOf(tn); r.VarName == "_" {
 		r.ReportRangef(r.Expr,
-			`Compile‑time assertion should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, relativeName)
+			`Compile-time assertion should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, relativeName)
 	} else {
 		r.ReportRangef(r.Expr,
 			`Error %q should be a pointer ("... = &%s{...}"), not a value. (et:var+)`, r.VarName, relativeName)

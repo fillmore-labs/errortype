@@ -1,0 +1,43 @@
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+// SPDX-License-Identifier: Apache-2.0
+
+package testdata
+
+// Deprecated: Use [DocError] instead.
+//
+//go:fix inline
+type DocErr = DocError
+
+// DocError wraps a value with no other interesting properties.
+type DocError struct{} // want ` suggestion: "DocError"$`
+
+func (DocError) Error() string { return "doc" }
+
+// E8Error and E9Error are errors.
+type (
+	// Deprecated: Use [E8Error] instead.
+	//go:fix inline
+	Err8    = E8Error
+	E8Error struct{} // want ` suggestion: "E8Error"$`
+	// Deprecated: Use [E9Error] instead.
+	//go:fix inline
+	Err9    = E9Error
+	E9Error struct{} // want ` suggestion: "E9Error"$`
+)
+
+func (E8Error) Error() string { return "err1" }
+
+func (E9Error) Error() string { return "err2" }

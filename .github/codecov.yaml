@@ -4,4 +4,5 @@ coverage:
     project: false
     patch: false
 ignore:
-  - "*.go"
+  - '*.go'
+  - 'errorname/*.go'

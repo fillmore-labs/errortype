@@ -19,39 +19,102 @@ package overrides_test
 import (
 	"context"
 	_ "embed"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
-	"fillmore-labs.com/errortype/detect/result"
+	typesresult "fillmore-labs.com/errortype/internal/detecttypes/result"
+	wrappersresult "fillmore-labs.com/errortype/internal/detectwrappers/result"
 	"fillmore-labs.com/errortype/internal/overrides"
 )
 
 //go:embed read_test.yaml
-var _yamloverrides string
+var _yamlmixed string
 
-func TestRead_WrappersMap(t *testing.T) {
+func TestRead_Mixed(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
 
-	ov, err := overrides.Read(ctx, strings.NewReader(_yamloverrides))
+	typesOv, err := overrides.ReadTypes(ctx, strings.NewReader(_yamlmixed))
 	if err != nil {
-		t.Fatalf("Read() error = %v", err)
+		t.Fatalf("ReadTypes() on mixed file error = %v", err)
 	}
 
-	if len(ov.Wrappers) != 3 {
-		t.Errorf("Expected 3 wrapper types, got %d", len(ov.Wrappers))
+	if ptrs := typesOv.Types[typesresult.Pointer]; len(ptrs) != 1 || ptrs[0].String() != "my/pkg.PointerErr" {
+		t.Errorf("ReadTypes() mixed got pointer %v, want my/pkg.PointerErr", ptrs)
 	}
 
-	if fns := ov.Wrappers[result.WrapperIs]; len(fns) != 1 || fns[0].String() != "my/pkg.Is" {
-		t.Errorf("Unexpected WrapperIs funcs: %v", fns)
+	wrappersOv, err := overrides.ReadWrappers(ctx, strings.NewReader(_yamlmixed))
+	if err != nil {
+		t.Fatalf("ReadWrappers() on mixed file error = %v", err)
 	}
 
-	if fns := ov.Wrappers[result.FuncIsType]; len(fns) != 1 || fns[0].String() != "my/pkg.IsType" {
-		t.Errorf("Unexpected FuncIsType funcs: %v", fns)
+	if isFns := wrappersOv.Wrappers[wrappersresult.WrapperIs]; len(isFns) != 1 || isFns[0].String() != "my/pkg.Is" {
+		t.Errorf("ReadWrappers() mixed got is wrappers %v, want my/pkg.Is", isFns)
+	}
+}
+
+func TestRead_Empty(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	typesOv, err := overrides.ReadTypes(ctx, strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("ReadTypes() on empty reader error = %v", err)
 	}
 
-	if fns := ov.Wrappers[result.FuncEqual]; len(fns) != 1 || fns[0].String() != "my/pkg.Equal" {
-		t.Errorf("Unexpected FuncEqual funcs: %v", fns)
+	if len(typesOv.Types) != 0 {
+		t.Errorf("ReadTypes() on empty reader got non-empty: %v", typesOv.Types)
+	}
+
+	wrappersOv, err := overrides.ReadWrappers(ctx, strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("ReadWrappers() on empty reader error = %v", err)
+	}
+
+	if len(wrappersOv.Wrappers) != 0 {
+		t.Errorf("ReadWrappers() on empty reader got non-empty: %v", wrappersOv.Wrappers)
+	}
+}
+
+func TestRead_Files(t *testing.T) {
+	t.Parallel()
+
+	ctx := t.Context()
+	dir := t.TempDir()
+	filePath := filepath.Join(dir, "overrides.yaml")
+
+	if err := os.WriteFile(filePath, []byte(_yamlmixed), 0o600); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	typesOv, err := overrides.ReadTypesFile(ctx, filePath)
+	if err != nil {
+		t.Fatalf("ReadTypesFile() error = %v", err)
+	}
+
+	if len(typesOv.Types[typesresult.Pointer]) != 1 {
+		t.Errorf("ReadTypesFile() failed to read pointer types")
+	}
+
+	wrappersOv, err := overrides.ReadWrappersFile(ctx, filePath)
+	if err != nil {
+		t.Fatalf("ReadWrappersFile() error = %v", err)
+	}
+
+	if len(wrappersOv.Wrappers[wrappersresult.WrapperIs]) != 1 {
+		t.Errorf("ReadWrappersFile() failed to read wrapper funcs")
+	}
+
+	nonExistent := filepath.Join(dir, "does_not_exist.yaml")
+	if _, err := overrides.ReadTypesFile(ctx, nonExistent); err == nil {
+		t.Errorf("ReadTypesFile() on non-existent file expected error, got nil")
+	}
+
+	if _, err := overrides.ReadWrappersFile(ctx, nonExistent); err == nil {
+		t.Errorf("ReadWrappersFile() on non-existent file expected error, got nil")
 	}
 }

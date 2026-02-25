@@ -21,6 +21,7 @@ import (
 	"go/token"
 	"go/types"
 
+	"fillmore-labs.com/errortype/internal/settings"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -52,7 +53,7 @@ func (p Pass) handleAssign(stmt *ast.AssignStmt) {
 			v, ok := p.TypesInfo.Uses[id]
 
 			if !ok { // We have a newly declared variable, handle it as a variable declaration.
-				if p.PrefixFilter() && !hasErrPrefix(id.Name) {
+				if p.Has(settings.OptionPrefixFilter) && !conformantVar(id.Name) {
 					continue
 				}
 

@@ -1,6 +1,6 @@
 ---
 name: Test
-"on":
+'on':
   push:
     branches:
       - main
@@ -16,50 +16,44 @@ jobs:
       contents: write
       pull-requests: read
       statuses: write
-    runs-on: ubuntu-24.04-arm
+    runs-on: ubuntu-26.04-arm
     timeout-minutes: 10
     strategy:
       matrix:
-        go: ["1.26", "1.25"]
+        go: ['1.27', '1.26']
         include:
-          - go: "1.26"
-            go-version: "1.26.1"
+          - go: '1.27'
+            go-version: '1.27.2'
             latest: true
-          - go: "1.25"
-            go-version: "1.25.8"
+          - go: '1.26'
+            go-version: '1.26.9'
     env:
       GOTOOLCHAIN: local
     steps:
       - name: ✔ Check out
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: 🐹 Set up Go ${{ matrix.go-version }}
-        uses: actions/setup-go@4b73464bb391d4059bd26b0524d20df3927bd417 # v6.3.0
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ matrix.go-version }}
-          cache-dependency-path: "**/go.sum"
+          cache-dependency-path: '**/go.sum'
       - name: 🧸 golangci-lint
-        uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
+        uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         if: ${{ matrix.latest }}
         with:
-          version: v2.11.3
+          version: v2.15.0
           verify: false
       - name: ⬇️ Download test packages
         run: (cd ./analyzer/testdata && go mod download)
       - name: 🔨 Test
         run: go test -coverpkg ./... -coverprofile=cover.out ./...
       - name: 🧑🏻‍💻 codecov
-        uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         if: ${{ matrix.latest }}
         with:
+          disable_search: true
           files: ./cover.out
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: fillmore-labs/errortype
-      - name: 🛜 Dependencies
-        uses: actions/go-dependency-submission@f35d5c9af13ce9cc32f7930b171e315e878f6921 # v2.0.3
-        continue-on-error: true
-        if: ${{ matrix.latest }}
-        with:
-          go-mod-path: go.mod
-          go-build-target: .

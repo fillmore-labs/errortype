@@ -26,7 +26,9 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/detect/result"
+	typesresult "fillmore-labs.com/errortype/internal/detecttypes/result"
+	wrappersresult "fillmore-labs.com/errortype/internal/detectwrappers/result"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 func TestAnalyzerInternal(t *testing.T) {
@@ -44,13 +46,13 @@ func TestAnalyzerInternal(t *testing.T) {
 	analysistest.Run(t, testdata, testAnalyzer, "test/internal")
 }
 
-func run(ap *analysis.Pass) (any, error) {
-	in, ok := ap.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+func run(pass *analysis.Pass) (any, error) {
+	in, ok := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
 	if !ok {
-		return nil, fmt.Errorf("testanalyzer: %s reuslt missing", inspect.Analyzer.Name)
+		return nil, fmt.Errorf("testanalyzer: %s result missing", inspect.Analyzer.Name)
 	}
 
-	p := NewPass(ap, result.Result{}, DefaultOptions)
+	p := NewPass(pass, typesresult.Result{}, wrappersresult.Result{}, settings.DefaultOptions)
 
 	var count int
 	for n := range inspector.All[*ast.ValueSpec](in) {

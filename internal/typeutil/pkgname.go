@@ -17,29 +17,34 @@
 package typeutil
 
 import (
+	"go/token"
+	"go/types"
 	"strings"
-
-	"golang.org/x/tools/go/analysis"
 )
 
+// PackageLevel reports whether obj is declared at package scope.
+func PackageLevel(obj types.Object) bool {
+	return obj.Parent() == obj.Pkg().Scope()
+}
+
 // PkgPath returns the package path of the given [analysis.Pass], appending “(test)” if it belongs to a test package.
-func PkgPath(p *analysis.Pass) string {
-	pkgPath := p.Pkg.Path()
-	if IsTest(p) {
+func PkgPath(fset *token.FileSet, pkg *types.Package) string {
+	pkgPath := pkg.Path()
+	if isTest(fset, pkg) {
 		pkgPath += " (test)"
 	}
 
 	return pkgPath
 }
 
-// IsTest determines if the given package is a test package, either external or containing test files.
-func IsTest(p *analysis.Pass) bool {
-	if strings.HasSuffix(p.Pkg.Path(), "_test") {
+// isTest determines if the given package is a test package, either external or containing test files.
+func isTest(fset *token.FileSet, pkg *types.Package) bool {
+	if strings.HasSuffix(pkg.Path(), "_test") {
 		return true // This is an external test package
 	}
 
 	// Check if any files in the package are test files
-	for file := range p.Fset.Iterate {
+	for file := range fset.Iterate {
 		if strings.HasSuffix(file.Name(), "_test.go") {
 			return true
 		}

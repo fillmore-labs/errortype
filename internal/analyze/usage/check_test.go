@@ -57,12 +57,12 @@ func TestCheck(t *testing.T) {
 	ptrType := types.NewPointer(namedType)
 
 	testCases := [...]struct {
-		name            string
 		checkType       types.Type
 		tn              *types.TypeName
+		name            string
+		wantReport      ExpectedReport
 		initialProperty Usage
 		finalProperty   Usage
-		wantReport      ExpectedReport
 	}{
 		// Early exit cases (no reporting expected)
 		{

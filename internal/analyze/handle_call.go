@@ -18,14 +18,17 @@ package analyze
 
 import (
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/detectwrappers/result"
+
+	"fillmore-labs.com/errortype/internal/settings"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// handleCall checks for incorrect pointer/value usage of error types passed to functions like errors.As.
+// handleCall checks for incorrect pointer/value usage of error types passed to error handling functions.
 func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 	if len(call.Args) == 0 {
 		return // Not interested in calls with no arguments.
@@ -33,7 +36,7 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 
 	fun, ok := typeutil.FuncOf(p.TypesInfo, call)
 	if !ok {
-		return // Could not resolve function, might be a function variable.
+		return // Could not resolve function, might be a field.
 	}
 
 	wrapper, ok := p.ErrorFuncs[fun.Func]
@@ -57,7 +60,7 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 
 		p.comparison(call, call.Args[srcIdx], call.Args[tgtIdx], false)
 
-		unusedCandidate = firstParam(wrapper, fun)
+		unusedCandidate = expectResultUsed(wrapper, fun)
 
 	case result.WrapperAs:
 		tgtIdx := int(wrapper.Target)
@@ -68,12 +71,12 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 		p.handleErrorsAs(call, fun.Expr, tgtIdx)
 
 		// errors.As is used without checking the return value.
-		// This does not account for nil errors, which should be catched even though they are bad style.
+		// This does not account for nil errors, which should be caught even though they are bad style.
 		//
 		//	var err *net.OpError
 		//	var target net.Error
 		//	if errors.As(err, &target) { /* ... */ }
-		unusedCandidate = firstParam(wrapper, fun)
+		unusedCandidate = expectResultUsed(wrapper, fun)
 
 	case result.WrapperAsType:
 		instance, ok := p.TypesInfo.Instances[fun.Ident]
@@ -87,6 +90,21 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 		// Check if the error type is used correctly (pointer vs. value).
 		p.checkGenericCall(typ, call, fun.Expr)
 		unusedCandidate = true
+
+	case result.WrapperErrorf:
+		unusedCandidate = true
+
+		if len(call.Args) < 2 {
+			break // multi-valued argument
+		}
+
+		srcIdx, tgtIdx := int(wrapper.Source), int(wrapper.Target)
+		if fun.MethodExpr {
+			srcIdx++
+			tgtIdx++
+		}
+
+		p.handleErrorf(call, srcIdx, tgtIdx)
 
 	case result.FuncIsType:
 		p.handleIsType(call, fun.MethodExpr, wrapper.Source)
@@ -124,8 +142,14 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 		p.ReportErrorf(fun.Expr, "Unexpected function type: %v", wrapper.Type)
 	}
 
-	// For As/Is/AsType wrappers, it's reasonable to expect the result to be used.
-	if unusedCandidate && p.CheckUnused() && fun.Func.Signature().Results().Len() > 0 {
+	// For Is/As/AsType wrappers, it's reasonable to expect the result to be used.
+
+	var sig *types.Signature
+	if unusedCandidate && p.Has(settings.OptionCheckUnused) {
+		sig = typeutil.SignatureOf(fun.Func)
+	}
+
+	if sig != nil && sig.Results().Len() > 0 {
 		tag := "unu"
 		if wrapper.Type == result.WrapperIs {
 			tag = "unu+"
@@ -135,10 +159,16 @@ func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
 	}
 }
 
-// firstParam is a crude heuristic: When there is a receiver or parameters before the error,
-// it could be a test helper.
-func firstParam(wrapper result.ErrorFunc, fun typeutil.ResolvedFunc) bool {
-	return wrapper.Source == 0 && fun.Func.Signature().Recv() == nil
+// expectResultUsed is a crude heuristic: When there is a parameter
+// before the error or a receiver, it could be a test helper.
+func expectResultUsed(wrapper result.ErrorFunc, fun typeutil.ResolvedFunc) bool {
+	if wrapper.Source != 0 {
+		return false
+	}
+
+	sig := typeutil.SignatureOf(fun.Func)
+
+	return sig != nil && sig.Recv() == nil
 }
 
 func (p Pass) checkUnused(c inspector.Cursor, call *ast.CallExpr, tag string) {
@@ -151,6 +181,6 @@ unwrap:
 		goto unwrap
 
 	case *ast.ExprStmt:
-		p.ReportRangef(call, "Result of %s is ignored (et:%s)", p.exprToString(call.Fun), tag)
+		p.ReportRangef(call, "Result of %s is ignored (et:%s)", exprToString(p.Fset, call.Fun), tag)
 	}
 }

@@ -18,6 +18,7 @@ package wrappers
 
 import (
 	"test/wrappers/iface"
+	"test/wrappers/vars"
 	"test/wrappers/wrap"
 )
 
@@ -48,4 +49,8 @@ func TestSub(s iface.Suite) {
 	_ = s.Is(err, &MyError{}) // want ` \(et:cmp\)$`
 
 	_ = s.As(err, target) // want ` \(et:arg\)$`
+
+	_ = vars.Is(err, &MyError{}) // want ` \(et:cmp\)$`
+
+	_ = vars.As(err, target) // want ` \(et:arg\)$`
 }

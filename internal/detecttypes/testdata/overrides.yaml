@@ -1,0 +1,8 @@
+# Error types for test
+---
+pointer:
+  - test/a.PointerOverrideError
+value:
+  - test/a.ValueOverrideError
+suppress:
+  - test/a.SuppressOverrideError

@@ -18,31 +18,11 @@ package analyzer
 
 import (
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/analysis/passes/inspect"
 
-	"fillmore-labs.com/errortype/detect"
+	"fillmore-labs.com/errortype/internal/detecttypes"
+	"fillmore-labs.com/errortype/internal/detectwrappers"
 	"fillmore-labs.com/errortype/internal/run"
-)
-
-// Documentation constants.
-const (
-	Name = "errortype"
-	Doc  = `errortype is a Go static analysis tool that helps prevent subtle bugs in error handling.
-
-It performs two main checks:
-
-1. Inconsistent Error Type Usage: It analyzes function returns, type assertions,
-   and calls to functions like errors.As to ensure that custom error types
-   are used consistently as either pointers or values.
-
-2. Pointless Pointer Comparisons: It detects comparisons of pointers against
-   the address of a newly created value (e.g., 'ptr == &MyStruct{}'), which
-   are almost always incorrect.
-
-For inconsistent error type usage, it automatically determines the correct usage
-for most error types but may require a configuration file for ambiguous cases.`
-
-	URL = "https://pkg.go.dev/fillmore-labs.com/errortype/analyzer"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // New creates a new instance of the errortype analyzer.
@@ -50,35 +30,25 @@ for most error types but may require a configuration file for ambiguous cases.`
 // for integrating the analyzer into other tools. For command-line use, the
 // pre-configured [Analyzer] variable is typically sufficient.
 func New(opts ...Option) (*analysis.Analyzer, error) {
-	o := run.DefaultOptions()
+	o := settings.DefaultConfig()
 	if err := Join(opts...).Apply(o); err != nil {
 		return nil, err
 	}
 
-	if o.DetectTypes == nil {
-		d, err := detect.New()
-		if err != nil {
-			return nil, err
-		}
-		o.DetectTypes = d
-	}
+	o.WrapperAnalyzer = detectwrappers.NewAnalyzer(&o.WrapperConfig)
 
-	a := &analysis.Analyzer{
-		Name:     Name,
-		Doc:      Doc,
-		URL:      URL,
-		Run:      o.Run,
-		Requires: []*analysis.Analyzer{inspect.Analyzer, o.DetectTypes},
-	}
+	o.TypeConfig.WrapperAnalyzer = o.WrapperAnalyzer
 
-	registerFlags(o, &a.Flags)
+	o.TypeAnalyzer = detecttypes.NewAnalyzer(&o.TypeConfig)
+
+	a := run.NewAnalyzer(o)
 
 	return a, nil
 }
 
 // Analyzer is a pre-configured *[analysis.Analyzer] for detecting and enforcing consistent error type usage in Go programs.
 var Analyzer = func() *analysis.Analyzer {
-	a, err := New(WithDetectTypes(detect.Analyzer))
+	a, err := New()
 	if err != nil {
 		panic(err)
 	}

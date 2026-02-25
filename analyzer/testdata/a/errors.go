@@ -58,7 +58,7 @@ func Errors(err error) {
 }
 
 func Errors2() {
-	errors := my1Error{}
+	errors := my1Error{} // want ` \(et:var\+\)$`
 
 	_ = errors.As(&my1Error{}, &b.AmbiguousError{})
 }

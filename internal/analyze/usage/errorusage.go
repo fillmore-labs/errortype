@@ -19,7 +19,7 @@ package usage
 import (
 	"go/types"
 
-	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/detecttypes/result"
 )
 
 // ErrorUsage maps error types to their usage information.
@@ -48,4 +48,11 @@ func (e ErrorUsage) ProcessDetectedTypes(eTypes result.ErrorTypes) {
 
 		e[tn] = usage
 	}
+}
+
+// IsValueError returns whether the given type name should be a value error.
+func (e ErrorUsage) IsValueError(tn *types.TypeName) bool {
+	usage, ok := e[tn]
+
+	return ok && usage&ExpectedMask == ValueExpected
 }

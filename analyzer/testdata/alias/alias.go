@@ -65,3 +65,16 @@ func main() {
 		fmt.Println("&ep4")
 	}
 }
+
+type aliasTargetError struct{ _ int }
+
+func (aliasTargetError) Error() string { return "" }
+
+type aliasUseError = aliasTargetError
+
+// Usage through the alias decides the aliased type.
+var _ error = &aliasUseError{}
+
+func aliasTarget() error {
+	return aliasTargetError{} // want ` \(et:ret\+?\)$`
+}

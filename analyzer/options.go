@@ -17,18 +17,21 @@
 package analyzer
 
 import (
+	"cmp"
+	"fmt"
 	"log/slog"
+	"maps"
+	"regexp"
+	"slices"
+	"strings"
 
-	"golang.org/x/tools/go/analysis"
-
-	"fillmore-labs.com/errortype/internal/analyze"
 	"fillmore-labs.com/errortype/internal/options"
-	"fillmore-labs.com/errortype/internal/run"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // Option configures specific behavior of a [New] errortype [analysis.Analyzer].
 type Option interface {
-	Apply(opts *run.Options) error
+	Apply(opts *settings.Config) error
 	LogAttr() slog.Attr
 }
 
@@ -41,68 +44,145 @@ func Join(opts ...Option) Option {
 	return options.Join(opts)
 }
 
-// WithDetectTypes sets a custom *[analysis.Analyzer] for detecting error types.
-func WithDetectTypes(detectTypes *analysis.Analyzer) Option {
-	return detectTypesOption{detectTypes: detectTypes}
+// WithGenerated is an [Option] to configure checking in generated files.
+func WithGenerated(generated bool) Option {
+	return analyzeOption{mask: settings.OptionGenerated, value: generated}
+}
+
+// WithNotComparable is an [Option] to configure extended checking for not comparable error types.
+func WithNotComparable(notcomparable bool) Option {
+	return analyzeOption{mask: settings.OptionNotComparable, value: notcomparable}
+}
+
+// WithNaming is an [Option] to configure name checking for error types and sentinel values.
+func WithNaming(naming bool) Option {
+	return analyzeOption{mask: settings.OptionNaming, value: naming}
+}
+
+// WithLegacy is an [Option] to configure checking for legacy pre-Go 1.13 error assertion queries.
+func WithLegacy(legacy bool) Option {
+	return analyzeOption{mask: settings.OptionLegacy, value: legacy}
 }
 
 // WithStyleCheck is an [Option] to configure the style check.
 func WithStyleCheck(styleCheck bool) Option {
-	return flagOption{flag: analyze.OptionStyleCheck, value: styleCheck}
+	return analyzeOption{mask: settings.OptionStyleCheck, value: styleCheck}
 }
 
 // WithCheckIs is an [Option] that configures the diagnostic suppression behavior
 // related to an “Is(error) bool” method.
 func WithCheckIs(checkIs bool) Option {
-	return flagOption{flag: analyze.OptionCheckIs, value: checkIs}
+	return analyzeOption{mask: settings.OptionCheckIs, value: checkIs}
 }
 
 // WithDeepIsCheck is an [Option] to configure “Is” method analysis.
 func WithDeepIsCheck(deepIsCheck bool) Option {
-	return flagOption{flag: analyze.OptionDeepIsCheck, value: deepIsCheck}
+	return analyzeOption{mask: settings.OptionDeepIsCheck, value: deepIsCheck}
 }
 
 // WithUncheckedAssert is an [Option] to configure diagnosis of an unchecked type assert on errors.
 func WithUncheckedAssert(uncheckedAssert bool) Option {
-	return flagOption{flag: analyze.OptionUncheckedAssert, value: uncheckedAssert}
+	return analyzeOption{mask: settings.OptionUncheckedAssert, value: uncheckedAssert}
 }
 
 // WithCheckUnused is an [Option] to configure diagnosis of unchecked results of “errors.As” calls.
 func WithCheckUnused(checkUnused bool) Option {
-	return flagOption{flag: analyze.OptionCheckUnused, value: checkUnused}
-}
-
-// WithNaming is an [Option] to configure name checking for error types and sentinel values.
-func WithNaming(naming bool) Option {
-	return flagOption{flag: analyze.OptionNaming, value: naming}
+	return analyzeOption{mask: settings.OptionCheckUnused, value: checkUnused}
 }
 
 // WithPrefixFilter is an [Option] to configure prefix filtering for variable declarations.
 func WithPrefixFilter(prefixFilter bool) Option {
-	return flagOption{flag: analyze.OptionPrefixFilter, value: prefixFilter}
+	return analyzeOption{mask: settings.OptionPrefixFilter, value: prefixFilter}
 }
 
-type detectTypesOption struct{ detectTypes *analysis.Analyzer }
-
-func (o detectTypesOption) Apply(opts *run.Options) error {
-	opts.DetectTypes = o.detectTypes
-	return nil
+// WithRecommended is an [Option] to set recommended options.
+func WithRecommended(value bool) Option {
+	return recommendedOption{value: value}
 }
 
-func (o detectTypesOption) LogAttr() slog.Attr {
-	return slog.String("detect", o.detectTypes.Name)
+// WithOverrideFile returns an [Option] that configures usage overrides by reading types from the specified file.
+func WithOverrideFile(file string) Option {
+	return overrideFileOption{file: file}
 }
 
-type flagOption struct {
-	flag  analyze.Options
+type analyzeOption struct {
+	mask  settings.Options
 	value bool
 }
 
-func (o flagOption) Apply(opts *run.Options) error {
-	opts.SetOption(o.flag, o.value)
+func (o analyzeOption) Apply(opts *settings.Config) error {
+	opts.Options.Set(o.mask, o.value)
 	return nil
 }
 
-func (o flagOption) LogAttr() slog.Attr {
-	return slog.Bool(o.flag.String(), o.value)
+func (o analyzeOption) LogAttr() slog.Attr {
+	return slog.Bool(o.mask.String(), o.value)
+}
+
+type recommendedOption struct {
+	value bool
+}
+
+func (o recommendedOption) Apply(opts *settings.Config) error {
+	if o.value {
+		opts.Options.Set(settings.RecommendedOptions, true)
+	}
+
+	return nil
+}
+
+func (o recommendedOption) LogAttr() slog.Attr {
+	return slog.Bool("recommended", o.value)
+}
+
+type overrideFileOption struct {
+	file string
+}
+
+func (o overrideFileOption) Apply(opts *settings.Config) error {
+	return opts.ReadOverrides(o.file)
+}
+
+func (o overrideFileOption) LogAttr() slog.Attr {
+	return slog.Any("override-file", o.file)
+}
+
+// WithTrace is an [Option] to configure result output.
+func WithTrace(trace *regexp.Regexp) Option { return traceOption{trace: trace} }
+
+type traceOption struct{ trace *regexp.Regexp }
+
+func (o traceOption) Apply(opts *settings.Config) error {
+	opts.TypeConfig.Trace = o.trace
+	opts.WrapperConfig.Trace = o.trace
+
+	return nil
+}
+
+func (o traceOption) LogAttr() slog.Attr {
+	return slog.Any("trace", o.trace)
+}
+
+func logAttrMap[K interface {
+	cmp.Ordered
+	fmt.Stringer
+}, V fmt.Stringer](name string, m map[K][]V) slog.Attr {
+	keys := slices.Sorted(maps.Keys(m))
+	attrs := make([]slog.Attr, 0, len(keys))
+
+	for _, key := range keys {
+		values := m[key]
+		if len(values) == 0 {
+			continue
+		}
+
+		vals := make([]string, len(values))
+		for i, v := range values {
+			vals[i] = v.String()
+		}
+
+		attrs = append(attrs, slog.String(key.String(), strings.Join(vals, ",")))
+	}
+
+	return slog.GroupAttrs(name, attrs...)
 }

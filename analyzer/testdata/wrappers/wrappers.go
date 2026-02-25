@@ -18,40 +18,12 @@ package wrappers
 
 import "errors"
 
-func Is(err, target error) bool {
-	return errors.Is(err, target)
+func AsType126[E error](err error) (E, bool) {
+	return errors.AsType[E](err)
 }
 
-func As(err error, target any) bool {
-	return errors.As(err, target)
-}
-
-func AsType[E error](err error) (E, bool) {
-	var target E
-	ok := errors.As(err, &target)
-
-	return target, ok
-}
-
-func HasType[E error](err error) bool {
-	return errors.As(err, new(E))
-}
-
-type MyError struct{}
-
-func (MyError) Error() string { return "my error" }
-
-var _ error = MyError{}
-
-func Test() {
+func Test126() {
 	var err error
-	var target MyError
 
-	_ = Is(err, &MyError{}) // want ` \(et:cmp\)$`
-
-	_ = As(err, target) // want ` \(et:arg\)$`
-
-	_, _ = AsType[*MyError](err) // want ` \(et:ast\)$`
-
-	_ = HasType[*MyError](err) // want ` \(et:ast\)$`
+	_, _ = AsType126[*MyError](err) // want ` \(et:ast\)$`
 }

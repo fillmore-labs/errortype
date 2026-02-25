@@ -16,6 +16,11 @@
 
 package a
 
+type (
+	valueOverrideAliasError = ValueOverrideError
+	valueOverridePtrError   = *valueOverrideAliasError
+)
+
 func (*ValueOverrideError) Is(target error) bool { // want ` \(et:rcv\)$`
 	return false
 }
@@ -23,8 +28,6 @@ func (*ValueOverrideError) Is(target error) bool { // want ` \(et:rcv\)$`
 func (*ValueOverrideError) As(target any) bool { // want ` \(et:rcv\)$`
 	return false
 }
-
-type valueOverridePtrError = *ValueOverrideError
 
 func (valueOverridePtrError) Unwrap() []error { // want ` \(et:rcv\)$`
 	return nil

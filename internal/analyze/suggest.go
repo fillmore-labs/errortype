@@ -21,16 +21,16 @@ import (
 	"runtime/trace"
 	"slices"
 
-	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/detecttypes/result"
 	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Suggestions generates a map of type names based on their determined usage.
-func (p Pass) Suggestions(ctx context.Context) overrides.Overrides {
+func (p Pass) Suggestions(ctx context.Context) overrides.Types {
 	defer trace.StartRegion(ctx, "suggestions").End()
 
-	suggestions := overrides.Overrides{
+	suggestions := overrides.Types{
 		Types: make(map[result.ErrorType][]typeutil.TypeName),
 	}
 

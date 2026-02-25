@@ -4,8 +4,8 @@ template-data:
   stub-impl: false
 
 filename: mocks_test.go
-pkgname: "{{.SrcPackageName}}_test"
-structname: "moq{{.InterfaceName}}"
+pkgname: '{{.SrcPackageName}}_test'
+structname: 'moq{{.InterfaceName}}'
 
 packages:
   fillmore-labs.com/errortype/internal/analyze/usage:

@@ -16,7 +16,81 @@
 
 package typeutil
 
-import "go/types"
+import (
+	"go/ast"
+	"go/types"
+)
+
+const (
+	// errorName is the name of the `Error() string` method.
+	errorName = "Error"
+
+	// isName is the name of the `Is(err error) bool` method.
+	isName = "Is"
+
+	// asName is the name of the `As(err any) bool` method.
+	asName = "As"
+
+	// unwrapName is the name of the `Unwrap() error` and `Unwrap() []error` methods.
+	unwrapName = "Unwrap"
+)
+
+// SignatureCheckFor returns a signature validation function for a method.
+// It supports error tree-related methods `Is`, `As`, and `Unwrap`.
+// If the method name is not one of these, it returns nil.
+func SignatureCheckFor(name string) func(*types.Signature) bool {
+	switch name {
+	case isName:
+		return isSig.matchSig
+
+	case unwrapName:
+		return matchUnwrapSig
+
+	case asName:
+		return asSig.matchSig
+	}
+
+	return nil
+}
+
+// IsIsMethod cehcks for an `Is` method declaration with body.
+func IsIsMethod(f *ast.FuncDecl) bool {
+	return f.Name.Name == isName && f.Body != nil
+}
+
+var (
+	// ErrorMethod represents the standard `Error() string` method required by the built-in error interface.
+	ErrorMethod = Method{
+		matchSig: errorSig.matchSig,
+		name:     errorName,
+	}
+	// IsMethod represents the `Is(error) bool` method used to customize [errors.Is] behavior.
+	IsMethod = Method{
+		matchSig: isSig.matchSig,
+		name:     isName,
+	}
+	// AsMethod represents the `As(any) bool` method used to customize [errors.As] behavior.
+	AsMethod = Method{
+		matchSig: asSig.matchSig,
+		name:     asName,
+	}
+	// UnwrapMethod represents the `Unwrap() error` or `Unwrap() []error` method used to retrieve a wrapped error.
+	UnwrapMethod = Method{
+		matchSig: matchUnwrapSig,
+		name:     unwrapName,
+	}
+	// UnwrapMultipleMethod represents the `Unwrap() []error` method used by multi-error wrappers like [errors.Join].
+	UnwrapMultipleMethod = Method{
+		matchSig: unwrapMultipleSig.matchSig,
+		name:     unwrapName,
+	}
+)
+
+// sigType is the parameter and result types of a function signature.
+type sigType struct {
+	params  []types.Type
+	results []types.Type
+}
 
 var (
 	// errorType is the `error` interface type from the universal scope.
@@ -41,14 +115,8 @@ var (
 	unwrapMultipleSig = sigType{[]types.Type{}, []types.Type{types.NewSlice(errorType)}}
 )
 
-// sigType is the parameter and result types of a function signature.
-type sigType struct {
-	params  []types.Type
-	results []types.Type
-}
-
-// matchSignature checks if a function signature matches the given parameter and result types.
-func (s sigType) matchSignature(sig *types.Signature) bool {
+// matchSig checks if a function signature matches the given parameter and result types.
+func (s sigType) matchSig(sig *types.Signature) bool {
 	params, results := sig.Params(), sig.Results()
 	if params.Len() != len(s.params) || results.Len() != len(s.results) {
 		return false
@@ -69,27 +137,7 @@ func (s sigType) matchSignature(sig *types.Signature) bool {
 	return true
 }
 
-// HasErrorSig checks whether the provided function signature is `func() string`.
-func HasErrorSig(sig *types.Signature) bool {
-	return errorSig.matchSignature(sig)
-}
-
-// HasIsSig checks whether the provided function signature is `func(error) bool`.
-func HasIsSig(sig *types.Signature) bool {
-	return isSig.matchSignature(sig)
-}
-
-// HasAsSig checks whether the provided function signature is `func(any) bool`.
-func HasAsSig(sig *types.Signature) bool {
-	return asSig.matchSignature(sig)
-}
-
-// HasUnwrapSig checks whether the provided function signature is `func() error` or `func() []error`.
-func HasUnwrapSig(sig *types.Signature) bool {
-	return unwrapSig.matchSignature(sig) || unwrapMultipleSig.matchSignature(sig)
-}
-
-// HasUnwrapMultipleSig checks whether the provided function signature is `func() []error`.
-func HasUnwrapMultipleSig(sig *types.Signature) bool {
-	return unwrapMultipleSig.matchSignature(sig)
+// matchUnwrapSig checks for `Unwrap() error` or `Unwrap() []error`.
+func matchUnwrapSig(sig *types.Signature) bool {
+	return unwrapSig.matchSig(sig) || unwrapMultipleSig.matchSig(sig)
 }

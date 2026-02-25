@@ -23,7 +23,7 @@ import (
 )
 
 // handleIsType processes type assertion functions that check if an error implements a specific type.
-// It handles functions with signatures like `assert.IsType`.
+// It handles functions with signatures like [github.com/stretchr/testify/assert.IsType].
 func (p Pass) handleIsType(call *ast.CallExpr, methodExpr bool, argIndex int8) {
 	typeArg := int(argIndex)
 

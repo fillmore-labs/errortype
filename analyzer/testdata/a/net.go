@@ -28,13 +28,13 @@ import (
 func CheckError(err error) {
 	switch e := err.(type) {
 	case *net.UnknownNetworkError: // want ` \(et:ast\)$`
-		fmt.Println("UnknownNetworkError:", (string)(*e))
+		fmt.Println("UnknownNetworkError:", string(*e))
 
 	case *net.InvalidAddrError: // want ` \(et:ast\)$`
-		fmt.Println("InvalidAddrError:", (string)(*e))
+		fmt.Println("InvalidAddrError:", string(*e))
 
 	case *syscall.Errno: // want ` \(et:ast\)$`
-		fmt.Println("Errno:", (int)(*e))
+		fmt.Println("Errno:", int(*e))
 	}
 
 	var e net.AddrError
@@ -44,7 +44,7 @@ func CheckError(err error) {
 }
 
 func CheckError2() {
-	_, err := parser.ParseFile(nil, "", nil, parser.AllErrors)
+	_, err := parser.ParseFile(nil, "", nil, parser.AllErrors|parser.SkipObjectResolution)
 	if list, ok := err.(*scanner.ErrorList); ok { // want ` \(et:ast\)$`
 		fmt.Println(list)
 	}

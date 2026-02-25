@@ -71,13 +71,17 @@ func (p Pass) handleErrorsAs(call *ast.CallExpr, ex ast.Expr, targetArgIndex int
 		// that points either to an interface or a type implementing `error`
 		//
 		// While the interface itself does not have to be `any`, everything
-		// else is rare and error-prone:
+		// else is rare and error-prone. This works, but is confusing:
 		//
-		//	type TestError struct{ ... }
-		//	func (TestError) Error() string { ... }
+		//	type TestError struct{ msg string }
+		//	func (e TestError) Error() string { return e.msg }
 		//
-		//	var err error = &TestError{ ... }
-		//	if errors.As(TestError{...}, err) { ... }
+		//	func _() {
+		//		err := TestError{msg: "test error"}
+		//
+		//		var errTarget error = &TestError{}
+		//		if errors.As(err, errTarget) { fmt.Println(errTarget) }
+		//	}
 		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
 		p.ReportRangef(targetArg, `Expected pointer or "any" interface, but %q is a non-empty interface. (et:arg+)`, typeName)
 

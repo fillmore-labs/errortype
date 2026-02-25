@@ -21,6 +21,7 @@ import (
 	"go/types"
 
 	"fillmore-labs.com/errortype/internal/analyze/report"
+	"fillmore-labs.com/errortype/internal/settings"
 )
 
 // checkAssign creates a new reporter for assignments.
@@ -40,9 +41,15 @@ func (p Pass) checkErrorsAs(t types.Type, e, fun ast.Expr) {
 	reporter := report.ErrorsAs{Base: report.Base{Pass: p.Pass, Expr: e}, Fun: fun}
 	p.Check(t, reporter)
 
-	if p.StyleCheck() {
+	if p.Has(settings.OptionStyleCheck) {
 		reporter.CheckStyle(t)
 	}
+}
+
+// checkErrorf creates a new reporter for fmt.Errorf like functions.
+func (p Pass) checkErrorf(t types.Type, e ast.Expr) {
+	reporter := report.Errorf{Base: report.Base{Pass: p.Pass, Expr: e}}
+	p.Check(t, reporter)
 }
 
 // checkReturn creates a new reporter for return statements.

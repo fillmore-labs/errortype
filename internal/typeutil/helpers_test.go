@@ -29,7 +29,7 @@ import (
 const testpkg = "test"
 
 // parseSource parses inline Go source code into an AST.
-// The source is automatically wrapped in a function body: func _() { <src> }.
+// The source is automatically wrapped in a package.
 func parseSource(tb testing.TB, src string) (*token.FileSet, *ast.File) {
 	tb.Helper()
 

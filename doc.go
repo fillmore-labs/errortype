@@ -15,41 +15,49 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /*
-errortype is a Go static analysis tool that helps prevent subtle bugs in error handling.
+errortype is a static analysis tool that helps prevent subtle bugs in error handling.
 
 Usage:
 
-	errortype [flags] [package ...]
+	errortype [flags] [packages]
 
-It performs two main checks:
+It performs three checks:
 
- 1. Inconsistent Error Type Usage: It analyzes function returns, type assertions,
-    and calls to functions like errors.As to ensure that custom error types
-    are used consistently as either pointers or values.
+ 1. Inconsistent Error Type Usage: Ensures error types are used consistently
+    as either pointers or values in returns, type assertions, and errors.As calls.
 
- 2. Pointless Pointer Comparisons: It detects comparisons of pointers against
-    the address of a newly created value (e.g., 'ptr == &MyStruct{}'), which
-    are almost always incorrect.
+ 2. Pointless Comparisons: Detects comparisons against newly allocated addresses
+    (like errors.Is(err, &url.Error{}) or ptr == &MyStruct{}), which are almost always incorrect.
+
+ 3. Error Naming Conventions (opt-in): Checks that sentinel error variables use the Err prefix (e.g.,
+    ErrNotFound) and structured error types use the Error suffix (e.g., ParseError).
 
 For inconsistent error type usage, it automatically determines the correct usage
-for most error types but may require a configuration file for ambiguous cases.
+for most error types. Ambiguous cases can be resolved through an override file;
+see the -overrides and -suggest flags.
 
 The flags are:
 
 	-c int
 		display offending line with this many lines of context (default -1)
 	-check-is
-		suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method (default true)
+		suppress compare diagnostic on errors.Is if the type has an "Is(error) bool" or "Unwrap() error" method (default true)
 	-check-unused
-		report unchecked calls on errors.As-like functions
+		report unchecked calls on errors.As-like functions (default true)
 	-deep-is-check
 		diagnose all "Unwrap" functions in "Is" methods, not only those on target
+	-fix
+		apply all suggested fixes
 	-heuristics list
-		list of heuristics used (default: "var,usage,receivers", "off" to disable)
+		list of heuristics used; values: "var", "usage", "receivers", "off" to disable (default all)
+	-naming
+		check error sentinel and type names
 	-overrides file
 		read error type overrides from this file
+	-prefix-filter
+		restrict variable analysis to variables with an "err" prefix (default true)
 	-style-check
-		check for confusing uses of errors.As (default true)
+		check for confusing uses of errors.As
 	-suggest file
 		append suggestions to this file, "-" for standard output
 	-test

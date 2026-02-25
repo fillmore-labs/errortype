@@ -1,0 +1,8 @@
+---
+wrappers:
+  is:
+    - my/pkg.Is
+  istype:
+    - my/pkg.IsType
+  equal:
+    - my/pkg.Equal

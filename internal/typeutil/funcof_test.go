@@ -18,6 +18,8 @@ package typeutil_test
 
 import (
 	"go/ast"
+	"go/version"
+	"runtime"
 	"testing"
 
 	. "fillmore-labs.com/errortype/internal/typeutil"
@@ -30,6 +32,7 @@ func TestFuncOf(t *testing.T) {
 		name           string
 		src            string
 		wantFuncName   string
+		version        string
 		wantMethodExpr bool
 	}{
 		{
@@ -48,8 +51,30 @@ func TestFuncOf(t *testing.T) {
 			wantFuncName: "(test.S).myMethod",
 		},
 		{
+			name:         "method call on a interface variable",
+			src:          `type S interface{ myMethod() int }; var v S; var _ = v.myMethod()`,
+			wantFuncName: "(test.S).myMethod",
+		},
+		{
 			name:           "method expression call",
 			src:            `type S struct{}; func (s S) myMethod() int { return 0 }; var v S; var _ = (S).myMethod(v)`,
+			wantFuncName:   "(test.S).myMethod",
+			wantMethodExpr: true,
+		},
+		{
+			name:           "method expression call on generic type",
+			src:            `type S[T any] struct{}; func (s S[T]) myMethod() int { return 0 }; var v S[int]; var _ = (S[int]).myMethod(v)`,
+			wantFuncName:   "(test.S).myMethod",
+			wantMethodExpr: true,
+		},
+		{
+			name:         "embendded method call",
+			src:          `type S struct{}; func (s S) myMethod() int { return 0 }; type T struct{ S }; var v T; var _ = v.myMethod()`,
+			wantFuncName: "(test.S).myMethod",
+		},
+		{
+			name:           "embendded method expression call",
+			src:            `type S struct{}; func (s S) myMethod() int { return 0 }; type T struct{ S }; var v T; var _ = (T).myMethod(v)`,
 			wantFuncName:   "(test.S).myMethod",
 			wantMethodExpr: true,
 		},
@@ -59,13 +84,27 @@ func TestFuncOf(t *testing.T) {
 		},
 		{
 			name:         "generic function call with one type parameter",
-			src:          `func myFunc[T any]() T { return *new(T) }; var _ = myFunc[int]()`,
+			src:          `func myFunc[T any]() T { var t T; return t }; var _ = myFunc[int]()`,
 			wantFuncName: "test.myFunc",
 		},
 		{
 			name:         "generic function call with multiple type parameters",
-			src:          `func myFunc[T, U any]() T { return *new(T) }; var _ = myFunc[int, string]()`,
+			src:          `func myFunc[T, U any]() T { var t T; return t }; var _ = myFunc[int, string]()`,
 			wantFuncName: "test.myFunc",
+		},
+		{
+			name:           "generic method call",
+			src:            `type S[T any] struct{}; func (s S[T]) myMethod[U any]() int { return 0 }; var v S[int]; var _ = (S[int]).myMethod[string](v)`,
+			wantFuncName:   "(test.S).myMethod",
+			wantMethodExpr: true,
+			version:        "go1.27",
+		},
+		{
+			name:           "generic non-instantiated method call",
+			src:            `type S[T any] struct{}; func (s S[T]) myMethod[U any]() int { return 0 };  func _[T, U any]() { var v S[T]; _ = (S[T]).myMethod[U](v) }`,
+			wantFuncName:   "(test.S).myMethod",
+			wantMethodExpr: true,
+			version:        "go1.27",
 		},
 		{
 			name:         "parenthesized function call",
@@ -73,8 +112,18 @@ func TestFuncOf(t *testing.T) {
 			wantFuncName: "test.myFunc",
 		},
 		{
-			name: "call on function variable",
-			src:  `var myFunc func() int; var _ = myFunc()`,
+			name: "builtin new",
+			src:  `var _ = new(int)`,
+		},
+		{
+			name:    "builtin new expr",
+			src:     `var _ = new(1)`,
+			version: "go1.26",
+		},
+		{
+			name:         "call on function variable",
+			src:          `var myFunc func() int; var _ = myFunc()`,
+			wantFuncName: "test.myFunc",
 		},
 		{
 			name: "call on a function pointer",
@@ -98,9 +147,17 @@ func TestFuncOf(t *testing.T) {
 		},
 	}
 
+	current := version.Lang(runtime.Version())
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
+
+			if tt.version != "" {
+				if version.Compare(tt.version, current) > 0 {
+					t.Skipf("test needs at least Go %s", tt.version)
+				}
+			}
 
 			fset, f := parseSource(t, tt.src)
 			_, info := checkSource(t, fset, []*ast.File{f})
@@ -121,8 +178,8 @@ func TestFuncOf(t *testing.T) {
 				t.Fatal("FuncOf() fun is nil, but wantOk is true")
 			}
 
-			if funcName := fun.Func.FullName(); funcName != tt.wantFuncName {
-				t.Errorf("FuncOf() fun.FullName() = %q, want %q", funcName, tt.wantFuncName)
+			if funcName := FuncNameOf(fun.Func).String(); funcName != tt.wantFuncName {
+				t.Errorf("FuncOf() FuncNameOf = %q, want %q", funcName, tt.wantFuncName)
 			}
 
 			if fun.MethodExpr != tt.wantMethodExpr {
@@ -132,11 +189,12 @@ func TestFuncOf(t *testing.T) {
 	}
 }
 
-func lastDeclCallExpr(f *ast.File) *ast.CallExpr {
-	lastDecl := f.Decls[len(f.Decls)-1]
-	genDecl := lastDecl.(*ast.GenDecl)
-	valSpec := genDecl.Specs[0].(*ast.ValueSpec)
-	callExpr := valSpec.Values[0].(*ast.CallExpr)
+func lastDeclCallExpr(file *ast.File) *ast.CallExpr {
+	for node := range ast.Preorder(file) {
+		if call, ok := node.(*ast.CallExpr); ok {
+			return call
+		}
+	}
 
-	return callExpr
+	return nil
 }

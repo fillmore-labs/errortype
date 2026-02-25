@@ -16,7 +16,11 @@
 
 package typeutil
 
-import "go/types"
+import (
+	"go/types"
+
+	"golang.org/x/tools/go/types/typeutil"
+)
 
 // IsErrorInterface checks if the provided type is the built-in `error` interface.
 func IsErrorInterface(typ types.Type) bool {
@@ -42,50 +46,68 @@ func IsInterfaceWithError(typ types.Type) bool {
 
 	iface, ok := typ.Underlying().(*types.Interface)
 
-	return ok && HasMethod(iface, "Error", HasErrorSig)
+	return ok && ErrorMethod.HasMethod(iface, false)
 }
 
-// HasErrorMethod checks if a given type implements the standard `error` interface.
-// Note that when T implements `error`, *T can, but does not necessarily implement `error` too.
+// HasErrorMethod checks if a given type directly implements the standard `error` interface.
+// Note that when a pointer receiver *T implements `error`, the value type T does not necessarily implement it.
 func HasErrorMethod(typ types.Type) bool {
 	if IsErrorInterface(typ) {
 		return true
 	}
 
-	return HasMethod(typ, "Error", HasErrorSig)
+	return ErrorMethod.HasMethod(typ, false)
+}
+
+// HasErrorMethodCached checks if a given type directly implements the standard `error` interface.
+func HasErrorMethodCached(cache *typeutil.Map, typ types.Type) bool {
+	if IsErrorInterface(typ) {
+		return true
+	}
+
+	if v, ok := cache.At(typ).(bool); ok {
+		return v
+	}
+
+	v := ErrorMethod.HasMethod(typ, false)
+	cache.Set(typ, v)
+
+	return v
+}
+
+// Method represents a specific error-related method type, defining its name and
+// signature validation function.
+type Method struct {
+	matchSig func(*types.Signature) bool
+	name     string
+}
+
+// MatchSig matches the signature of sig.
+func (m Method) MatchSig(sig *types.Signature) bool {
+	return m.matchSig(sig)
 }
 
 // HasMethod checks if a given type implements a method.
-// Note that when T implements the method, *T can, but does not necessarily implement the method too.
-func HasMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool) bool {
-	obj, _, _ := types.LookupFieldOrMethod(typ, false, nil, name)
-	if obj == nil {
-		return false // Method not found
-	}
+//
+// If addressable is set, typ is the type of an addressable variable.
+func (m Method) HasMethod(typ types.Type, addressable bool) bool {
+	fun, _, _ := lookupMethod(typ, addressable, m.name)
 
-	if fun, ok := obj.(*types.Func); !ok || !sigCheck(fun.Signature()) {
-		return false // *types.Var or wrong signature
-	}
-
-	return true
+	return fun != nil && m.matchSig(fun.Signature())
 }
 
-// LookupResult is the result of a method lookup on a type, containing the receiver, indirection, and embedding info.
+// LookupResult is the result of a [Method.Lookup] on a type.
 type LookupResult struct {
-	Recv               *types.Var
-	Indirect, Embedded bool
+	Recv     *types.Var // Recv is the receiver variable of the resolved method.
+	Indirect bool       // Indirect indicates if the method was looked up via pointer indirection.
+	Embedded bool       // Embedded indicates if the method is promoted from an embedded field.
 }
 
-// LookupMethod finds a method with the specified name in a type, checking its signature and accounting for embedding.
+// Lookup finds a method with the specified name in a type, checking its signature and accounting for embedding.
 // Returns the method if found, whether it was found via indirection, and a boolean indicating success.
-func LookupMethod(typ types.Type, name string, sigCheck func(*types.Signature) bool) (res LookupResult, ok bool) {
-	obj, index, indirect := types.LookupFieldOrMethod(typ, true, nil, name)
-	if obj == nil {
-		return res, false // No method with name
-	}
-
-	fun, ok := obj.(*types.Func)
-	if !ok || !sigCheck(fun.Signature()) {
+func (m Method) Lookup(typ types.Type) (res LookupResult, ok bool) {
+	fun, index, indirect := lookupMethod(typ, true, m.name)
+	if fun == nil || !m.matchSig(fun.Signature()) {
 		return res, false // *types.Var or wrong signature
 	}
 
@@ -94,4 +116,11 @@ func LookupMethod(typ types.Type, name string, sigCheck func(*types.Signature) b
 	res.Embedded = len(index) > 1
 
 	return res, true
+}
+
+func lookupMethod(typ types.Type, addressable bool, name string) (fun *types.Func, index []int, indirect bool) {
+	obj, index, indirect := types.LookupFieldOrMethod(typ, addressable, nil, name)
+	fun, _ = obj.(*types.Func)
+
+	return fun, index, indirect
 }

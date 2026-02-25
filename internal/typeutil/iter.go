@@ -29,49 +29,44 @@ func AllFuncDecls(files []*ast.File) iter.Seq[*ast.FuncDecl] {
 	}
 }
 
-// AllGenDecls is an iterator over all generic declaration nodes.
-func AllGenDecls(files []*ast.File) iter.Seq[*ast.GenDecl] {
-	return func(yield func(*ast.GenDecl) bool) {
-		iterateOverDecls(files, yield)
-	}
-}
-
 // AllTypeDecls is an iterator over all type declarations (*ast.TypeSpec) in the files.
 func AllTypeDecls(files []*ast.File) iter.Seq[*ast.TypeSpec] {
 	return func(yield func(*ast.TypeSpec) bool) {
-		for g := range AllGenDecls(files) {
+		iterateOverDecls(files, func(g *ast.GenDecl) bool {
 			if g.Tok != token.TYPE {
-				continue // non-matching declarations
+				return true // non-matching declarations
 			}
 
-			if !iterateOverSpecs(g, yield) {
-				return
-			}
-		}
+			return iterateOverSpecs(g, yield)
+		})
 	}
 }
 
 // AllVarDecls is an iterator over all variable and constant declarations (*ast.ValueSpec) in the files.
 func AllVarDecls(files []*ast.File) iter.Seq[*ast.ValueSpec] {
 	return func(yield func(*ast.ValueSpec) bool) {
-		for g := range AllGenDecls(files) {
+		iterateOverDecls(files, func(g *ast.GenDecl) bool {
 			switch g.Tok {
 			case token.VAR, token.CONST:
 			default:
-				continue // non-matching declarations
+				return true // non-matching declarations
 			}
 
-			if !iterateOverSpecs(g, yield) {
-				return
-			}
-		}
+			return iterateOverSpecs(g, yield)
+		})
 	}
 }
 
-// AllSpecs is an iterator over all specifications of type S in a generic declaration node.
-func AllSpecs[S ast.Spec](decl *ast.GenDecl) iter.Seq[S] {
-	return func(yield func(S) bool) {
-		iterateOverSpecs(decl, yield)
+// AllConstDecls is an iterator over all constant declarations in the files.
+func AllConstDecls(files []*ast.File) iter.Seq[*ast.ValueSpec] {
+	return func(yield func(*ast.ValueSpec) bool) {
+		iterateOverDecls(files, func(g *ast.GenDecl) bool {
+			if g.Tok != token.CONST {
+				return true // non-matching declarations
+			}
+
+			return iterateOverSpecs(g, yield)
+		})
 	}
 }
 

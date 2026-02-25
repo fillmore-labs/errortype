@@ -23,18 +23,18 @@ import (
 )
 
 func JujuErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
 	var (
 		err error
 		pve *ValueError
 	)
 
-	_ = errors.Is(err, (&myError1{})) // want "is false or undefined"
+	_ = errors.Is(err, (&my1Error{})) // want "is false or undefined"
 
-	_ = errors.As(err, &pve) // want " \\(et:err\\)$"
+	_ = errors.As(err, &pve) // want ` \(et:err\)$`
 
-	_, _ = errors.AsType[*ValueError](err) // want " \\(et:ast\\)$"
+	_, _ = errors.AsType[*ValueError](err) // want ` \(et:ast\)$`
 
-	_ = errors.HasType[*ValueError](err) // want " \\(et:ast\\)$"
+	_ = errors.HasType[*ValueError](err) // want ` \(et:ast\)$`
 }

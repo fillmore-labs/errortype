@@ -21,69 +21,85 @@ import (
 	"go/types"
 )
 
+// ResolvedFunc is the result of resolving a function expression.
+type ResolvedFunc struct {
+	Ident      *ast.Ident
+	Func       *types.Func
+	Expr       ast.Expr
+	MethodExpr bool
+}
+
 // FuncOf iteratively unwraps an expression to find the underlying function declaration.
-func FuncOf(info *types.Info, n *ast.CallExpr) (fun *types.Func, typeParams []ast.Expr, methodExpr, ok bool) {
-	for ex := n.Fun; ; {
-		switch e := ex.(type) {
-		case *ast.Ident:
-			fun, ok = info.Uses[e].(*types.Func)
+func FuncOf(info *types.Info, call *ast.CallExpr) (res ResolvedFunc, ok bool) {
+	res.Expr = call.Fun
+	typeParams := false
 
-			return fun, typeParams, false, ok
+unwarp:
+	switch e := res.Expr.(type) {
+	case *ast.Ident:
+		res.Ident = e
+		res.Func, ok = info.Uses[e].(*types.Func)
 
-		case *ast.SelectorExpr:
-			if sel, isSel := info.Selections[e]; isSel {
-				switch sel.Kind() {
-				case types.MethodVal:
-					methodExpr = false
+		return res, ok
 
-				case types.MethodExpr:
-					methodExpr = true
+	case *ast.SelectorExpr:
+		if sel, isSel := info.Selections[e]; isSel {
+			switch sel.Kind() {
+			case types.MethodVal:
+				res.MethodExpr = false
 
-				default: // types.FieldVal, struct field selector
-					return nil, nil, false, false
-				}
+			case types.MethodExpr:
+				res.MethodExpr = true
 
-				fun = sel.Obj().(*types.Func)
-
-				return fun, typeParams, methodExpr, true
+			default: // types.FieldVal, struct field selector
+				return res, false
 			}
 
-			if fun, ok = info.Uses[e.Sel].(*types.Func); ok { // e.Sel is an identifier qualified by e.X
-				return fun, typeParams, false, true
-			}
+			res.Ident = e.Sel
+			res.Func = sel.Obj().(*types.Func)
 
-			return nil, nil, false, false // Not a function
-
-		case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
-			if typeParams != nil { // should not happen, duplicate type parameters
-				return nil, nil, false, false
-			}
-
-			typeParams = []ast.Expr{e.Index}
-			if !checkTypeParameters(info, typeParams) {
-				return nil, nil, false, false // No type, but an array/slice index.
-			}
-
-			ex = e.X // Unwrap to the function identifier.
-
-		case *ast.IndexListExpr: // Generic function instantiation with multiple type parameters ("myFunc[T, U]").
-			if typeParams != nil { // should not happen, duplicate type parameters
-				return nil, nil, false, false
-			}
-
-			typeParams = e.Indices
-			if !checkTypeParameters(info, typeParams) { // should not happen
-				return nil, nil, false, false
-			}
-
-			ex = e.X // Unwrap to the function identifier.
-
-		case *ast.ParenExpr: // Parenthesized expression ("(myFunc)")
-			ex = e.X // Unwrap to the inner expression.
-
-		default: // Function variable, pointer, or other non-declarative function reference.
-			return nil, nil, false, false
+			return res, true
 		}
+
+		res.Ident = e.Sel
+		res.Func, ok = info.Uses[e.Sel].(*types.Func) // e.Sel is an identifier qualified by e.X
+
+		return res, ok
+
+	case *ast.IndexExpr: // Generic function instantiation with a type parameter ("myFunc[T]").
+		if typeParams { // should not happen, duplicate type parameters
+			return res, false
+		}
+
+		if !checkTypeParameters(info, []ast.Expr{e.Index}) {
+			return res, false // No type, but an array/slice index.
+		}
+
+		typeParams = true
+		res.Expr = e.X // Unwrap to the function identifier.
+
+		goto unwarp
+
+	case *ast.IndexListExpr: // Generic function instantiation with multiple type parameters ("myFunc[T, U]").
+		if typeParams { // should not happen, duplicate type parameters
+			return res, false
+		}
+
+		if !checkTypeParameters(info, e.Indices) { // should not happen
+			return res, false
+		}
+
+		typeParams = true
+		res.Expr = e.X // Unwrap to the function identifier.
+
+		goto unwarp
+
+	case *ast.ParenExpr: // Parenthesized expression ("(myFunc)")
+		res.Expr = e.X // Unwrap to the inner expression.
+		goto unwarp
+
+	default: // Function variable, pointer, or other non-declarative function reference.
+		return res, false
 	}
 }
 

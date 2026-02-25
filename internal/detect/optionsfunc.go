@@ -21,7 +21,9 @@ import (
 	"fmt"
 	"regexp"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/overrides"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ReadOverrides reads error type usage overrides from the specified file.
@@ -38,13 +40,18 @@ func (o *Options) ReadOverrides(fileName string) error {
 		return fmt.Errorf("can't read overrides file %s: %w", fileName, err)
 	}
 
-	o.AddOverrides(usageOverrides)
+	o.AddOverrides(usageOverrides.Types)
+	o.AddWrappers(usageOverrides.Wrappers)
 
 	return nil
 }
 
 // AddOverrides merges the given overrides into the UsageOverrides map.
-func (o *Options) AddOverrides(or overrides.Overrides) {
+func (o *Options) AddOverrides(or map[result.ErrorType][]typeutil.TypeName) {
+	if len(or) == 0 {
+		return
+	}
+
 	if o.UsageOverrides == nil {
 		o.UsageOverrides = make(UsageOverrides)
 	}
@@ -52,6 +59,23 @@ func (o *Options) AddOverrides(or overrides.Overrides) {
 	for typ, names := range or {
 		for _, name := range names {
 			o.UsageOverrides[name] = typ
+		}
+	}
+}
+
+// AddWrappers merges the given overrides into the WrapperOverrides map.
+func (o *Options) AddWrappers(or map[result.WrapperType][]typeutil.FuncName) {
+	if len(or) == 0 {
+		return
+	}
+
+	if o.WrapperOverrides == nil {
+		o.WrapperOverrides = make(WrapperOverrides)
+	}
+
+	for wrapperType, names := range or {
+		for _, name := range names {
+			o.WrapperOverrides[name] = wrapperType
 		}
 	}
 }

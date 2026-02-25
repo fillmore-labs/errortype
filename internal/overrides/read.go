@@ -26,7 +26,8 @@ import (
 
 	"github.com/goccy/go-yaml"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Read parses an override file from the provided io.Reader and returns a map
@@ -38,17 +39,20 @@ func Read(ctx context.Context, r io.Reader) (Overrides, error) {
 	var errorfile errorFileType
 	if err := dec.DecodeContext(ctx, &errorfile); err != nil {
 		if errors.Is(err, io.EOF) {
-			return nil, nil
+			return Overrides{}, nil
 		}
 
-		return nil, fmt.Errorf("error parsing override file: %w", err)
+		return Overrides{}, fmt.Errorf("error parsing override file: %w", err)
 	}
 
 	return Overrides{
-			facts.PointerType:  errorfile.Pointer,
-			facts.ValueType:    errorfile.Value,
-			facts.SuppressType: errorfile.Suppress,
-			// errortypes.InconsistentType are ignored.
+			Types: map[result.ErrorType][]typeutil.TypeName{
+				result.Pointer:  errorfile.Pointer,
+				result.Value:    errorfile.Value,
+				result.Suppress: errorfile.Suppress,
+				// errortypes.InconsistentType are ignored.
+			},
+			Wrappers: errorfile.Wrappers,
 		},
 		nil
 }
@@ -57,10 +61,10 @@ func Read(ctx context.Context, r io.Reader) (Overrides, error) {
 func ReadFile(ctx context.Context, fileName string) (Overrides, error) {
 	overridesFile, err := os.Open(filepath.Clean(fileName))
 	if err != nil {
-		return nil, fmt.Errorf("can't open overrides file: %w", err)
+		return Overrides{}, fmt.Errorf("can't open overrides file: %w", err)
 	}
 
-	defer overridesFile.Close()
+	defer overridesFile.Close() // ignore error
 
 	return Read(ctx, overridesFile)
 }

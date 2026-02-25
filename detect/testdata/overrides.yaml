@@ -1,10 +1,20 @@
-# Error types for test/a
+# Error types for test
 ---
 pointer:
-  - test/a.PointerOverride
-
+  - test/a.PointerOverrideError
 value:
-  - test/a.ValueOverride
-
+  - test/a.ValueOverrideError
 suppress:
-  - test/a.SuppressOverride
+  - test/a.SuppressOverrideError
+
+wrappers:
+  is:
+    - test/wrappers/override.Is
+    - (test/wrappers/override.suite).Is
+    - (test/wrappers/override.Suite).Is
+  as:
+    - test/wrappers/override.As
+    - (test/wrappers/override.suite).As
+    - (test/wrappers/override.Suite).As
+  astype:
+    - test/wrappers/override.AsType

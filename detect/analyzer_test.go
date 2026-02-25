@@ -29,11 +29,43 @@ import (
 	"golang.org/x/tools/go/ast/inspector"
 
 	. "fillmore-labs.com/errortype/detect"
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 func TestDetectAnalyzer(t *testing.T) {
+	t.Parallel()
+
+	dir := analysistest.TestData()
+	overrides := filepath.Join(dir, "overrides.yaml")
+
+	tests := [...]struct {
+		name        string
+		newAnalyzer func() *analysis.Analyzer
+		pkg         string
+	}{
+		{"detect", func() *analysis.Analyzer {
+			t.Helper()
+
+			return New(WithOverrideFile(overrides))
+		}, "./a/c"},
+		{"wrappers", func() *analysis.Analyzer {
+			t.Helper()
+
+			return New(WithOverrideFile(overrides))
+		}, "./wrappers/..."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			analysistest.Run(t, dir, tt.newAnalyzer(), tt.pkg)
+		})
+	}
+}
+
+func TestDetectAnalyzerResults(t *testing.T) {
 	t.Parallel()
 
 	dir := analysistest.TestData()
@@ -61,6 +93,8 @@ func TestDetectAnalyzer(t *testing.T) {
 	}
 }
 
+type testFact struct{ result.ErrorType }
+
 func newTestAnalyzer(d *analysis.Analyzer) *analysis.Analyzer {
 	testAnalyzer := &analysis.Analyzer{
 		Name: "testanalyzer",
@@ -68,7 +102,8 @@ func newTestAnalyzer(d *analysis.Analyzer) *analysis.Analyzer {
 		Run: func(ap *analysis.Pass) (any, error) {
 			return run(ap, d)
 		},
-		Requires: []*analysis.Analyzer{inspect.Analyzer, d},
+		Requires:  []*analysis.Analyzer{inspect.Analyzer, d},
+		FactTypes: []analysis.Fact{(*testFact)(nil)},
 	}
 
 	return testAnalyzer
@@ -80,14 +115,18 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", inspect.Analyzer.Name)
 	}
 
-	res, ok := ap.ResultOf[d].(facts.Result)
+	res, ok := ap.ResultOf[d].(result.Result)
 	if !ok {
 		return nil, fmt.Errorf("testanalyzer: analyzer %s result missing", d.Name)
 	}
 
-	errorMap := make(map[*types.TypeName]facts.ErrorFact, len(res.Types))
-	for _, info := range res.Types {
-		errorMap[info.TypeName] = info.ErrorType
+	errorMap := make(result.ErrorTypes, len(res.Types))
+	for name, errorType := range res.Types {
+		errorMap[name] = errorType
+
+		if ap.Pkg == name.Pkg() {
+			ap.ExportObjectFact(name, &testFact{errorType})
+		}
 	}
 
 	errorInterface := types.Universe.Lookup("error").Type().Underlying().(*types.Interface)
@@ -102,8 +141,8 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 			continue
 		}
 
-		for _, result := range assignStmt.Rhs {
-			tv, ok := ap.TypesInfo.Types[result]
+		for _, rhs := range assignStmt.Rhs {
+			tv, ok := ap.TypesInfo.Types[rhs]
 			if !ok || tv.IsNil() {
 				continue
 			}
@@ -114,14 +153,14 @@ func run(ap *analysis.Pass, d *analysis.Analyzer) (any, error) {
 			}
 
 			msg := message(t, errorMap)
-			ap.ReportRangef(result, "Type %q %s", t.String(), msg)
+			ap.ReportRangef(rhs, "Type %q %s", t.String(), msg)
 		}
 	}
 
-	return any(nil), nil
+	return nil, nil
 }
 
-func message(t types.Type, errorMap map[*types.TypeName]facts.ErrorFact) string {
+func message(t types.Type, errorMap map[*types.TypeName]result.ErrorType) string {
 	tn, _, ok := typeutil.TypeNameOf(t)
 	if !ok {
 		return "NOT A NAMED TYPE"
@@ -132,17 +171,17 @@ func message(t types.Type, errorMap map[*types.TypeName]facts.ErrorFact) string 
 		return "NOT IN RESULTS"
 	}
 
-	switch typ & facts.ExpectedMask {
-	case facts.UndecidedType:
+	switch typ & result.ExpectedMask {
+	case result.Undecided:
 		return "UNDECIDED"
 
-	case facts.PointerType:
+	case result.Pointer:
 		return "POINTER"
 
-	case facts.ValueType:
+	case result.Value:
 		return "VALUE"
 
-	case facts.SuppressType:
+	case result.Suppress:
 		return "SUPPRESS"
 
 	default:

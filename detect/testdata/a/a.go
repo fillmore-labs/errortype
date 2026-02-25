@@ -23,9 +23,8 @@ import (
 )
 
 type (
-	Alias = c.Alias
-
-	PointerAlias = *c.Alias
+	Alias        = c.Alias  // want Alias:"value"
+	PointerAlias = *c.Alias // want PointerAlias:"value"
 )
 
 func Return() error {

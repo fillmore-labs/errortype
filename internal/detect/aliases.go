@@ -21,16 +21,16 @@ import (
 	"go/types"
 	"runtime/trace"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect/properties"
 )
 
 // processAliases transfers properties from aliased types to the aliases themselves.
 // Aliases do not have their own methods or properties, but inherit the behavior of the type they alias.
-func (p pass) processAliases(ctx context.Context) {
+func (p pass) processAliases(ctx context.Context, eTypes result.ErrorTypes) {
 	defer trace.StartRegion(ctx, "aliases").End()
 
-	for alias := range p.DetectedTypes {
+	for alias := range p.ErrorTypes {
 		if !alias.IsAlias() {
 			continue // We are only interested in aliases.
 		}
@@ -50,23 +50,23 @@ func (p pass) processAliases(ctx context.Context) {
 		}
 
 		var property properties.ErrorProperty
-		if oldp, ok := p.DetectedTypes[tn]; ok {
+		if oldp, ok := p.ErrorTypes[tn]; ok {
 			// If the original type is in the same package, its properties
 			// have already been computed by processTypeDecls. We can copy them.
 			property = oldp &^ properties.OverrideMask // Copy all but override flags.
 		} else {
 			// If the original type is from another package, we rely on
 			// the facts exported by that package's analysis.
-			var errorType facts.ErrorFact
-			if !p.ImportObjectFact(tn, &errorType) {
+			errorType, ok := eTypes[tn]
+			if !ok {
 				continue
 			}
 
-			switch errorType & facts.ExpectedMask {
-			case facts.PointerType:
+			switch errorType & result.ExpectedMask {
+			case result.Pointer:
 				property = properties.PointerAlias
 
-			case facts.ValueType:
+			case result.Value:
 				property = properties.ValueAlias
 
 			default: // Undecided or suppressed
@@ -75,6 +75,6 @@ func (p pass) processAliases(ctx context.Context) {
 		}
 
 		// We have either found the type in our property map or imported an ErrorType fact.
-		p.DetectedTypes[alias] |= property
+		p.ErrorTypes[alias] |= property
 	}
 }

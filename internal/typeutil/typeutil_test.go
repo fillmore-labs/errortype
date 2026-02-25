@@ -142,7 +142,7 @@ func TestHasSigs(t *testing.T) {
 			t.Fatalf("object %q is not a function", name)
 		}
 
-		return fun.Type().(*types.Signature)
+		return fun.Signature()
 	}
 
 	tests := [...]struct {

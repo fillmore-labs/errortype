@@ -19,5 +19,5 @@ package c
 import "github.com/pkg/errors"
 
 func PkgErrors() {
-	_ = errors.Is(myError1{}, &myError1{}) // want "is false or undefined"
+	_ = errors.Is(my1Error{}, &my1Error{}) // want "is false or undefined"
 }

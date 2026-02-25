@@ -20,17 +20,20 @@ import (
 	"go/types"
 	"log"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect/properties"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // UsageOverrides is a type alias for mapping a fully qualified type name to its corresponding error usage type.
-type UsageOverrides = map[typeutil.TypeName]facts.ErrorFact
+type UsageOverrides = map[typeutil.TypeName]result.ErrorType
+
+// WrapperOverrides is a type alias for mapping a package path to a map of function names to their corresponding error wrapper metadata.
+type WrapperOverrides = map[typeutil.FuncName]result.WrapperType
 
 // processOverrides applies error usage overrides to the property map, validating and logging invalid configurations.
 func (p pass) processOverrides(overrides UsageOverrides) {
-	for tn, property := range p.DetectedTypes {
+	for tn, property := range p.ErrorTypes {
 		typeName := typeutil.NewTypeName(tn)
 
 		usage, ok := overrides[typeName]
@@ -40,7 +43,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 
 		// Check whether the override is valid.
 		switch usage {
-		case facts.PointerType:
+		case result.Pointer:
 			if ptrType := types.NewPointer(tn.Type()); !typeutil.HasErrorMethod(ptrType) {
 				log.Printf("Pointer override \"*%s\" does not implement the error interface", typeName)
 
@@ -48,7 +51,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			}
 			property |= properties.PointerOverride
 
-		case facts.ValueType:
+		case result.Value:
 			if !typeutil.HasErrorMethod(tn.Type()) {
 				log.Printf("Value override %q does not implement the error interface", typeName)
 
@@ -56,7 +59,7 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			}
 			property |= properties.ValueOverride
 
-		case facts.SuppressType:
+		case result.Suppress:
 			property |= properties.SuppressOverride
 
 		default: // should not happen
@@ -65,6 +68,6 @@ func (p pass) processOverrides(overrides UsageOverrides) {
 			continue
 		}
 
-		p.DetectedTypes[tn] = property
+		p.ErrorTypes[tn] = property
 	}
 }

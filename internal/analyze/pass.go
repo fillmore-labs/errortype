@@ -17,8 +17,13 @@
 package analyze
 
 import (
+	"go/ast"
+	"go/printer"
+	"strings"
+
 	"golang.org/x/tools/go/analysis"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/analyze/usage"
 )
 
@@ -27,15 +32,30 @@ import (
 type Pass struct {
 	*analysis.Pass
 	usage.ErrorUsage
+	result.ErrorFuncs
 	Options
 }
 
 // NewPass creates and returns a new Pass instance, initializing its errorUsages property map.
 // It takes an *analysis.Pass as input and embeds it within the returned Pass.
-func NewPass(ap *analysis.Pass, opt Options) Pass {
+func NewPass(ap *analysis.Pass, detectedResult result.Result, opt Options) Pass {
+	errorUsage := make(usage.ErrorUsage)
+	errorUsage.ProcessDetectedTypes(detectedResult.Types)
+
 	return Pass{
 		Pass:       ap,
-		ErrorUsage: make(usage.ErrorUsage),
+		ErrorUsage: errorUsage,
+		ErrorFuncs: detectedResult.Funcs,
 		Options:    opt,
 	}
+}
+
+var rawfmt = &printer.Config{Mode: printer.RawFormat}
+
+func (p Pass) exprToString(expr ast.Expr) string {
+	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, p.Fset, expr) == nil {
+		return sb.String()
+	}
+
+	return "<invalid>"
 }

@@ -23,14 +23,16 @@ import (
 )
 
 func GoFasterErrors() {
-	_ = errors.Is(myError1{}, &myError1{}) // want "is false or undefined"
+	_ = errors.Is(my1Error{}, &my1Error{}) // want "is false or undefined"
 
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
 	var (
 		err error
 		pve *ValueError
 	)
 
-	_ = errors.As(err, &pve) // want " \\(et:err\\)$"
+	_ = errors.As(err, &pve) // want ` \(et:err\)$`
+
+	_, _ = errors.Into[*ValueError](err) // want ` \(et:ast\)$`
 }

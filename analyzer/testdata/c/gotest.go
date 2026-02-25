@@ -24,13 +24,20 @@ import (
 )
 
 func TestGoTestTools(t *testing.T) {
-	var err *myError1
+	var err *my1Error
 
-	assert.ErrorIs(t, err, &myError1{}) // want "is false or undefined"
+	assert.ErrorIs(t, err, &my1Error{}) // want "is false or undefined"
 
-	assert.Equal(t, err, &myError1{}) // want "is false or undefined"
+	_ = cmp.ErrorIs(err, &my1Error{}) // want "is false or undefined"
 
-	assert.NilError(t, &myError1{})
+	assert.Equal(t, err, &my1Error{}) // want "is false or undefined"
 
-	_ = cmp.Equal(err, &myError1{}) // want "is false or undefined"
+	assert.NilError(t, &my1Error{})
+
+	_ = cmp.Equal(err, &my1Error{}) // want "is false or undefined"
+
+	str := "content"
+	byt := []byte(str)
+
+	assert.Equal(t, str, byt) // want "is always false"
 }

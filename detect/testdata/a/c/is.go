@@ -17,10 +17,10 @@
 package c
 
 type (
-	ErrorWithIs1    struct{ error }
-	ErrorWithIs2    struct{ error }
-	ErrorWithoutIs1 struct{ error }
-	ErrorWithoutIs2 struct{ error }
+	ErrorWithIs1    struct{ error } // want ErrorWithIs1:"pointer"
+	ErrorWithIs2    struct{ error } // want ErrorWithIs2:"undecided"
+	ErrorWithoutIs1 struct{ error } // want ErrorWithoutIs1:"undecided"
+	ErrorWithoutIs2 struct{ error } // want ErrorWithoutIs2:"undecided"
 )
 
 func (e *ErrorWithIs1) Is(err error) bool {

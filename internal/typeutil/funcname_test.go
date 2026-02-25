@@ -14,14 +14,14 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package knownfuncs_test
+package typeutil_test
 
 import (
 	"go/token"
 	"go/types"
 	"testing"
 
-	. "fillmore-labs.com/errortype/internal/knownfuncs"
+	. "fillmore-labs.com/errortype/internal/typeutil"
 )
 
 func TestFuncNameOf(t *testing.T) {
@@ -135,6 +135,126 @@ func TestFuncNameOf(t *testing.T) {
 
 			if name := FuncNameOf(tt.fun); name.String() != tt.wantFuncName {
 				t.Errorf("FuncNameOf() = %q, want %q", name, tt.wantFuncName)
+			}
+		})
+	}
+}
+
+func TestFuncName_UnmarshalText(t *testing.T) {
+	t.Parallel()
+
+	tests := [...]struct {
+		name    string
+		text    string
+		want    FuncName
+		wantErr bool
+	}{
+		// Methods with package path.
+		{
+			name: "method with package",
+			text: "(encoding/json.Decoder).Decode",
+			want: FuncName{Path: "encoding/json", LocalFuncName: LocalFuncName{Receiver: "Decoder", Name: "Decode"}},
+		},
+		// Pointer receiver (FullName compatibility).
+		{
+			name: "pointer receiver",
+			text: "(*encoding/json.Decoder).Decode",
+			want: FuncName{Path: "encoding/json", LocalFuncName: LocalFuncName{Receiver: "Decoder", Name: "Decode"}},
+		},
+		// Method without package path.
+		{
+			name: "method without package",
+			text: "(MyType).Method",
+			want: FuncName{LocalFuncName: LocalFuncName{Receiver: "MyType", Name: "Method"}},
+		},
+		// Pointer method without package path.
+		{
+			name: "pointer method without package",
+			text: "(*MyType).Method",
+			want: FuncName{LocalFuncName: LocalFuncName{Receiver: "MyType", Name: "Method"}},
+		},
+		// Interface method.
+		{
+			name: "interface method",
+			text: "(interface).X",
+			want: FuncName{LocalFuncName: LocalFuncName{Receiver: "interface", Name: "X"}},
+		},
+		// Regular function with package path.
+		{
+			name: "function with package",
+			text: "fmt.Errorf",
+			want: FuncName{Path: "fmt", LocalFuncName: LocalFuncName{Name: "Errorf"}},
+		},
+		// Function with dotted package path.
+		{
+			name: "function with dotted package",
+			text: "example.com/pkg.New",
+			want: FuncName{Path: "example.com/pkg", LocalFuncName: LocalFuncName{Name: "New"}},
+		},
+		// Bare function without package.
+		{
+			name: "bare function",
+			text: "myFunc",
+			want: FuncName{LocalFuncName: LocalFuncName{Name: "myFunc"}},
+		},
+		// Error cases.
+		{name: "empty input", text: "", wantErr: true},
+		{name: "unclosed paren", text: "(foo.Bar", wantErr: true},
+		{name: "no dot after paren", text: "(foo)Method", wantErr: true},
+		{name: "nothing after close paren dot", text: "(foo).", wantErr: true},
+		{name: "empty receiver", text: "().Method", wantErr: true},
+		{name: "star only receiver", text: "(*).Method", wantErr: true},
+		{name: "empty path receiver", text: "(path.).Method", wantErr: true},
+		{name: "trailing dot function", text: "pkg.", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			var fn FuncName
+			if err := fn.UnmarshalText([]byte(tt.text)); (err != nil) != tt.wantErr {
+				t.Fatalf("UnmarshalText(%q) error = %v, wantErr %v", tt.text, err, tt.wantErr)
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			if fn != tt.want {
+				t.Errorf("UnmarshalText(%q) = %+v, want %+v", tt.text, fn, tt.want)
+			}
+		})
+	}
+}
+
+func TestFuncName_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	tests := [...]FuncName{
+		{Path: "encoding/json", LocalFuncName: LocalFuncName{Receiver: "Decoder", Name: "Decode"}},
+		{Path: "fmt", LocalFuncName: LocalFuncName{Name: "Errorf"}},
+		{LocalFuncName: LocalFuncName{Name: "myFunc"}},
+		{LocalFuncName: LocalFuncName{Receiver: "MyType", Name: "Method"}},
+		{Path: "example.com/pkg", LocalFuncName: LocalFuncName{Receiver: "T", Name: "Do"}},
+	}
+
+	for _, original := range tests {
+		t.Run(original.String(), func(t *testing.T) {
+			t.Parallel()
+
+			text, err := original.MarshalText()
+			if err != nil {
+				t.Fatalf("MarshalText() error = %v", err)
+			}
+
+			var decoded FuncName
+			if err := decoded.UnmarshalText(text); err != nil {
+				t.Fatalf("UnmarshalText(%q) error = %v", text, err)
+			}
+
+			if decoded != original {
+				t.Errorf("round-trip failed: got %+v, want %+v", decoded, original)
 			}
 		})
 	}

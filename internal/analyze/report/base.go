@@ -18,7 +18,9 @@ package report
 
 import (
 	"go/ast"
+	"go/printer"
 	"go/types"
+	"strings"
 
 	"golang.org/x/tools/go/analysis"
 )
@@ -58,4 +60,14 @@ func (r Base) shortNameOf(tn *types.TypeName) string {
 
 		return pkg.Name()
 	})
+}
+
+var rawfmt = &printer.Config{Mode: printer.RawFormat}
+
+func (r Base) exprToString(expr ast.Expr) string {
+	if sb := (strings.Builder{}); rawfmt.Fprint(&sb, r.Fset, expr) == nil {
+		return sb.String()
+	}
+
+	return "<invalid>"
 }

@@ -1,4 +1,4 @@
-// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,6 +14,35 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-// Package facts defines the types used to represent error type usage patterns
-// detected during static analysis.
-package facts
+package a
+
+import "test/a/b"
+
+func Const() error {
+	err := b.ErrString
+	err2 := b.ErrString2
+	errf := b.ErrFunc
+
+	switch 0 {
+	case 0:
+		return err
+
+	case 1:
+		return &err // want ` \(et:ret\)$`
+
+	case 2:
+		return err2
+
+	case 3:
+		return &err2 // want ` \(et:ret\)$`
+
+	case 4:
+		return errf
+
+	case 5:
+		return *errf // want ` \(et:ret\+\)$`
+
+	default:
+		return nil
+	}
+}

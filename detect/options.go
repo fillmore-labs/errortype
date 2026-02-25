@@ -19,12 +19,10 @@ package detect
 import (
 	"log/slog"
 	"regexp"
-	"slices"
 	"strings"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect"
-	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -60,35 +58,19 @@ func (o Options) LogAttr() slog.Attr {
 
 // WithOverrides returns an Option that applies the provided overrides mapping,
 // allowing specific type names to be associated with custom error types.
-func WithOverrides(overrides map[Override][]string) Option {
+func WithOverrides(overrides map[result.ErrorType][]string) Option {
 	return overridesOption{overrides: overrides}
 }
 
 type overridesOption struct {
-	overrides map[Override][]string
+	overrides map[result.ErrorType][]string
 }
 
 func (o overridesOption) apply(opts *detect.Options) {
-	or := make(overrides.Overrides)
+	or := make(map[result.ErrorType][]typeutil.TypeName, len(o.overrides))
 
 	for typ, names := range o.overrides {
-		var et facts.ErrorFact
-
-		switch typ {
-		case OverridePointer:
-			et = facts.PointerType
-
-		case OverrideValue:
-			et = facts.ValueType
-
-		case OverrideSuppress:
-			et = facts.SuppressType
-
-		default:
-			continue
-		}
-
-		l := slices.Grow(or[et], len(names))
+		l := make([]typeutil.TypeName, 0, len(names))
 		for _, name := range names {
 			var tn typeutil.TypeName
 			if err := tn.UnmarshalText([]byte(name)); err != nil {
@@ -97,7 +79,7 @@ func (o overridesOption) apply(opts *detect.Options) {
 
 			l = append(l, tn)
 		}
-		or[et] = l
+		or[typ] = l
 	}
 
 	opts.AddOverrides(or)
@@ -112,8 +94,48 @@ func (o overridesOption) LogAttr() slog.Attr {
 		})
 	}
 
-	// go1.25: return slog.GroupAttrs("overrides", as...)
-	return slog.Attr{Key: "overrides", Value: slog.GroupValue(as...)}
+	return slog.GroupAttrs("overrides", as...)
+}
+
+// WithWrappers returns an Option that applies the provided overrides mapping,
+// allowing specific functions to be treated as a wrapper for standard function.
+func WithWrappers(wrappers map[result.WrapperType][]string) Option {
+	return wrappersOption{wrappers: wrappers}
+}
+
+type wrappersOption struct {
+	wrappers map[result.WrapperType][]string
+}
+
+func (o wrappersOption) apply(opts *detect.Options) {
+	or := make(map[result.WrapperType][]typeutil.FuncName, len(o.wrappers))
+
+	for typ, names := range o.wrappers {
+		l := make([]typeutil.FuncName, 0, len(names))
+		for _, name := range names {
+			var fn typeutil.FuncName
+			if err := fn.UnmarshalText([]byte(name)); err != nil {
+				continue
+			}
+
+			l = append(l, fn)
+		}
+		or[typ] = l
+	}
+
+	opts.AddWrappers(or)
+}
+
+func (o wrappersOption) LogAttr() slog.Attr {
+	var as []slog.Attr
+	for override, usage := range o.wrappers {
+		as = append(as, slog.Attr{
+			Key:   override.String(),
+			Value: slog.StringValue(strings.Join(usage, ",")),
+		})
+	}
+
+	return slog.GroupAttrs("wrappers", as...)
 }
 
 // WithOverrideFile returns an [Option] that configures usage overrides by reading types from the specified file.

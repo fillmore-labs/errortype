@@ -22,7 +22,7 @@ Package gclplugin provides golangci-lint plugin integration for the [errortype] 
 1. Add a file `.custom-gcl.yaml` to your source with:
 
 	---
-	version: v2.8.0
+	version: v2.10.1
 
 	name: golangci-lint
 	destination: .
@@ -30,7 +30,7 @@ Package gclplugin provides golangci-lint plugin integration for the [errortype] 
 	plugins:
 	  - module: fillmore-labs.com/errortype
 	    import: fillmore-labs.com/errortype/gclplugin
-	    version: v0.0.9
+	    version: v0.0.10
 
 2. Run `golangci-lint custom` from your project root.
 
@@ -53,11 +53,11 @@ This will create a custom `golangci-lint` executable in your project root.
 	        settings:
 	          overrides:
 	            pointer:
-	              - test/a.PointerOverride
+	              - test/a.PointerOverrideError
 	            value:
-	              - test/a.ValueOverride
+	              - test/a.ValueOverrideError
 	            suppress:
-	              - test/a.SuppressOverride
+	              - test/a.SuppressOverrideError
 	          style-check: true
 	          deep-is-check: false
 	          check-is: true

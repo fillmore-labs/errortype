@@ -27,25 +27,25 @@ import (
 
 func CheckError(err error) {
 	switch e := err.(type) {
-	case *net.UnknownNetworkError: // want " \\(et:ast\\)$"
+	case *net.UnknownNetworkError: // want ` \(et:ast\)$`
 		fmt.Println("UnknownNetworkError:", (string)(*e))
 
-	case *net.InvalidAddrError: // want " \\(et:ast\\)$"
+	case *net.InvalidAddrError: // want ` \(et:ast\)$`
 		fmt.Println("InvalidAddrError:", (string)(*e))
 
-	case *syscall.Errno: // want " \\(et:ast\\)$"
+	case *syscall.Errno: // want ` \(et:ast\)$`
 		fmt.Println("Errno:", (int)(*e))
 	}
 
 	var e net.AddrError
-	if errors.As(err, &e) { // want " \\(et:arg\\)$"
+	if errors.As(err, &e) { // want ` \(et:arg\)$`
 		fmt.Println("AddrError:", e.Err)
 	}
 }
 
 func CheckError2() {
 	_, err := parser.ParseFile(nil, "", nil, parser.AllErrors)
-	if list, ok := err.(*scanner.ErrorList); ok { // want " \\(et:ast\\)$"
+	if list, ok := err.(*scanner.ErrorList); ok { // want ` \(et:ast\)$`
 		fmt.Println(list)
 	}
 }

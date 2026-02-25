@@ -35,11 +35,12 @@ func registerFlags(o *run.Options, fs *flag.FlagSet) {
 		name, usage string
 		value       analyze.Options
 	}{
+		{"naming", `check naming on error sentinels and types`, analyze.OptionNaming},
 		{"style-check", `check for confusing uses of errors.As`, analyze.OptionStyleCheck},
+		{"check-unused", `report unchecked calls on errors.As-like functions`, analyze.OptionCheckUnused},
 		{"check-is", `suppress compare diagnostic on errors.Is if the compared type has an "Is(error) bool" method`, analyze.OptionCheckIs},
 		{"deep-is-check", `diagnose all "Unwrap" functions in "Is" methods, not only those on target`, analyze.OptionDeepIsCheck},
 		{"unchecked-assert", `report unchecked type asserts on errors`, analyze.OptionUncheckedAssert},
-		{"check-unused", `report unchecked calls on errors.As-like functions`, analyze.OptionCheckUnused},
 	}
 
 	for _, f := range flags {
@@ -82,7 +83,7 @@ func (v optionValue) Set(s string) error {
 		return err
 	}
 
-	v.flags.Set(v.value, b)
+	analyze.SetOption(v.flags, v.value, b)
 
 	return nil
 }

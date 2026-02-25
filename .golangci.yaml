@@ -72,6 +72,7 @@ linters:
           check-is: true
           unchecked-assert: true
           check-unused: true
+          naming: true
       scopeguard:
         type: module
         description: >-
@@ -115,6 +116,7 @@ linters:
     govet:
       enable-all: true
       disable:
+        - errorsas
         - fieldalignment
         - shadow
     gosec:

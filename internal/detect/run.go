@@ -23,12 +23,13 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Run is the main function for the detecttypes analyzer.
 //
-// It inspects type, function and variable declarations to infer whether an error type
+// It inspects type, function, and variable declarations to infer whether an error type
 // is intended to be used as a pointer or a value, including handling
 // local and usage overrides.
 //
@@ -44,11 +45,18 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	ctx, task := trace.NewTask(ctx, "detecttypes")
 	defer task.End()
 
+	if trace.IsEnabled() {
+		trace.Log(ctx, "pkg", typeutil.PkgPath(ap))
+	}
+
 	p := newPass(ap)
 
-	if trace.IsEnabled() {
-		trace.Log(ctx, "pkg", typeutil.PkgPath(p.Pass))
-	}
+	// Add types from dependencies (via facts).
+	var eTypes result.ErrorTypes
+	eTypes, p.ErrorFuncs = p.extractFacts()
+
+	// Detect error wrappers in the current package.
+	p.processWrappers(ctx, o.WrapperOverrides)
 
 	// Process type declarations in the current package.
 	p.processTypeDecls(ctx)
@@ -58,23 +66,23 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 		p.processOverrides(o.UsageOverrides)
 	}
 
-	if o.Heuristics&HeuristicVar != 0 && p.DetectedTypes.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicVar != 0 && p.ErrorTypes.HasUndeterminedErrors() {
 		// Process variable declarations, identifying properties for local types.
-		p.processVarSpecs(ctx)
+		p.processValueSpecs(ctx)
 	}
 
-	if o.Heuristics&HeuristicUsage != 0 && p.DetectedTypes.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicUsage != 0 && p.ErrorTypes.HasUndeterminedErrors() {
 		// Process error value usage in the current package.
 		p.processUsage(ctx)
 	}
 
-	if o.Heuristics&HeuristicReceivers != 0 && p.DetectedTypes.HasUndeterminedErrors() {
+	if o.Heuristics&HeuristicReceivers != 0 && p.ErrorTypes.HasUndeterminedErrors() {
 		// Last resort.
 		p.processReceivers(ctx)
 	}
 
 	// Process alias declarations in the current package.
-	p.processAliases(ctx)
+	p.processAliases(ctx, eTypes)
 
 	if o.Trace != nil && o.Trace.MatchString(p.Pkg.Path()) {
 		p.logResults(ctx, log.Default())
@@ -83,7 +91,5 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	// Export determined properties for types in the current package as facts for downstream packages.
 	// Create and return a result containing all determined properties for the current analysis pass,
 	// including those from dependencies (facts), the current package, and local overrides.
-	result := p.createResult(ctx)
-
-	return result, nil
+	return p.createResult(ctx, eTypes), nil
 }

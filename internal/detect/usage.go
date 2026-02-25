@@ -23,8 +23,8 @@ import (
 	"go/types"
 	"runtime/trace"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect/properties"
-	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -33,7 +33,7 @@ import (
 func (p pass) processUsage(ctx context.Context) {
 	defer trace.StartRegion(ctx, "usage").End()
 
-	for f := range p.AllFuncDecls {
+	for f := range typeutil.AllFuncDecls(p.Files) {
 		p.walkFunctionBody(f)
 	}
 }
@@ -290,25 +290,38 @@ func (v usageVisitor) handleReturn(ret *ast.ReturnStmt) {
 }
 
 // handleErrorAs analyzes a function call to determine if it matches patterns like errors.As and identifies the target argument.
-// It returns the target argument, or nil if the function is not of interest.
+// It returns the target argument or nil if the function is not of interest.
 func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
-	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n)
+	fun, ok := typeutil.FuncOf(p.TypesInfo, n)
 	if !ok {
 		return nil // Could not resolve function, might be a func variable.
 	}
 
-	asfunc, ok := knownfuncs.FuncInfoOf(fun)
-	if !ok || asfunc.Kind() != knownfuncs.KindAs {
+	wrapper, ok := p.ErrorFuncs[fun.Func]
+	if !ok {
 		return nil // Not a function we are interested in.
 	}
 
-	targetArgIndex, typeParam := asfunc.AsTarget()
-	if typeParam >= 0 { // Handle generic functions like `errors.AsType[T]`.
-		if len(typeParams) > typeParam {
-			typ := typeParams[typeParam]
+	var targetArgIndex, typeParam int
 
-			if tv, ok := p.TypesInfo.Types[typ]; ok && tv.IsType() && typeutil.HasErrorMethod(tv.Type) {
-				return tv.Type
+	switch wrapper.Type {
+	case result.WrapperAs:
+		targetArgIndex, typeParam = int(wrapper.Target), -1
+
+	case result.WrapperAsType:
+		targetArgIndex, typeParam = int(wrapper.Source), int(wrapper.Target)
+
+	case result.FuncAssert:
+		targetArgIndex, typeParam = -1, int(wrapper.Target)
+
+	default:
+		return nil // Not a function we are interested in.
+	}
+
+	if typeParam >= 0 { // Handle generic functions like `errors.AsType[T]`.
+		if instance, ok := p.TypesInfo.Instances[fun.Ident]; ok && typeParam < instance.TypeArgs.Len() {
+			if typ := instance.TypeArgs.At(typeParam); typeutil.HasErrorMethod(typ) {
+				return typ
 			}
 		}
 	}
@@ -317,7 +330,7 @@ func (p pass) handleErrorAs(n *ast.CallExpr) types.Type {
 		return nil
 	}
 
-	if methodExpr {
+	if fun.MethodExpr {
 		// For method expression calls ("(*assert.Assertions).ErrorsAs(a, ...)"),
 		// the receiver `a` is the first argument. The argument indices in `errorsAs`
 		// are for the function form, so we increment the index to correctly locate
@@ -384,7 +397,7 @@ func (p pass) addTypePropertyInCurrentPackage(tn *types.TypeName, property prope
 		return // Only relevant for types defined in the current package
 	}
 
-	if old, ok := p.DetectedTypes[tn]; ok && old&property != property { // known, but property isn't set.
-		p.DetectedTypes[tn] |= property
+	if old, ok := p.ErrorTypes[tn]; ok && old&property != property { // known, but property isn't set.
+		p.ErrorTypes[tn] |= property
 	}
 }

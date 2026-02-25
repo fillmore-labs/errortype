@@ -39,27 +39,33 @@ func TestAnalyzer(t *testing.T) {
 		options  Options
 		flags    func(*flag.FlagSet)
 	}{
-		{"a", []string{"test/a"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides)))}, nil},
+		{"a", []string{"test/a"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides))), WithNaming(true), WithStyleCheck(true)}, nil},
 		{
 			"a with flags", []string{"test/a"}, nil, setFlags(t, map[string]string{
-				"overrides": overrides,
+				"overrides":   overrides,
+				"naming":      "true",
+				"style-check": "true",
 			}),
 		},
-		{"b", []string{"test/b", "test/style", "test/main", "test/alias"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true), WithCheckUnused(true)}, nil},
+		{"b", []string{"test/b", "test/style", "test/main", "test/alias"}, []Option{WithCheckIs(false), WithDeepIsCheck(true), WithUncheckedAssert(true), WithCheckUnused(true), WithNaming(true), WithStyleCheck(true)}, nil},
 		{
 			"b with flags", []string{"test/b", "test/style", "test/main", "test/alias"}, nil, setFlags(t, map[string]string{
 				"check-is":         "false",
 				"deep-is-check":    "true",
 				"unchecked-assert": "true",
 				"check-unused":     "true",
+				"naming":           "true",
+				"style-check":      "true",
 			}),
 		},
-		{"c", []string{"test/c"}, []Option{WithStyleCheck(false)}, nil},
+		{"c", []string{"test/c"}, []Option{WithStyleCheck(false), WithNaming(true)}, nil},
 		{
 			"c with flags", []string{"test/c"}, nil, setFlags(t, map[string]string{
 				"style-check": "false",
+				"naming":      "true",
 			}),
 		},
+		{"wrappers", []string{"test/wrappers"}, []Option{WithDetectTypes(detect.New(detect.WithOverrideFile(overrides)))}, nil},
 	}
 
 	for _, tt := range tests {

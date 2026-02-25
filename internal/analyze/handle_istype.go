@@ -19,26 +19,13 @@ package analyze
 import (
 	"go/ast"
 
-	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleIsType processes type assertion functions that check if an error implements a specific type.
 // It handles functions with signatures like `assert.IsType`.
-func (p Pass) handleIsType(n *ast.CallExpr, methodExpr bool, ftyp knownfuncs.FuncType) {
-	var typeArg int
-
-	switch ftyp {
-	case knownfuncs.IsFunc0: // suite.IsType(typeArg, targetArg, ...)
-		typeArg = 0
-
-	case knownfuncs.IsFunc1: // assert.IsType(t, typeArg, targetArg, ...)
-		typeArg = 1
-
-	default: // should not happen
-		p.ReportErrorf(n, "Unsupported function type %d for IsType check", ftyp)
-		return
-	}
+func (p Pass) handleIsType(n *ast.CallExpr, methodExpr bool, argIndex int8) {
+	typeArg := int(argIndex)
 
 	// Receiver offset for method expressions
 	if methodExpr {

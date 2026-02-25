@@ -14,24 +14,37 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package usage
+package analyze
 
 import (
 	"context"
 	"runtime/trace"
+	"slices"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/overrides"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // Suggestions generates a map of type names based on their determined usage.
-func (e ErrorUsage) Suggestions(ctx context.Context) overrides.Overrides {
+func (p Pass) Suggestions(ctx context.Context) overrides.Overrides {
 	defer trace.StartRegion(ctx, "suggestions").End()
 
-	suggestions := make(overrides.Overrides)
+	suggestions := overrides.Overrides{
+		Types: make(map[result.ErrorType][]typeutil.TypeName),
+	}
 
-	for tn, typ := range e.allDetermined {
-		suggestions[typ] = append(suggestions[typ], typeutil.NewTypeName(tn))
+	for tn, usage := range p.ErrorUsage {
+		typ := usage.DeterminedType()
+		if typ == result.Undecided {
+			continue
+		}
+
+		suggestions.Types[typ] = append(suggestions.Types[typ], typeutil.NewTypeName(tn))
+	}
+
+	for _, s := range suggestions.Types {
+		slices.SortFunc(s, typeutil.TypeName.Compare)
 	}
 
 	return suggestions

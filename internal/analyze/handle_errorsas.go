@@ -25,19 +25,8 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// handleErrorsAsType checks for incorrect pointer/value usage of error types passed to functions like `errors.AsType[T]`.
-func (p Pass) handleErrorsAsType(fun *types.Func, targetExpr ast.Expr) {
-	tv, ok := p.TypesInfo.Types[targetExpr]
-	if !ok || !typeutil.HasErrorMethod(tv.Type) {
-		return // We are only interested in errors
-	}
-
-	// Now, check if the error type is used correctly (pointer vs. value).
-	p.checkGenericCall(tv.Type, targetExpr, fun)
-}
-
 // handleErrorsAs checks for incorrect pointer/value usage of error types passed to functions like `errors.As`.
-func (p Pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex int) {
+func (p Pass) handleErrorsAs(n *ast.CallExpr, ex ast.Expr, targetArgIndex int) {
 	if targetArgIndex >= len(n.Args) {
 		return // Not enough arguments, e.g. called with return values of another function.
 	}
@@ -49,10 +38,10 @@ func (p Pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 		p.ReportErrorf(targetArg, "Expected argument value, got %#v", tv)
 	}
 
-	switch targetType := tv.Type; t := targetType.Underlying().(type) {
+	switch targetType := tv.Type.Underlying().(type) {
 	case *types.Pointer:
 		// Argument is a pointer, e.g., errors.As(err, &target), which is expected.
-		elemType := t.Elem()
+		elemType := targetType.Elem()
 
 		// The target for errors.As can be a pointer to an interface that is not
 		// required to implement `error` (e.g., `var target interface{ Temporary() bool }`).
@@ -61,38 +50,58 @@ func (p Pass) handleErrorsAs(n *ast.CallExpr, fun *types.Func, targetArgIndex in
 			return
 		}
 
-		// Otherwise, the pointed-to type should implement the error interface.
-		// golang.org/x/tools/go/analysis/passes/errorsas checks that, too
-		if !typeutil.HasErrorMethod(elemType) {
-			typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
-			p.ReportRangef(targetArg, "Expected pointer to type implementing error, but %s does not. (et:arg)", typeName)
-
+		// The pointed-to type must implement the error interface.
+		if !p.implementsError(elemType, targetArg) {
 			return
 		}
 
 		// Now, check if the error type is used correctly (pointer vs. value).
-		p.checkErrorsAs(elemType, targetArg, fun)
+		p.checkErrorsAs(elemType, targetArg, ex)
 
 	case *types.Interface:
 		// The correctness depends on the dynamic type held by the interface, which we cannot check statically.
+		if targetType.NumMethods() == 0 {
+			return
+		}
 
-		// Note that we don't test for `t.NumMethods() == 0`, since technically this is valid:
+		// The dynamic type of the interface must be a non-nil pointer
+		// that points either to an interface or a type implementing `error`
 		//
-		// 	err := struct{ error }{}
-		//	var target error = &err
-		//	if errors.As(err, target) { /* ... */ }
+		// While the interface itself does not have to be `any`, everything
+		// else is rare and error-prone:
 		//
-		// We could report a style violation here.
+		//	type TestError struct{ ... }
+		//	func (TestError) Error() string { ... }
+		//
+		//	var err error = &TestError{ ... }
+		//	if errors.As(TestError{...}, err) { ... }
+		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
+		p.ReportRangef(targetArg, `Expected pointer or "any" interface, but %q is a non-empty interface. (et:arg+)`, typeName)
 
 	default:
 		// The argument to an `errors.As`-like function must be a pointer or an interface.
-		target := "<invalid>"
+		funName := "<invalid>"
+		if sb := (strings.Builder{}); format.Node(&sb, p.Fset, n.Fun) == nil {
+			funName = sb.String()
+		}
 
-		var sb strings.Builder
-		if format.Node(&sb, p.Fset, targetArg) == nil {
+		target := "<invalid>"
+		if sb := (strings.Builder{}); format.Node(&sb, p.Fset, targetArg) == nil {
 			target = sb.String()
 		}
 
-		p.ReportRangef(targetArg, "Target argument in %s must be a pointer or an interface, got %q (type %s). (et:arg)", fun.Name(), target, targetType)
+		typeName := types.TypeString(tv.Type, types.RelativeTo(p.Pkg))
+		p.ReportRangef(targetArg, `Target argument of %s must be a pointer or interface, got %q (type %s). (et:arg)`, funName, target, typeName)
 	}
+}
+
+func (p Pass) implementsError(elemType types.Type, targetArg ast.Expr) bool {
+	if typeutil.HasErrorMethod(elemType) {
+		return true
+	}
+
+	typeName := types.TypeString(elemType, types.RelativeTo(p.Pkg))
+	p.ReportRangef(targetArg, `Expected pointer to a type implementing "error", but %q does not. (et:arg)`, typeName)
+
+	return false
 }

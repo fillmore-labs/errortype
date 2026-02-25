@@ -28,7 +28,7 @@ func (e myIntError) Error() string { return "error " + strconv.Itoa(int(e)) }
 var _ error = myIntError(0)
 
 func Basic(err *myIntError) {
-	_ = new(int) == new((int)) // want " \\(et:equ\\+\\)"
+	_ = new(int) == new((int)) // want ` \(et:equ\+\)$`
 
-	errors.Is(err, new(myIntError)) // want " \\(et:cmp\\+\\)" " \\(et:unu\\+\\)"
+	errors.Is(err, new(myIntError)) // want ` \(et:cmp\+\)$` ` \(et:unu\+\)$`
 }

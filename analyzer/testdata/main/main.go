@@ -66,9 +66,9 @@ func ReturnValue() error {
 }
 
 var (
-	perr  = func() error { return &PointerError{Msg: "pointer error"} }()
-	verr  = func() error { return ValueError{Msg: "value error"} }()
-	pverr = func() error { return &BadValueError{Msg: "pointer to value error"} }() // want " \\(et:ret\\)$"
+	errp  = func() error { return &PointerError{Msg: "pointer error"} }()
+	errv  = func() error { return ValueError{Msg: "value error"} }()
+	errpv = func() error { return &BadValueError{Msg: "pointer to value error"} }() // want ` \(et:ret\)$`
 )
 
 func main() {
@@ -86,20 +86,20 @@ func main() {
 func assert() {
 	var ok bool
 
-	_, ok = perr.(*PointerError) // true
-	fmt.Println(perr, ok)
+	_, ok = errp.(*PointerError) // true
+	fmt.Println(errp, ok)
 
-	_, ok = verr.(ValueError) // true
-	fmt.Println(verr, ok)
+	_, ok = errv.(ValueError) // true
+	fmt.Println(errv, ok)
 
-	_, ok = verr.(*ValueError) // want " \\(et:ast\\)$"
-	fmt.Println("*", verr, ok)
+	_, ok = errv.(*ValueError) // want ` \(et:ast\)$`
+	fmt.Println("*", errv, ok)
 
-	_, ok = pverr.(BadValueError) // false
-	fmt.Println(pverr, ok)
+	_, ok = errpv.(BadValueError) // false
+	fmt.Println(errpv, ok)
 
-	_, ok = pverr.(*BadValueError) // want " \\(et:ast\\)$"
-	fmt.Println("*", pverr, ok)
+	_, ok = errpv.(*BadValueError) // want ` \(et:ast\)$`
+	fmt.Println("*", errpv, ok)
 }
 
 func errorsAs() {
@@ -114,34 +114,34 @@ func errorsAs() {
 
 		var p PointerError
 
-		_ = errors.As(perr, &p) // want " \\(et:arg\\)$"
+		_ = errors.As(errp, &p) // want ` \(et:arg\)$`
 		panic("unreachable")
 	}()
 
 	var pp *PointerError
 
-	ok = errors.As(perr, &pp) // true
-	fmt.Println("As*", perr, ok)
+	ok = errors.As(errp, &pp) // true
+	fmt.Println("As*", errp, ok)
 
 	var v ValueError
 
-	ok = errors.As(verr, &v) // true
-	fmt.Println("As", verr, ok)
+	ok = errors.As(errv, &v) // true
+	fmt.Println("As", errv, ok)
 
 	var pv *ValueError
 
-	ok = errors.As(verr, &pv) // want " \\(et:err\\)$"
-	fmt.Println("As*", verr, ok)
+	ok = errors.As(errv, &pv) // want ` \(et:err\)$`
+	fmt.Println("As*", errv, ok)
 
 	var bv BadValueError
 
-	ok = errors.As(pverr, &bv) // false
-	fmt.Println("As", pverr, ok)
+	ok = errors.As(errpv, &bv) // false
+	fmt.Println("As", errpv, ok)
 
 	var pbv *BadValueError
 
-	ok = errors.As(pverr, &pbv) // want " \\(et:err\\)$"
-	fmt.Println("As*", pverr, ok)
+	ok = errors.As(errpv, &pbv) // want ` \(et:err\)$`
+	fmt.Println("As*", errpv, ok)
 
 	func() {
 		defer func() {
@@ -150,7 +150,7 @@ func errorsAs() {
 			}
 		}()
 
-		_ = errors.As(perr, &struct{}{}) // want " \\(et:arg\\)$"
+		_ = errors.As(errp, &struct{}{}) // want ` \(et:arg\)$`
 		panic("unreachable")
 	}()
 
@@ -161,46 +161,46 @@ func errorsAs() {
 			}
 		}()
 
-		_ = errors.As(perr, nil) // want " \\(et:arg\\)$"
+		_ = errors.As(errp, nil) // want ` \(et:arg\)$`
 		panic("unreachable")
 	}()
 }
 
 func typeSwitch() {
-	switch err := perr; e := err.(type) {
+	switch err := errp; e := err.(type) {
 	case *PointerError:
 		fmt.Println(e)
 
 	default:
-		panic(perr)
+		panic(errp)
 	}
 
-	switch err := verr; e := err.(type) {
+	switch err := errv; e := err.(type) {
 	case ValueError:
 		fmt.Println(e)
 
-	case *ValueError: // want " \\(et:ast\\)$"
-		panic(verr)
+	case *ValueError: // want ` \(et:ast\)$`
+		panic(errv)
 
 	case nil:
-		panic(verr)
+		panic(errv)
 
 	case any:
-		panic(verr)
+		panic(errv)
 
 	default:
-		panic(verr)
+		panic(errv)
 	}
 
-	switch err := pverr; e := err.(type) {
+	switch err := errpv; e := err.(type) {
 	case BadValueError:
-		panic(pverr)
+		panic(errpv)
 
-	case *BadValueError: // want " \\(et:ast\\)$"
+	case *BadValueError: // want ` \(et:ast\)$`
 		fmt.Println(e)
 
 	default:
-		panic(pverr)
+		panic(errpv)
 	}
 }
 
@@ -248,37 +248,37 @@ func iface() {
 
 	var myp any = &mye
 
-	ok = errors.As(pe, myp) // true
+	ok = errors.As(pe, myp)
 	fmt.Println("As*", pe, ok)
 
-	ok = errors.As(ve, myp) // true
+	ok = errors.As(ve, myp)
 	fmt.Println("As*", ve, ok)
 
-	ok = errors.As(pve, myp) // true
+	ok = errors.As(pve, myp)
 	fmt.Println("As*", pve, ok)
 }
 
-type EmbeddedPointer struct{ *PointerError }
+type PointerEmbeddedError struct{ *PointerError }
 
 func embedded() {
-	var eperr error = EmbeddedPointer{&PointerError{Msg: "embedded pointer"}}
+	var eperr error = PointerEmbeddedError{&PointerError{Msg: "embedded pointer"}}
 
-	var _ error = &EmbeddedPointer{} // want " \\(et:emb\\+\\)$"
+	var _ error = &PointerEmbeddedError{} // want ` \(et:emb\+\)$`
 
 	var ok bool
 
-	_, ok = eperr.(*EmbeddedPointer) // want " \\(et:emb\\+\\)$"
+	_, ok = eperr.(*PointerEmbeddedError) // want ` \(et:emb\+\)$`
 	fmt.Println(eperr, ok)
 
-	_, ok = eperr.(EmbeddedPointer) // want " \\(et:emb\\)$"
+	_, ok = eperr.(PointerEmbeddedError) // want ` \(et:emb\)$`
 	fmt.Println(eperr, ok)
 
-	var ep EmbeddedPointer
-	ok = errors.As(eperr, &ep) // want " \\(et:emb\\)$"
+	var ep PointerEmbeddedError
+	ok = errors.As(eperr, &ep) // want ` \(et:emb\)$`
 	fmt.Println("As", eperr, ok)
 
-	var epp *EmbeddedPointer
-	ok = errors.As(eperr, &epp) // want " \\(et:emb\\+\\)$"
+	var epp *PointerEmbeddedError
+	ok = errors.As(eperr, &epp) // want ` \(et:emb\+\)$`
 	fmt.Println("As*", eperr, ok)
 
 	var ep2err error = struct{ *PointerError }{&PointerError{Msg: "embedded pointer 2"}}

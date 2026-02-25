@@ -21,11 +21,14 @@ package c
 import "errors"
 
 func New126(err *myIntError) {
-	_ = err == (new)(((myIntError)(1))) // want " \\(et:equ\\+\\)"
+	_ = err == (new)(((myIntError)(1))) // want ` \(et:equ\+\)$`
 
-	_ = errors.Is(err, new(myIntError(1))) // want " \\(et:cmp\\+\\)"
+	_ = errors.Is(err, new(myIntError(1))) // want ` \(et:cmp\+\)$`
 
-	_, _ = errors.AsType[*myIntError](err) // want " \\(et:ast\\)"
+	_, _ = errors.AsType[*myIntError](err) // want ` \(et:ast\)$`
 
-	(errors.AsType[myIntError](err)) // want " \\(et:unu\\+\\)"
+	(errors.AsType[myIntError](err)) // want ` \(et:unu\)$`
+
+	_ = errors.As(err, new(myIntError(1)))
+	_ = errors.As(err, new(1)) // want ` \(et:arg\)$`
 }

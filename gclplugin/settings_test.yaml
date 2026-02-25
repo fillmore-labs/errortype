@@ -1,4 +1,10 @@
 ---
+naming: true
+style-check: true
+deep-is-check: false
+check-is: true
+unchecked-assert: false
+check-unused: false
 overrides:
   pointer:
     - test/a.PointerOverride
@@ -6,8 +12,10 @@ overrides:
     - test/a.ValueOverride
   suppress:
     - test/a.SuppressOverride
-style-check: true
-deep-is-check: false
-check-is: true
-unchecked-assert: false
-check-unused: false
+wrappers:
+  is:
+    - test/a.Is
+  as:
+    - test/a.As
+  astype:
+    - test/a.AsType

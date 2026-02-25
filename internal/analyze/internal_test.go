@@ -25,6 +25,8 @@ import (
 	"golang.org/x/tools/go/analysis/analysistest"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 func TestAnalyzerInternal(t *testing.T) {
@@ -48,7 +50,7 @@ func run(ap *analysis.Pass) (any, error) {
 		return nil, fmt.Errorf("testanalyzer: %s reuslt missing", inspect.Analyzer.Name)
 	}
 
-	p := NewPass(ap, DefaultOptions)
+	p := NewPass(ap, result.Result{}, DefaultOptions)
 
 	var count int
 	for n := range inspector.All[*ast.ValueSpec](in) {

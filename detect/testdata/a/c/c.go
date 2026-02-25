@@ -17,19 +17,17 @@
 package c
 
 type (
-	ValueDefault    struct{}
-	ValueFunc       struct{}
-	ValueVar        struct{}
-	PointerDefault  struct{}
-	PointerFunc     struct{}
-	PointerVar      struct{}
-	EmbeddedDefault struct{ error }
-	EmbeddedFunc    struct{ error }
-	EmbeddedVar     struct{ error }
-
-	Alias = ValueDefault
-
-	PointerAlias = *PointerDefault
+	ValueDefault    struct{}          // want ValueDefault:"value"
+	ValueFunc       struct{}          // want ValueFunc:"value"
+	ValueVar        struct{}          // want ValueVar:"value"
+	PointerDefault  struct{}          // want PointerDefault:"pointer"
+	PointerFunc     struct{}          // want PointerFunc:"pointer"
+	PointerVar      struct{}          // want PointerVar:"pointer"
+	EmbeddedDefault struct{ error }   // want EmbeddedDefault:"undecided"
+	EmbeddedFunc    struct{ error }   // want EmbeddedFunc:"pointer"
+	EmbeddedVar     struct{ error }   // want EmbeddedVar:"value"
+	Alias           = ValueDefault    // want Alias:"value"
+	PointerAlias    = *PointerDefault // want PointerAlias:"value"
 )
 
 func (ValueDefault) Error() string { return "" } // value type

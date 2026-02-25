@@ -44,7 +44,6 @@ func (p Pass) ProcessAST(ctx context.Context, in *inspector.Inspector) {
 		(*ast.TypeSwitchStmt)(nil),
 		(*ast.ValueSpec)(nil),
 		// keep-sorted end
-
 	) {
 		var reg *trace.Region
 

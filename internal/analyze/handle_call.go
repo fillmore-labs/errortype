@@ -21,97 +21,136 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/knownfuncs"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // handleCall checks for incorrect pointer/value usage of error types passed to functions like errors.As.
-func (p Pass) handleCall(c inspector.Cursor, n *ast.CallExpr) {
-	if len(n.Args) == 0 {
+func (p Pass) handleCall(c inspector.Cursor, call *ast.CallExpr) {
+	if len(call.Args) == 0 {
 		return // Not interested in calls with no arguments.
 	}
 
-	fun, typeParams, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, n)
+	fun, ok := typeutil.FuncOf(p.TypesInfo, call)
 	if !ok {
-		return // Could not resolve function, might be a func variable.
+		return // Could not resolve function, might be a function variable.
 	}
 
-	info, ok := knownfuncs.FuncInfoOf(fun)
+	wrapper, ok := p.ErrorFuncs[fun.Func]
 	if !ok {
-		return
+		return // Not a function we are interested in.
 	}
 
-	// TODO: Handle deprecation
+	var unusedCandidate bool
 
-	switch info.Kind() {
-	case knownfuncs.KindIs:
-		p.handleErrorIs(n, methodExpr, info.IsType(), false)
-
-	case knownfuncs.KindEqu:
-		p.handleErrorIs(n, methodExpr, info.IsType(), true)
-
-	case knownfuncs.KindAs:
-		targetArgIndex, typeParam := info.AsTarget()
-
-		// Handle generic functions like `errors.AsType[T]`.
-		// Check whether enough type parameters were provided for the generic function.
-		if typeParam >= 0 && len(typeParams) > typeParam {
-			typ := typeParams[typeParam]
-			p.handleErrorsAsType(fun, typ)
-
-			break
+	switch wrapper.Type {
+	case result.WrapperIs:
+		if len(call.Args) < 2 {
+			break // multi-valued argument
 		}
 
-		// Argument-based analysis.
-
-		// If this is a generic-only function (no argument index fallback), we can't proceed.
-		if targetArgIndex < 0 {
-			break
+		srcIdx, tgtIdx := int(wrapper.Source), int(wrapper.Target)
+		if fun.MethodExpr {
+			srcIdx++
+			tgtIdx++
 		}
 
-		if methodExpr {
-			// For method expression calls ("(*assert.Assertions).ErrorsAs(a, ...)"),
-			// the receiver `a` is the first argument. The argument indices in `errorsAs`
-			// are for the function form, so we increment the index to correctly locate
-			// the target argument in the method call expression.
-			targetArgIndex++
+		p.comparison(call, call.Args[srcIdx], call.Args[tgtIdx], false)
+
+		unusedCandidate = firstParam(wrapper, fun)
+
+	case result.WrapperAs:
+		tgtIdx := int(wrapper.Target)
+		if fun.MethodExpr {
+			tgtIdx++
 		}
 
-		p.handleErrorsAs(n, fun, targetArgIndex)
+		p.handleErrorsAs(call, fun.Expr, tgtIdx)
 
-	case knownfuncs.KindType:
-		p.handleIsType(n, methodExpr, info.IsType())
+		// errors.As is used without checking the return value.
+		// This does not account for nil errors, which should be catched even though they are bad style.
+		//
+		//	var err *net.OpError
+		//	var target net.Error
+		//	if errors.As(err, &target) { /* ... */ }
+		unusedCandidate = firstParam(wrapper, fun)
+
+	case result.WrapperAsType:
+		instance, ok := p.TypesInfo.Instances[fun.Ident]
+		if !ok { // should not happen
+			return
+		}
+
+		tgtIdx := int(wrapper.Target)
+		typ := instance.TypeArgs.At(tgtIdx)
+
+		// Check if the error type is used correctly (pointer vs. value).
+		p.checkGenericCall(typ, call, fun.Expr)
+		unusedCandidate = true
+
+	case result.FuncIsType:
+		p.handleIsType(call, fun.MethodExpr, wrapper.Source)
+
+		// Currently, these are all test assertions
+		unusedCandidate = false
+
+	case result.FuncEqual:
+		argIndex := int(wrapper.Source)
+		if fun.MethodExpr {
+			argIndex++
+		}
+
+		p.handleEqual(call, argIndex)
+
+		// Currently, these are all test assertions
+		unusedCandidate = false
+
+	case result.FuncAssert:
+		instance, ok := p.TypesInfo.Instances[fun.Ident]
+		if !ok { // should not happen
+			return
+		}
+
+		typ := instance.TypeArgs.At(int(wrapper.Target))
+		if !typeutil.HasErrorMethod(typ) {
+			return // we are only interested in assertions to error types.
+		}
+
+		// Check if the error type is used correctly (pointer vs. value).
+		p.checkGenericCall(typ, call, fun.Expr)
+		unusedCandidate = true
+
+	default:
+		p.ReportErrorf(fun.Expr, "Unexpected function type: %v", wrapper.Type)
 	}
 
-	if tag, shouldCheck := checkResultWithTag(info.EvalType(), p.CheckUnused()); shouldCheck {
-		for e := c.Parent(); ; e = e.Parent() {
-			switch e.Node().(type) {
-			case *ast.ParenExpr:
-				continue
-
-			case *ast.ExprStmt:
-				p.ReportRangef(n, "Result of %s is ignored (et:%s)", fun.FullName(), tag)
-			}
-
-			break
+	// For As/Is/AsType wrappers, it's reasonable to expect the result to be used.
+	if unusedCandidate && p.CheckUnused() && fun.Func.Signature().Results().Len() > 0 {
+		tag := "unu"
+		if wrapper.Type == result.WrapperIs {
+			tag = "unu+"
 		}
+
+		p.checkUnused(c, call, tag)
 	}
 }
 
-// checkResultWithTag determines a tag and status based on the evaluation type and unused check flag.
-func checkResultWithTag(evalType knownfuncs.EvalType, checkUnused bool) (string, bool) {
-	switch evalType {
-	case knownfuncs.MustEval:
-		return "unu+", true
+// firstParam is a crude heuristic: When there is a receiver or parameters before the error,
+// it could be a test helper.
+func firstParam(wrapper result.ErrorFunc, fun typeutil.ResolvedFunc) bool {
+	return wrapper.Source == 0 && fun.Func.Signature().Recv() == nil
+}
 
-	case knownfuncs.ShouldEval:
-		if !checkUnused {
-			return "", false
-		}
+func (p Pass) checkUnused(c inspector.Cursor, n *ast.CallExpr, tag string) {
+	e := c.Parent()
 
-		return "unu", true
+unwrap:
+	switch e.Node().(type) {
+	case *ast.ParenExpr:
+		e = e.Parent()
+		goto unwrap
 
-	default:
-		return "", false
+	case *ast.ExprStmt:
+		p.ReportRangef(n, "Result of %s is ignored (et:%s)", p.exprToString(n.Fun), tag)
 	}
 }

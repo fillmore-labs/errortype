@@ -24,8 +24,8 @@ import (
 )
 
 type (
-	PointerCast struct{ error }
-	ValueCast   struct{ error }
+	PointerCast struct{ error } // want PointerCast:"pointer"
+	ValueCast   struct{ error } // want ValueCast:"value"
 )
 
 func IsPointerCast(err error) bool {

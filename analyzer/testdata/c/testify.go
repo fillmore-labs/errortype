@@ -29,40 +29,41 @@ func wrap1(t assert.TestingT, err, target error) (assert.TestingT, error, error)
 }
 
 func TestTestify(t *testing.T) {
-	var err *myError1
+	var err *my1Error
 
-	assert.ErrorIs(t, err, &myError1{})         // want "is false or undefined"
-	assert.ErrorIsf(t, err, &myError1{}, "")    // want "is false or undefined"
-	assert.NotErrorIs(t, err, &myError1{})      // want "is false or undefined"
-	assert.NotErrorIsf(t, err, &myError1{}, "") // want "is false or undefined"
+	_ = assert.ErrorIs(t, err, &my1Error{})         // want "is false or undefined"
+	_ = assert.ErrorIsf(t, err, &my1Error{}, "")    // want "is false or undefined"
+	_ = assert.NotErrorIs(t, err, &my1Error{})      // want "is false or undefined"
+	_ = assert.NotErrorIsf(t, err, &my1Error{}, "") // want "is false or undefined"
 
-	require.ErrorIs(t, err, &myError1{})         // want "is false or undefined"
-	require.ErrorIsf(t, err, &myError1{}, "")    // want "is false or undefined"
-	require.NotErrorIs(t, err, &myError1{})      // want "is false or undefined"
-	require.NotErrorIsf(t, err, &myError1{}, "") // want "is false or undefined"
+	require.ErrorIs(t, err, &my1Error{})         // want "is false or undefined"
+	require.ErrorIsf(t, err, &my1Error{}, "")    // want "is false or undefined"
+	require.NotErrorIs(t, err, &my1Error{})      // want "is false or undefined"
+	require.NotErrorIsf(t, err, &my1Error{}, "") // want "is false or undefined"
 
-	assert.ErrorIs(wrap1(t, err, &myError1{}))
+	_ = assert.ErrorIs(wrap1(t, err, &my1Error{}))
 
-	assert.Equal(t, err, &myError1{})
+	_ = assert.Equal(t, err, &my1Error{})
 
-	assert.Error(t, &myError1{})
+	_ = assert.Error(t, &my1Error{})
 
 	var s suite.Suite
+
+	_ = s.ErrorIs(err, &my1Error{})         // want "is false or undefined"
+	_ = s.ErrorIsf(err, &my1Error{}, "")    // want "is false or undefined"
+	_ = s.NotErrorIs(err, &my1Error{})      // want "is false or undefined"
+	_ = s.NotErrorIsf(err, &my1Error{}, "") // want "is false or undefined"
+
 	r := s.Require()
 
-	s.ErrorIs(err, &myError1{})         // want "is false or undefined"
-	s.ErrorIsf(err, &myError1{}, "")    // want "is false or undefined"
-	s.NotErrorIs(err, &myError1{})      // want "is false or undefined"
-	s.NotErrorIsf(err, &myError1{}, "") // want "is false or undefined"
+	r.ErrorIs(err, &my1Error{})         // want "is false or undefined"
+	r.ErrorIsf(err, &my1Error{}, "")    // want "is false or undefined"
+	r.NotErrorIs(err, &my1Error{})      // want "is false or undefined"
+	r.NotErrorIsf(err, &my1Error{}, "") // want "is false or undefined"
 
-	r.ErrorIs(err, &myError1{})         // want "is false or undefined"
-	r.ErrorIsf(err, &myError1{}, "")    // want "is false or undefined"
-	r.NotErrorIs(err, &myError1{})      // want "is false or undefined"
-	r.NotErrorIsf(err, &myError1{}, "") // want "is false or undefined"
+	_ = (*assert.Assertions).ErrorIs(s.Assertions, err, &my1Error{}) // want "is false or undefined"
+	(*require.Assertions).ErrorIs(r, err, &my1Error{})               // want "is false or undefined"
 
-	(*assert.Assertions).ErrorIs(s.Assertions, err, &myError1{}) // want "is false or undefined"
-	(*require.Assertions).ErrorIs(r, err, &myError1{})           // want "is false or undefined"
-
-	s.Equal(err, &myError1{})
-	r.Equal(err, &myError1{})
+	_ = s.Equal(err, &my1Error{})
+	r.Equal(err, &my1Error{})
 }

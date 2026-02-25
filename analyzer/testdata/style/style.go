@@ -30,11 +30,11 @@ func (e MyError) Error() string {
 var _ error = (*MyError)(nil)
 
 func Style1(err error) bool {
-	return errors.As(err, &MyError{}) // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	return errors.As(err, &MyError{}) // want ` \(et:err\+\)$` ` \(et:sty\)$`
 }
 
 func Style2(err error) bool {
-	if e := &(MyError{}); errors.As(err, e) { // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	if e := &(MyError{}); errors.As(err, e) { // want ` \(et:err\+\)$` ` \(et:sty\)$`
 		return true
 	}
 
@@ -42,7 +42,7 @@ func Style2(err error) bool {
 }
 
 func Style3(err error) bool {
-	if e := new(MyError); errors.As(err, e) { // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	if e := new(MyError); errors.As(err, e) { // want ` \(et:err\+\)$` ` \(et:sty\)$`
 		return true
 	}
 
@@ -52,18 +52,18 @@ func Style3(err error) bool {
 func Style4(err error) bool {
 	e := MyError{}
 
-	return errors.As(err, &e) // want " \\(et:err\\+\\)$"
+	return errors.As(err, &e) // want ` \(et:err\+\)$`
 }
 
 func Style5(err error) bool {
 	var e *MyError
 	ep := &e
 
-	return errors.As(err, *ep) // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	return errors.As(err, *ep) // want ` \(et:err\+\)$` ` \(et:sty\)$`
 }
 
 func StyleX(err error) bool {
 	var e MyError
 
-	return errors.As(err, &e) // want " \\(et:err\\+\\)$"
+	return errors.As(err, &e) // want ` \(et:err\+\)$`
 }

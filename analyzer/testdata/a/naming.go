@@ -1,4 +1,4 @@
-// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,19 +14,36 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package facts
+package a
 
-import "go/types"
+import "errors"
 
-// Result is the result of the detecttypes analyzer. It contains a list of all
-// error types whose pointer-ness could be unambiguously determined.
-type Result struct {
-	Types []ResultInfo
+type ErrNamed string // want ` \(et:nam\+\)$`
+
+func (e ErrNamed) Error() string { return string(e) }
+
+const (
+	sentinelError ErrNamed = "sentinelError" // want ` \(et:nam\)$`
+
+	otherSentinel = ErrNamed("otherSentinel") // want ` \(et:nam\)$`
+)
+
+type RetryableError interface {
+	error
+	Retryable() bool
 }
 
-// ResultInfo holds the determined pointer-ness for a type,
-// identified by its *types.TypeName.
-type ResultInfo struct {
-	TypeName  *types.TypeName
-	ErrorType ErrorFact
+type myErrors struct{ errs []error }
+
+func (e myErrors) Error() string {
+	err := errors.Join(e.errs...)
+	if err == nil {
+		return "<nil>"
+	}
+
+	return err.Error()
+}
+
+func (e myErrors) Unwrap() []error {
+	return e.errs
 }

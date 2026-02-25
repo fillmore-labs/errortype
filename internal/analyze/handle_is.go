@@ -23,7 +23,6 @@ import (
 
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/internal/knownfuncs"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -41,52 +40,26 @@ func (p Pass) handleIs(b inspector.Cursor, recv, target *ast.Ident) {
 			continue
 		}
 
-		fun, _, methodExpr, ok := typeutil.FuncOf(p.TypesInfo, node)
+		fun, ok := typeutil.FuncOf(p.TypesInfo, node)
 		if !ok {
 			continue // Could not resolve the calls function, might be a func variable.
 		}
 
-		info, ok := knownfuncs.FuncInfoOf(fun)
+		w, ok := p.ErrorFuncs[fun.Func]
 		if !ok {
 			continue
 		}
 
-		var errArgIndex int
-
-		switch info.Kind() {
-		case knownfuncs.KindIs:
-			switch info.IsType() {
-			case knownfuncs.IsFunc0:
-				errArgIndex = 0
-
-			case knownfuncs.IsFunc1:
-				errArgIndex = 1
-
-			default:
-				continue
-			}
-
-		case knownfuncs.KindEqu:
-			continue
-
-		case knownfuncs.KindAs:
-			errArgIndex, _ = info.AsTarget()
-			errArgIndex--
+		srcIdx := int(w.Source)
+		if fun.MethodExpr {
+			srcIdx++
 		}
 
-		if errArgIndex < 0 {
+		if len(node.Args) <= srcIdx {
 			continue
 		}
 
-		if methodExpr {
-			errArgIndex++
-		}
-
-		if len(node.Args) <= errArgIndex {
-			continue
-		}
-
-		arg := node.Args[errArgIndex]
+		arg := node.Args[srcIdx]
 
 		codeSuffix := ""
 		if id, ok := ast.Unparen(arg).(*ast.Ident); ok && p.isTargetArg(id, target, targetVar) {

@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	. "fillmore-labs.com/errortype/detect"
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 func TestLogValue(t *testing.T) {
@@ -35,8 +36,13 @@ func TestLogValue(t *testing.T) {
 	}{
 		{
 			name:     "WithOverrides",
-			option:   WithOverrides(map[Override][]string{OverridePointer: {"pkg.MyType"}}),
+			option:   WithOverrides(map[result.ErrorType][]string{result.Pointer: {"pkg.MyType"}}),
 			expected: `"overrides":{"pointer":"pkg.MyType"}`,
+		},
+		{
+			name:     "WithWrappers",
+			option:   WithWrappers(map[result.WrapperType][]string{result.WrapperAsType: {"pkg.MyAsType"}}),
+			expected: `"wrappers":{"astype":"pkg.MyAsType"}`,
 		},
 		{
 			name:     "WithHeuristics - None",
@@ -48,7 +54,6 @@ func TestLogValue(t *testing.T) {
 			option:   WithHeuristics(HeuristicOff),
 			expected: `"heuristics":"off"`,
 		},
-
 		{
 			name:     "WithHeuristics - Usage",
 			option:   WithHeuristics(HeuristicUsage),
@@ -67,7 +72,7 @@ func TestLogValue(t *testing.T) {
 		{
 			name: "Options",
 			option: Options{
-				WithOverrides(map[Override][]string{OverrideValue: {"pkg.MyType"}}),
+				WithOverrides(map[result.ErrorType][]string{result.Value: {"pkg.MyType"}}),
 				WithHeuristics(HeuristicUsage),
 				WithTrace(regexp.MustCompile(".*")),
 			},

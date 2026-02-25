@@ -93,7 +93,7 @@ func WithStyleCheck(styleCheck bool) Option { return styleCheckOption{styleCheck
 type styleCheckOption struct{ styleCheck bool }
 
 func (o styleCheckOption) apply(opts *run.Options) {
-	opts.Set(analyze.OptionStyleCheck, o.styleCheck)
+	opts.SetOption(analyze.OptionStyleCheck, o.styleCheck)
 }
 
 func (o styleCheckOption) LogAttr() slog.Attr {
@@ -101,20 +101,20 @@ func (o styleCheckOption) LogAttr() slog.Attr {
 }
 
 // WithCheckIs is an [Option] that configures the diagnostic suppression behavior
-// related to the `Is(error) bool` method.
+// related to an “Is(error) bool” method.
 func WithCheckIs(checkIs bool) Option { return checkIsOption{checkIs: checkIs} }
 
 type checkIsOption struct{ checkIs bool }
 
 func (o checkIsOption) apply(opts *run.Options) {
-	opts.Set(analyze.OptionCheckIs, o.checkIs)
+	opts.SetOption(analyze.OptionCheckIs, o.checkIs)
 }
 
 func (o checkIsOption) LogAttr() slog.Attr {
 	return slog.Bool("checkIs", o.checkIs)
 }
 
-// WithDeepIsCheck is an [Option] to configure `Is` method analysis.
+// WithDeepIsCheck is an [Option] to configure “Is” method analysis.
 func WithDeepIsCheck(deepIsCheck bool) Option {
 	return deepIsCheckOption{deepIsCheck: deepIsCheck}
 }
@@ -122,7 +122,7 @@ func WithDeepIsCheck(deepIsCheck bool) Option {
 type deepIsCheckOption struct{ deepIsCheck bool }
 
 func (o deepIsCheckOption) apply(opts *run.Options) {
-	opts.Set(analyze.OptionDeepIsCheck, o.deepIsCheck)
+	opts.SetOption(analyze.OptionDeepIsCheck, o.deepIsCheck)
 }
 
 func (o deepIsCheckOption) LogAttr() slog.Attr {
@@ -137,14 +137,14 @@ func WithUncheckedAssert(uncheckedAssert bool) Option {
 type uncheckedAssertOption struct{ uncheckedAssert bool }
 
 func (o uncheckedAssertOption) apply(opts *run.Options) {
-	opts.Set(analyze.OptionUncheckedAssert, o.uncheckedAssert)
+	opts.SetOption(analyze.OptionUncheckedAssert, o.uncheckedAssert)
 }
 
 func (o uncheckedAssertOption) LogAttr() slog.Attr {
 	return slog.Bool("uncheckedAssert", o.uncheckedAssert)
 }
 
-// WithCheckUnused is an [Option] to configure diagnosis of unchecked results of `errors.As` calls.
+// WithCheckUnused is an [Option] to configure diagnosis of unchecked results of “errors.As” calls.
 func WithCheckUnused(checkUnused bool) Option {
 	return checkUnusedOption{checkUnused: checkUnused}
 }
@@ -152,9 +152,24 @@ func WithCheckUnused(checkUnused bool) Option {
 type checkUnusedOption struct{ checkUnused bool }
 
 func (o checkUnusedOption) apply(opts *run.Options) {
-	opts.Set(analyze.OptionCheckUnused, o.checkUnused)
+	opts.SetOption(analyze.OptionCheckUnused, o.checkUnused)
 }
 
 func (o checkUnusedOption) LogAttr() slog.Attr {
 	return slog.Bool("checkUnused", o.checkUnused)
+}
+
+// WithNaming is an [Option] to configure name checking for error types and sentinel values.
+func WithNaming(naming bool) Option {
+	return namingOption{naming: naming}
+}
+
+type namingOption struct{ naming bool }
+
+func (o namingOption) apply(opts *run.Options) {
+	opts.SetOption(analyze.OptionNaming, o.naming)
+}
+
+func (o namingOption) LogAttr() slog.Attr {
+	return slog.Bool("naming", o.naming)
 }

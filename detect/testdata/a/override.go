@@ -19,14 +19,14 @@ package a
 import "math/rand/v2"
 
 type (
-	PointerOverride  struct{ error }
-	ValueOverride    struct{ error }
-	SuppressOverride struct{ error }
+	PointerOverrideError  struct{ error } // want PointerOverrideError:"pointer"
+	ValueOverrideError    struct{ error } // want ValueOverrideError:"value"
+	SuppressOverrideError struct{ error } // want SuppressOverrideError:"suppress"
 )
 
 var (
-	_ error = PointerOverride{}
-	_ error = &ValueOverride{}
+	_ error = PointerOverrideError{}
+	_ error = &ValueOverrideError{}
 )
 
 func ReturnOverride() error {
@@ -34,16 +34,16 @@ func ReturnOverride() error {
 
 	switch rand.Int() {
 	case 0:
-		err = PointerOverride{} // want "POINTER"
+		err = PointerOverrideError{} // want "POINTER"
 
 	case 1:
-		err = &ValueOverride{} // want "VALUE"
+		err = &ValueOverrideError{} // want "VALUE"
 
 	case 2:
-		err = SuppressOverride{} // want "SUPPRESS"
+		err = SuppressOverrideError{} // want "SUPPRESS"
 
 	case 3:
-		err = &SuppressOverride{} // want "SUPPRESS"
+		err = &SuppressOverrideError{} // want "SUPPRESS"
 
 	default:
 		err = nil

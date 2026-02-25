@@ -16,14 +16,14 @@
 
 package a
 
-func (*ValueOverride) Is(target error) bool { // want " \\(et:rcv\\)$"
+func (*ValueOverrideError) Is(target error) bool { // want ` \(et:rcv\)$`
 	return false
 }
 
-func (*ValueOverride) As(target any) bool { // want " \\(et:rcv\\)$"
+func (*ValueOverrideError) As(target any) bool { // want ` \(et:rcv\)$`
 	return false
 }
 
-func (*ValueOverride) Unwrap() []error { // want " \\(et:rcv\\)$"
+func (*ValueOverrideError) Unwrap() []error { // want ` \(et:rcv\)$`
 	return nil
 }

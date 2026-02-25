@@ -20,7 +20,7 @@ package c
 
 import "errors"
 
-type GenError[T any] struct{ _ T }
+type GenError[T any] struct{ _ T } // want GenError:"pointer"
 
 func (GenError[_]) Error() string { return "" }
 

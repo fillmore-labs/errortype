@@ -23,17 +23,19 @@ import (
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
+
+	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
 // ErrorsAs reports diagnostics related to targets in errors.As like functions.
 type ErrorsAs struct {
 	Base
-	Fun *types.Func
+	Fun ast.Expr
 }
 
 // ShouldBeValue reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
-	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.funName()
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.exprToString(r.Fun)
 
 	var (
 		varName string
@@ -60,7 +62,7 @@ func (r ErrorsAs) ShouldBeValue(tn *types.TypeName) {
 
 // ShouldBePointer reports a diagnostic for a mismatch between expected and actual error usage in a function call.
 func (r ErrorsAs) ShouldBePointer(tn *types.TypeName) {
-	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.funName()
+	relativeName, shortName, fName := r.relativeNameOf(tn), r.shortNameOf(tn), r.exprToString(r.Fun)
 
 	var (
 		varName string
@@ -85,22 +87,26 @@ func (r ErrorsAs) ShouldBePointer(tn *types.TypeName) {
 	r.Report(analysis.Diagnostic{Pos: r.Expr.Pos(), End: r.Expr.End(), Message: msg, Related: related})
 }
 
-// funName gets a short function name, not necessarily matching imports.
-func (r ErrorsAs) funName() string {
-	if pkg := r.Fun.Pkg(); pkg != nil {
-		return pkg.Name() + "." + r.Fun.Name()
-	}
-
-	return r.Fun.Name()
-}
-
 // varID gets the target variable identifier when it is the expression "&name".
 func (r ErrorsAs) varID() (*ast.Ident, bool) {
-	if e, ok := ast.Unparen(r.Expr).(*ast.UnaryExpr); ok && e.Op == token.AND {
-		id, ok := ast.Unparen(e.X).(*ast.Ident)
-
-		return id, ok
+	e, ok := ast.Unparen(r.Expr).(*ast.UnaryExpr)
+	if !ok || e.Op != token.AND {
+		return nil, false
 	}
 
-	return nil, false
+	id, ok := ast.Unparen(e.X).(*ast.Ident)
+
+	return id, ok
+}
+
+// newWithType tests the target variable for the expression "new(T)".
+func (r ErrorsAs) newWithType() bool {
+	call, ok := ast.Unparen(r.Expr).(*ast.CallExpr)
+	if !ok || !typeutil.BuiltinNew(r.TypesInfo, call) {
+		return false
+	}
+
+	tv, ok := r.TypesInfo.Types[call.Args[0]]
+
+	return ok && tv.IsType()
 }

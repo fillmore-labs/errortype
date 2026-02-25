@@ -17,6 +17,8 @@
 package gclplugin
 
 import (
+	"slices"
+
 	"github.com/golangci/plugin-module-register/register"
 	"golang.org/x/tools/go/analysis"
 
@@ -51,8 +53,9 @@ func (Plugin) GetLoadMode() string {
 // BuildAnalyzers returns the [analysis.Analyzer]s for an errortype run.
 func (p Plugin) BuildAnalyzers() ([]*analysis.Analyzer, error) {
 	dopts := detectOptions(p.settings)
+	wopts := wrapperOptions(p.settings)
 
-	d := detect.New(dopts...)
+	d := detect.New(slices.Concat(dopts, wopts)...)
 
 	eopts := p.settings.Options()
 	eopts = append(eopts, errortype.WithDetectTypes(d))

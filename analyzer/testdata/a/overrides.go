@@ -18,34 +18,34 @@ package a
 
 import "math/rand/v2"
 
-type PointerOverride struct{}
+type PointerOverrideError struct{}
 
-func (PointerOverride) Error() string { return "" }
+func (PointerOverrideError) Error() string { return "" }
 
-type ValueOverride struct{}
+type ValueOverrideError struct{}
 
-func (ValueOverride) Error() string { return "" }
+func (ValueOverrideError) Error() string { return "" }
 
-type SuppressOverride struct{ error }
+type SuppressOverrideError struct{ error }
 
 var (
-	_ error = PointerOverride{} // want " \\(et:var\\+\\)$"
-	_ error = &ValueOverride{}  // want " \\(et:var\\)$"
+	_ error = PointerOverrideError{} // want ` \(et:var\+\)$`
+	_ error = &ValueOverrideError{}  // want ` \(et:var\)$`
 )
 
 func ReturnOverride() error {
 	switch rand.Int() {
 	case 0:
-		return &PointerOverride{}
+		return &PointerOverrideError{}
 
 	case 1:
-		return ValueOverride{}
+		return ValueOverrideError{}
 
 	case 2:
-		return SuppressOverride{}
+		return SuppressOverrideError{}
 
 	case 3:
-		return &SuppressOverride{}
+		return &SuppressOverrideError{}
 
 	default:
 		return nil

@@ -19,32 +19,30 @@ package overrides
 import (
 	"context"
 	"io"
-	"slices"
 
 	"github.com/goccy/go-yaml"
 
-	"fillmore-labs.com/errortype/facts"
-	"fillmore-labs.com/errortype/internal/typeutil"
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 // Write serializes the provided overrides suggestions into YAML format and writes it to the given io.Writer.
 func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath string) error {
 	var suggestFile errorFileType
 
-	for errortype, s := range suggestions {
-		slices.SortFunc(s, typeutil.TypeName.Compare)
-
+	for errortype, s := range suggestions.Types {
 		switch errortype {
-		case facts.PointerType:
+		case result.Pointer:
 			suggestFile.Pointer = s
 
-		case facts.ValueType:
+		case result.Value:
 			suggestFile.Value = s
 
-		case facts.SuppressType:
+		case result.Suppress:
 			suggestFile.Inconsistent = s
 		}
 	}
+
+	suggestFile.Wrappers = suggestions.Wrappers
 
 	if _, err := io.WriteString(w, "---\n"); err != nil {
 		return err
@@ -65,7 +63,7 @@ func Write(ctx context.Context, w io.Writer, suggestions Overrides, pkgPath stri
 	}
 
 	enc := yaml.NewEncoder(w, yaml.IndentSequence(true))
-	defer enc.Close()
+	defer enc.Close() // ignore error
 
 	return enc.EncodeContext(ctx, suggestFile)
 }

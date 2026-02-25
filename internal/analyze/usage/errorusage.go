@@ -19,22 +19,33 @@ package usage
 import (
 	"go/types"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 // ErrorUsage maps error types to their usage information.
 // It is used to analyze and track the observed and expected usage of error types.
 type ErrorUsage map[*types.TypeName]Usage
 
-// allDetermined is an iterator over all types in the map whose pointer-ness
-// has been unambiguously determined (i.e., where DeterminedType returns true).
-// The iterator yields the type's TypeName and a boolean indicating if it's a pointer type.
-func (e ErrorUsage) allDetermined(yield func(*types.TypeName, facts.ErrorFact) bool) {
-	for tn, usage := range e {
-		if typ := usage.DeterminedType(); typ != facts.UndecidedType {
-			if !yield(tn, typ) {
-				return
-			}
+// ProcessDetectedTypes populates the initial error usage map based on the results
+// from the prerequisite `detecttypes` analyzer.
+func (e ErrorUsage) ProcessDetectedTypes(eTypes result.ErrorTypes) {
+	for tn, errorType := range eTypes {
+		var usage Usage
+
+		switch errorType & result.ExpectedMask {
+		case result.Pointer:
+			usage = PointerExpected
+
+		case result.Value:
+			usage = ValueExpected
+
+		case result.Suppress:
+			usage = SuppressExpected
+
+		default:
+			continue
 		}
+
+		e[tn] = usage
 	}
 }

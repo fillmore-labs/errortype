@@ -44,3 +44,10 @@ func DefaultRunOptions() *Options {
 		Suggest:     "",
 	}
 }
+
+// SetOption modifies the state of a specific option flag in the Options configuration
+// based on the provided boolean value. The flag parameter should be a single option
+// constant (e.g., [analyze.OptionCheckIs], [analyze.OptionStyleCheck]).
+func (o *Options) SetOption(flag analyze.Options, v bool) {
+	analyze.SetOption(&o.Options, flag, v)
+}

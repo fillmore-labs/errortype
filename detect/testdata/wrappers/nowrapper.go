@@ -1,4 +1,4 @@
-// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,27 +14,25 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package wrappers
 
-import (
-	"test/a/b"
+import "errors"
 
-	"github.com/cockroachdb/errors"
-	"github.com/cockroachdb/errors/errutil"
-	"github.com/cockroachdb/errors/markers"
-)
+// noForward has matching parameter types but doesn't call errors.Is.
+func noForward(err, target error) bool {
+	return noForward(err, target)
+}
 
-func CockroachErrors() {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+// modifiedSource modifies the source argument before forwarding.
+func modifiedSource(err, target error) bool {
+	err = errors.New("replaced")
 
-	var (
-		err error
-		pve *ValueError
-	)
+	return errors.Is(err, target)
+}
 
-	_ = errutil.As(err, &pve) // want " \\(et:err\\)$"
+// addressOfArg takes the address of the source argument.
+func addressOfArg(err error, target any) bool {
+	_ = &err
 
-	_ = errors.Is(err, &myError1{}) // want "is false or undefined"
-
-	_ = markers.Is(err, &myError1{}) // want "is false or undefined"
+	return errors.As(err, target)
 }

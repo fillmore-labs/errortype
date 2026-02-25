@@ -21,7 +21,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect"
 )
 
@@ -38,8 +38,8 @@ func New(opts ...Option) *analysis.Analyzer {
 		URL:              "https://pkg.go.dev/fillmore-labs.com/errortype/detect",
 		Run:              o.Run,
 		RunDespiteErrors: true,
-		FactTypes:        []analysis.Fact{(*facts.ErrorFact)(nil)},
-		ResultType:       reflect.TypeFor[facts.Result](),
+		FactTypes:        []analysis.Fact{(*result.ErrorType)(nil), (*result.ErrorFunc)(nil)},
+		ResultType:       reflect.TypeFor[result.Result](),
 	}
 
 	registerFlags(o, &a.Flags)

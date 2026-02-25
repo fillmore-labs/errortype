@@ -17,15 +17,15 @@
 package c
 
 type (
-	C1 struct{}
+	C1Error struct{}
 
-	C1a = C1
+	C1aError = C1Error
 
 	C2 struct{}
 
 	C2a = C2
 
-	C2p = *C2a
+	C2pError = *C2a
 
 	C3 struct{}
 
@@ -40,9 +40,9 @@ type (
 	MyString = string
 )
 
-func (C1a) Error() string { return "" }
+func (C1aError) Error() string { return "" }
 
-func (C2p) Error() MyString { return MyString("") }
+func (C2pError) Error() MyString { return MyString("") }
 
 func (C3) error() string { return "" }
 
@@ -57,7 +57,7 @@ func (C7) Error(_ error) string { return "" }
 func Error() string { return "" }
 
 var (
-	_, _ error = C1a{}, new(C2a)
+	_, _ error = C1aError{}, new(C2a)
 
 	_ error = new(C2a)
 

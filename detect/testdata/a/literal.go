@@ -19,10 +19,10 @@ package a
 import "math/rand/v2"
 
 type (
-	PointerLiteral1 struct{ error }
-	PointerLiteral2 struct{ error }
-	PointerLiteral3 struct{ error }
-	ValueLiteral    struct{ error }
+	PointerLiteral1 struct{ error } // want PointerLiteral1:"pointer"
+	PointerLiteral2 struct{ error } // want PointerLiteral2:"undecided"
+	PointerLiteral3 struct{ error } // want PointerLiteral3:"undecided"
+	ValueLiteral    struct{ error } // want ValueLiteral:"value"
 )
 
 func ReturnLiteral(err error) error {

@@ -17,7 +17,7 @@
 package usage
 
 import (
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/bitflag"
 )
 
@@ -70,26 +70,25 @@ func (u Usage) String() string {
 
 // DeterminedType analyzes the usage pattern of the Usage value and determines
 // if there is an observed usage type (consistent pointer, consistent value, or mixed)
-// that differs from the expected analysis type. It returns the determined
-// ErrorType and a boolean indicating whether a differing observed type was found.
-func (u Usage) DeterminedType() facts.ErrorFact {
+// that differs from the expected analysis type.
+func (u Usage) DeterminedType() result.ErrorType {
 	// Do we have a consistent use that is different from the detected type?
 	switch u & ObservedMask {
 	case PointerObserved:
 		if u&ExpectedMask != PointerExpected {
-			return facts.PointerType
+			return result.Pointer
 		}
 
 	case ValueObserved:
 		if u&ExpectedMask != ValueExpected {
-			return facts.ValueType
+			return result.Value
 		}
 
 	case PointerObserved | ValueObserved:
 		if u&ExpectedMask != SuppressExpected {
-			return facts.SuppressType
+			return result.Suppress
 		}
 	}
 
-	return facts.UndecidedType
+	return result.Undecided
 }

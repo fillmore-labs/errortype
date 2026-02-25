@@ -29,7 +29,7 @@ import (
 func TestLogValue(t *testing.T) {
 	t.Parallel()
 
-	testAnalyzer := &analysis.Analyzer{Name: "test-detect"}
+	testDetect := &analysis.Analyzer{Name: "test-detect"}
 
 	testCases := [...]struct {
 		name     string
@@ -38,7 +38,7 @@ func TestLogValue(t *testing.T) {
 	}{
 		{
 			name:     "WithDetectTypes",
-			option:   WithDetectTypes(testAnalyzer),
+			option:   WithDetectTypes(testDetect),
 			expected: `"detect":"test-detect"`,
 		},
 		{
@@ -69,7 +69,7 @@ func TestLogValue(t *testing.T) {
 		{
 			name: "Options",
 			option: Options{
-				WithDetectTypes(testAnalyzer),
+				WithDetectTypes(testDetect),
 				WithStyleCheck(true),
 				WithCheckIs(false),
 				WithCheckUnused(true),

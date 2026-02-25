@@ -26,8 +26,9 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/analyze"
+	"fillmore-labs.com/errortype/internal/naming"
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
@@ -43,7 +44,7 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 		return nil, fmt.Errorf("errortype: %s: %w", inspect.Analyzer.Name, ErrResultMissing)
 	}
 
-	detectedResult, ok := ap.ResultOf[o.DetectTypes].(facts.Result)
+	detectedResult, ok := ap.ResultOf[o.DetectTypes].(result.Result)
 	if !ok {
 		return nil, fmt.Errorf("errortype: %s: %w", o.DetectTypes.Name, ErrResultMissing)
 	}
@@ -53,13 +54,15 @@ func (o *Options) Run(ap *analysis.Pass) (any, error) {
 	ctx, task := trace.NewTask(ctx, "errortype")
 	defer task.End()
 
-	p := analyze.NewPass(ap, o.Options)
-
 	if trace.IsEnabled() {
-		trace.Log(ctx, "pkg", typeutil.PkgPath(p.Pass))
+		trace.Log(ctx, "pkg", typeutil.PkgPath(ap))
 	}
 
-	p.ProcessDetectedTypes(ctx, detectedResult.Types)
+	if o.Naming() {
+		naming.CheckNaming(ctx, ap)
+	}
+
+	p := analyze.NewPass(ap, detectedResult, o.Options)
 
 	p.ProcessAST(ctx, in)
 

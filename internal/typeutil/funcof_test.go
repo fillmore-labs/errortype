@@ -106,7 +106,7 @@ func TestFuncOf(t *testing.T) {
 			_, info := checkSource(t, fset, []*ast.File{f})
 			callExpr := lastDeclCallExpr(f)
 
-			fun, _, methodExpr, ok := FuncOf(info, callExpr)
+			fun, ok := FuncOf(info, callExpr)
 
 			wantOk := tt.wantFuncName != ""
 			if ok != wantOk {
@@ -117,16 +117,16 @@ func TestFuncOf(t *testing.T) {
 				return
 			}
 
-			if fun == nil {
+			if fun.Func == nil {
 				t.Fatal("FuncOf() fun is nil, but wantOk is true")
 			}
 
-			if funcName := fun.FullName(); funcName != tt.wantFuncName {
+			if funcName := fun.Func.FullName(); funcName != tt.wantFuncName {
 				t.Errorf("FuncOf() fun.FullName() = %q, want %q", funcName, tt.wantFuncName)
 			}
 
-			if methodExpr != tt.wantMethodExpr {
-				t.Errorf("FuncOf() methodExpr = %v, want %v", methodExpr, tt.wantMethodExpr)
+			if fun.MethodExpr != tt.wantMethodExpr {
+				t.Errorf("FuncOf() methodExpr = %v, want %v", fun.MethodExpr, tt.wantMethodExpr)
 			}
 		})
 	}

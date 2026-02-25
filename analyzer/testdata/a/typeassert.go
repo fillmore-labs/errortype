@@ -27,15 +27,15 @@ func Assert() {
 	var err error
 
 	switch err.(type) {
-	case *aes.KeySizeError: // want " \\(et:ast\\)$"
+	case *aes.KeySizeError: // want ` \(et:ast\)$`
 	}
 
 	switch e := err.(type) {
-	case *http2.StreamError: // want " \\(et:ast\\)$"
+	case *http2.StreamError: // want ` \(et:ast\)$`
 		_ = e.StreamID
 	}
 
-	_, _ = err.(*aes.KeySizeError) // want " \\(et:ast\\)$"
+	_, _ = err.(*aes.KeySizeError) // want ` \(et:ast\)$`
 
 	_, _ = err.(interface{ Temporary() bool })
 
@@ -68,14 +68,14 @@ func Assert3() {
 
 	switch err.(type) {
 	case net.InvalidAddrError:
-	case *net.InvalidAddrError: // want " \\(et:ast\\)$"
+	case *net.InvalidAddrError: // want ` \(et:ast\)$`
 	default:
 	}
 
 	switch e := err.(type) {
 	case net.UnknownNetworkError:
 		_ = e.Temporary()
-	case *net.UnknownNetworkError: // want " \\(et:ast\\)$"
+	case *net.UnknownNetworkError: // want ` \(et:ast\)$`
 		_ = e.Temporary()
 	case nil:
 	}

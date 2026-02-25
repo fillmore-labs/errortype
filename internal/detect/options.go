@@ -23,12 +23,16 @@ type Options struct {
 	// UsageOverrides stores the usage configuration for error types, read from a file.
 	UsageOverrides
 
+	// WrapperOverrides stores the wrapper function configuration, read from a file.
+	WrapperOverrides
+
 	// Heuristics controls heuristic passes
 	Heuristics
 
 	// Trace controls result output
 	Trace *regexp.Regexp
 
+	// InitializationError is set when [Options] intialization fails
 	InitializationError error
 }
 

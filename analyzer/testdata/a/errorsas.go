@@ -16,45 +16,70 @@
 
 package a
 
-import "errors"
+import (
+	"errors"
+	"fmt"
+)
 
-type ErrorsAsValue struct{}
+type AsValueError struct{}
 
-func (ErrorsAsValue) Error() string { return "" }
+func (AsValueError) Error() string { return "" }
 
-var _ error = ErrorsAsValue{}
+var _ error = AsValueError{}
 
-type ErrorsAsPointer struct{ _ int }
+type AsPointerError struct{ _ int }
 
-func (ErrorsAsPointer) Error() string { return "" }
+func (AsPointerError) Error() string { return "" }
 
-func NewErrorsAsPointer() interface{ error } { return &ErrorsAsPointer{} }
+func NewErrorsAsPointer() interface{ error } { return &AsPointerError{} }
 
 func ErrorsAs(err error) {
 	var (
-		evv ErrorsAsValue
-		evp *ErrorsAsValue
-		epv ErrorsAsPointer
-		epp *ErrorsAsPointer
+		evv AsValueError
+		evp *AsValueError
+		epv AsPointerError
+		epp *AsPointerError
 
 		eany interface{}
 	)
 
 	_ = errors.As(err, &evv)
-	_ = errors.As(err, &evp) // want " \\(et:err\\)$"
-	_ = errors.As(err, &epv) // want " \\(et:err\\+\\)$"
+	_ = errors.As(err, &evp) // want ` \(et:err\)$`
+	_ = errors.As(err, &epv) // want ` \(et:err\+\)$`
 	_ = errors.As(err, &epp)
 
-	_ = errors.As(err, &ErrorsAsValue{})   // want " \\(et:sty\\)$"
-	_ = errors.As(err, &ErrorsAsPointer{}) // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	_ = errors.As(err, &AsValueError{})   // want ` \(et:sty\)$`
+	_ = errors.As(err, &AsPointerError{}) // want ` \(et:err\+\)$` ` \(et:sty\)$`
 
-	_ = errors.As(err, eany) // This could be a style violation
+	_ = errors.As(err, eany)
 	_ = errors.As(err, &eany)
 
 	_ = errors.As(func() (error, any) { return nil, nil }())
 
-	_ = errors.As(err, evv) // want " \\(et:arg\\)$"
-	_ = errors.As(err, evp) // want " \\(et:sty\\)$"
-	_ = errors.As(err, epv) // want " \\(et:arg\\)$"
-	_ = errors.As(err, epp) // want " \\(et:err\\+\\)$" " \\(et:sty\\)$"
+	_ = errors.As(err, evv) // want ` \(et:arg\)$`
+	_ = errors.As(err, evp) // want ` \(et:sty\)$`
+	_ = errors.As(err, epv) // want ` \(et:arg\)$`
+	_ = errors.As(err, epp) // want ` \(et:err\+\)$` ` \(et:sty\)$`
+
+	// Those are readable
+	_ = errors.As(err, new(AsValueError))
+	_ = errors.As(err, new(*AsPointerError))
+
+	// Those are not
+	_ = errors.As(err, &AsValueError{})   // want ` \(et:sty\)$`
+	_ = errors.As(err, &AsPointerError{}) // want ` \(et:err\+\)$` ` \(et:sty\)$`
+}
+
+type TestError struct{ msg string }
+
+func (t TestError) Error() string { return t.msg }
+func (*TestError) F()             {}
+
+func TestErrorAs() {
+	var err TestError
+	// While valid, we flag this construct
+	var target interface{ F() } = &err
+	if errors.As(TestError{msg: "hello"}, target) { // want ` \(et:arg\+\)$`
+		fmt.Println(err.Error())
+	}
 }

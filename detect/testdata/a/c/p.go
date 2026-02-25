@@ -1,4 +1,4 @@
-// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2026 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,21 +14,13 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package a
+package c
 
-import "fillmore-labs.com/exp/errors"
+type (
+	PurePointer struct{ error } // want PurePointer:"pointer"
+	PureValue   struct{ error } // want PureValue:"value"
+)
 
-func Has() {
-	var err error
+func (p *PurePointer) String() string { return p.error.Error() }
 
-	_, _ = errors.Has[*IntError](err)        // want " \\(et:ast\\)$"
-	_, _ = errors.HasError[StringError](err) // want " \\(et:ast\\+\\)$"
-
-	var itarget *IntError
-	_ = errors.As(err, &itarget)            // want " \\(et:err\\)$"
-	_ = errors.As[*IntError](err, &itarget) // want " \\(et:ast\\)$"
-
-	var starget StringError
-	_ = errors.As(err, &starget)              // want " \\(et:err\\+\\)$"
-	_ = errors.As[StringError](err, &starget) // want " \\(et:ast\\+\\)$"
-}
+func (p PureValue) String() string { return p.error.Error() }

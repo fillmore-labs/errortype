@@ -1,20 +1,24 @@
 # Errortype
 
 [![Go Reference](https://pkg.go.dev/badge/fillmore-labs.com/errortype.svg)](https://pkg.go.dev/fillmore-labs.com/errortype)
-[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml)
-[![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql)
+[![Test](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/test.yml?query=branch%3Amain)
+[![CodeQL](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql/badge.svg?branch=main)](https://github.com/fillmore-labs/errortype/actions/workflows/github-code-scanning/codeql?query=branch%3Amain)
 [![Coverage](https://codecov.io/gh/fillmore-labs/errortype/branch/main/graph/badge.svg?token=MMLHL14ZP6)](https://codecov.io/gh/fillmore-labs/errortype)
 [![Go Report Card](https://goreportcard.com/badge/fillmore-labs.com/errortype)](https://goreportcard.com/report/fillmore-labs.com/errortype)
 [![Codeberg CI](https://ci.codeberg.org/api/badges/15305/status.svg?branch=main)](https://ci.codeberg.org/repos/15305/branches/main)
 [![License](https://img.shields.io/github/license/fillmore-labs/errortype)](https://www.apache.org/licenses/LICENSE-2.0)
 
-`errortype` is a static analysis tool that performs two checks:
+`errortype` is a static analysis tool that performs three checks:
 
 1. **Inconsistent Error Type Usage**: Ensures error types are used consistently as either pointers or values in returns,
    type assertions, and `errors.As` calls.
 
 2. **Pointless Comparisons**: Detects comparisons against newly allocated addresses (like `errors.Is(err, &url.Error{})`
    or `ptr == &MyStruct{}`), which are almost always incorrect.
+
+3. **Error Naming Conventions** _(opt-in)_: Checks that sentinel error variables use the `Err` prefix (e.g.,
+   `ErrNotFound`) and structured error types use the `Error` suffix (e.g., `ParseError`), following the
+   [Go naming conventions](https://go.dev/wiki/Errors#naming).
 
 ## Getting Started
 
@@ -45,21 +49,23 @@ eget fillmore-labs/errortype
 Analyze your entire project:
 
 ```shell
-errortype ./...
+errortype -naming -style-check ./...
 ```
 
 ### Command-Line Flags
 
 | Flag                  | Description                                                                    | Default               |
 | --------------------- | ------------------------------------------------------------------------------ | --------------------- |
-| `-overrides <file>`   | Read type overrides from a YAML file (see [Override File](#override-file))     | —                     |
-| `-suggest <file>`     | Append suggestions to an override file (`-` for stdout)                        | —                     |
+| `-naming`             | Check error [naming conventions](#error-naming-conventions) (recommended)      | `false`               |
+| `-style-check`        | Check for confusing uses of `errors.As` (recommended)                          | `false`               |
+| `-check-unused`       | Report unused results of `errors.As`-like functions                            | `true`                |
 | `-check-is`           | Suppress diagnostics on `errors.Is` if the type has an `Is(error) bool` method | `true`                |
 | `-deep-is-check`      | In `Is` methods, diagnose any unwrapping call, not just those using `target`   | `false`               |
-| `-style-check`        | Check for confusing uses of `errors.As`                                        | `true`                |
 | `-unchecked-assert`   | Diagnose unchecked type asserts on errors                                      | `false`               |
 | `-c <N>`              | Lines of context around each issue (`-1` = none, `0` = offending line only)    | `-1`                  |
 | `-test`               | Analyze test files                                                             | `true`                |
+| `-overrides <file>`   | Read type overrides from a YAML file (see [Override File](#override-file))     | —                     |
+| `-suggest <file>`     | Append suggestions to an override file (`-` for stdout)                        | —                     |
 | `-heuristics <list>`  | Heuristics to use (`“off”` to disable) _(Experimental)_                        | `var,usage,receivers` |
 | `-tracetypes <regex>` | Trace type detection in matching packages _(Experimental)_                     | —                     |
 
@@ -163,11 +169,33 @@ var (
 When the linter reports ambiguous usage from an imported package you cannot modify, use an override file (see
 [Override File](#override-file)).
 
+## Wrapper Functions
+
+`errortype` automatically detects wrapper functions around [`errors.Is`](https://pkg.go.dev/errors#Is),
+[`errors.As`](https://pkg.go.dev/errors#As), and [`errors.AsType`](https://pkg.go.dev/errors#AsType) within the analyzed
+package. This allows the linter to validate arguments passed to your custom error helpers just as it does for the
+standard library functions.
+
+For example, a test helper like this is recognized as an `errors.As` wrapper:
+
+```go
+func RequireErrorsAs(t *testing.T, err error, target any, format string, args ...any) {
+	t.Helper()
+
+	if !errors.As(err, target) {
+		t.Fatalf(format, args...)
+	}
+}
+```
+
+The linter detects that `err` and `target` are forwarded to `errors.As` and applies the same checks to call sites of
+`RequireErrorsAs`.
+
 ## Pointless Comparisons
 
-`errortype` also detects comparisons against newly allocated addresses. Per the
-[Go spec](https://go.dev/ref/spec#Variables), `&MyStruct{}` and `new(T)` each create a unique address, so
-`ptr == &MyStruct{}` is almost always `false`. For zero-sized types, the result is undefined.
+`errortype` detects comparisons against newly allocated addresses. Per the [Go spec](https://go.dev/ref/spec#Variables),
+`&MyStruct{}` and `new(T)` each create a unique address, so `ptr == &MyStruct{}` is almost always `false`. For
+zero-sized types, [the result is undefined](https://go.dev/ref/spec#Comparison_operators).
 
 ### Examples
 
@@ -223,6 +251,21 @@ func validateUpdateStrategy(spec *v1alpha1.CatalogSourceSpec) {
 
 The linter suppresses diagnostics when the error type has an `Unwrap() error` method (since `errors.Is` traverses the
 chain) or an `Is(error) bool` method (custom comparison logic). Disable with `-check-is=false`.
+
+## Error Naming Conventions
+
+When enabled with `-naming`, `errortype` checks that error names follow
+[Go conventions](https://go.dev/wiki/Errors#naming):
+
+- **Sentinel errors** (variables) should start with `Err` (or `err` for unexported), e.g., `ErrNotFound`.
+- **Structured error types** should end with `Error`, e.g., `ParseError`.
+
+This flag is **off by default** since it can be noisy on existing codebases, but its usage is recommended for new
+projects and codebases that already follow these conventions.
+
+See also
+[Go: Naming Errors and the Parlance of Error Types](https://www.matttproud.com/blog/posts/go-error-parlance.html) for a
+detailed discussion.
 
 ## Override File
 
@@ -294,13 +337,20 @@ When possible, improve detection in the defining package by making usage explici
 | `et:cmp` | Pointless Error Comparison | Comparison against `&T{}` in `errors.Is` — always false. Use `errors.As` instead. |
 | `et:equ` | Pointless Comparison       | Pointer compared against `&T{}` — always false. Dereference and compare values.   |
 
+### Naming Conventions
+
+| Code      | Name            | Description                                                      |
+| --------- | --------------- | ---------------------------------------------------------------- |
+| `et:nam`  | Variable Naming | Sentinel error name should start with `Err` (exported) or `err`. |
+| `et:nam+` | Type Naming     | Structured error type name should end with `Error`.              |
+
 ### Other Issues
 
 | Code     | Name                  | Description                                                                                                                                        |
 | -------- | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `et:unw` | Calling Unwrap        | Unwrapping function called inside `Is(error) bool` — use shallow comparison instead.                                                               |
 | `et:sty` | Style Mismatch        | Target to `errors.As` is not an address operation — declare a variable for clarity.                                                                |
-| `et:arg` | Invalid Argument      | Invalid target to `errors.As` (also flagged by [`errorsas`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/errorsas)).                   |
+| `et:arg` | Invalid Argument      | Invalid target to an `errors.As`-like function, **possible panic**.                                                                                |
 | `et:sig` | Wrong Signature       | `Unwrap`-related method has wrong signature (also flagged by [`stdmethods`](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdmethods)). |
 | `et:unu` | Unused Result         | Result of `errors.Is`-like function is unused.                                                                                                     |
 | `et:uca` | Unchecked Type Assert | Unchecked type assert might panic on wrapped error — prefer `errors.As`.                                                                           |
@@ -313,7 +363,7 @@ Add `.custom-gcl.yaml` to your project:
 
 ```yaml
 ---
-version: v2.8.0
+version: v2.10.1
 
 name: golangci-lint
 destination: .
@@ -321,7 +371,7 @@ destination: .
 plugins:
   - module: fillmore-labs.com/errortype
     import: fillmore-labs.com/errortype/gclplugin
-    version: v0.0.9
+    version: v0.0.10
 ```
 
 Run `golangci-lint custom` to build a custom executable. Configure in `.golangci.yaml`:
@@ -339,18 +389,19 @@ linters:
         description: errortype helps prevent subtle bugs in error handling.
         original-url: https://fillmore-labs.com/errortype
         settings:
-          overrides:
-            pointer:
-              - test/a.PointerOverride
-            value:
-              - test/a.ValueOverride
-            suppress:
-              - test/a.SuppressOverride
+          naming: true
           style-check: true
           deep-is-check: false
           check-is: true
           unchecked-assert: false
           check-unused: false
+          overrides:
+            pointer:
+              - your.pkg/a.PointerOverrideError
+            value:
+              - your.pkg/a.ValueOverrideError
+            suppress:
+              - your.pkg/a.SuppressOverrideError
 ```
 
 Then run:
@@ -365,6 +416,7 @@ See the [module plugin documentation](https://golangci-lint.run/plugins/module-p
 
 - [Background on the problem this linter solves](https://blog.fillmore-labs.com/posts/errors-1/)
 - [Why you shouldn't call `Unwrap` in `Is(error) bool` methods](https://blog.fillmore-labs.com/posts/errors-2/)
+- [Go Wiki: Error naming](https://go.dev/wiki/Errors#naming)
 
 ## License
 

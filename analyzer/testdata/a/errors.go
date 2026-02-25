@@ -27,40 +27,40 @@ import (
 	"golang.org/x/xerrors"
 )
 
-type myError1 struct{}
+type my1Error struct{}
 
-func (myError1) Error() string {
+func (my1Error) Error() string {
 	return ""
 }
 
-func (myError1) As(_ error, _ any) bool { // want " \\(et:sig\\)$"
+func (my1Error) As(_ error, _ any) bool { // want ` \(et:sig\)$`
 	return false
 }
 
-var ErrPointer error = &b.ValueError{} // want " \\(et:var\\)$"
+var ErrPointer error = &b.ValueError{} // want ` \(et:var\)$`
 
 func Errors(err error) {
-	_ = errors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
-	_ = As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
 	_ = xerrors.As(func() error {
-		return &myErrorWithAs{} // want " \\(et:ret\\)$"
-	}(), &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+		return &myAsError{} // want ` \(et:ret\)$`
+	}(), &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
-	_ = errorsx.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = errorsx.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
-	_ = pkgerrors.As(&myError1{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = pkgerrors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
-	(errors.Is(err, nil)) // want " \\(et:unu\\+\\)"
+	(errors.Is(err, nil)) // want ` \(et:unu\+\)$`
 
-	(errors.As(err, nil)) // want " \\(et:arg\\)"
+	(errors.As(err, nil)) // want ` \(et:arg\)$` ` \(et:unu\)$`
 }
 
 func Errors2() {
-	errors := myError1{}
+	errors := my1Error{}
 
-	_ = errors.As(&myError1{}, &b.AmbiguousError{})
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{})
 }
 
 type StructWithAsField struct {
@@ -70,27 +70,27 @@ type StructWithAsField struct {
 func Errors3() {
 	errors := StructWithAsField{As: func(_ error, _ any) bool { return false }}
 
-	_ = errors.As(&myError1{}, &b.AmbiguousError{})
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{})
 }
 
-type myErrorWithAs struct{}
+type myAsError struct{}
 
-func (myErrorWithAs) Error() string {
+func (myAsError) Error() string {
 	return "my error with as"
 }
 
-var _ error = myErrorWithAs{}
+var _ error = myAsError{}
 
-func (m myErrorWithAs) As(target any) bool {
+func (m myAsError) As(target any) bool {
 	var success bool
 
-	if t, ok := target.(*myErrorWithAs); ok {
+	if t, ok := target.(*myAsError); ok {
 		*t = m
 		success = true
 	}
 
 	if err, ok := target.(error); ok {
-		_, _ = err.(*myErrorWithAs) // want " \\(et:ast\\)$"
+		_, _ = err.(*myAsError) // want ` \(et:ast\)$`
 	}
 
 	return success
@@ -99,9 +99,9 @@ func (m myErrorWithAs) As(target any) bool {
 func Errors4() {
 	var err error
 
-	_, _ = err.(myErrorWithAs)
+	_, _ = err.(myAsError)
 
-	_ = errors.As(myErrorWithAs{}, &b.AmbiguousError{}) // want " \\(et:emb\\)$" " \\(et:sty\\)$"
+	_ = errors.As(myAsError{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
 
-	_ = myErrorWithAs{}.As(&b.AmbiguousError{})
+	_ = myAsError{}.As(&b.AmbiguousError{})
 }

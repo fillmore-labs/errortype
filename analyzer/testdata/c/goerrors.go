@@ -23,7 +23,7 @@ import (
 )
 
 func TestGoErrors(t *testing.T) {
-	var err *myError1
+	var err *my1Error
 
-	errors.Is(err, &myError1{}) // want "is false or undefined" " \\(et:unu\\+\\)"
+	errors.Is(err, &my1Error{}) // want "is false or undefined" ` \(et:unu\+\)$`
 }

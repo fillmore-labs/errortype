@@ -27,11 +27,11 @@ func (*myError) Error() string { return "" }
 
 type (
 	aliasError  = *struct{ myError }
-	aliasError2 = struct{ *myError }
-	aliasError3 = struct{ myError }
+	alias2Error = struct{ *myError }
+	alias3Error = struct{ myError }
 )
 
-var _, _, _ error = aliasError(nil), aliasError2(struct{ *myError }{}), func() *aliasError3 { return nil }()
+var _, _, _ error = aliasError(nil), alias2Error(struct{ *myError }{}), func() *alias3Error { return nil }()
 
 func main() {
 	var err error = aliasError(&struct{ myError }{myError{}})
@@ -41,17 +41,17 @@ func main() {
 		fmt.Println("&e")
 	}
 
-	var err2 error = aliasError2(struct{ *myError }{&myError{}})
+	var err2 error = alias2Error(struct{ *myError }{&myError{}})
 
-	var e2 aliasError2
+	var e2 alias2Error
 	if errors.As(err2, &e2) {
 		fmt.Println("&e2")
 	}
 
-	a3 := aliasError3(struct{ myError }{myError{}})
+	a3 := alias3Error(struct{ myError }{myError{}})
 	var err3 error = &a3
 
-	var ep3 *aliasError3
+	var ep3 *alias3Error
 	if errors.As(err3, &ep3) {
 		fmt.Println("&ep3")
 	}

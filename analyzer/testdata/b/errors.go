@@ -21,54 +21,54 @@ import (
 	"os"
 )
 
-type myError1 struct{}
+type my1Error struct{}
 
-func (myError1) Error() string {
+func (my1Error) Error() string {
 	return ""
 }
 
-type myErrorWithIs struct{ err error }
+type myIsError struct{ err error }
 
-func (e myErrorWithIs) Error() string {
+func (e myIsError) Error() string {
 	return e.err.Error()
 }
 
-func (e myErrorWithIs) Is(err error) bool {
+func (e myIsError) Is(err error) bool {
 	return errors.Is(e.err, (err)) // want "only shallowly compare"
 }
 
-type myErrorWithUnwrap struct{ err error }
+type myUnwrapError struct{ err error }
 
-func (myErrorWithUnwrap) Error() string {
+func (myUnwrapError) Error() string {
 	return "my error with unwrap"
 }
 
-func (e myErrorWithUnwrap) Unwrap() error {
+func (e myUnwrapError) Unwrap() error {
 	return e.err
 }
 
-type myErrorWithUnwrapArray struct{ errs []error }
+type myUnwrapArrayError struct{ errs []error }
 
-func (myErrorWithUnwrapArray) Error() string {
+func (myUnwrapArrayError) Error() string {
 	return "my error with unwrap"
 }
 
-func (e myErrorWithUnwrapArray) Unwrap() []error {
+func (e myUnwrapArrayError) Unwrap() []error {
 	return e.errs
 }
 
 func Errors4(err error) {
-	_ = errors.Is(&myErrorWithIs{}, &myError1{}) // want "is always false"
+	_ = errors.Is(&myIsError{}, &my1Error{}) // want "is always false"
 
-	_ = errors.Is(&struct{ *myErrorWithIs }{}, &myError1{}) // want "is always false"
+	_ = errors.Is(&struct{ *myIsError }{}, &my1Error{}) // want "is always false"
 
-	_ = errors.Is(&myErrorWithUnwrap{}, os.ErrProcessDone) // want "is always false"
+	_ = errors.Is(&myUnwrapError{}, os.ErrProcessDone) // want "is always false"
 
-	_ = errors.Is(&myErrorWithUnwrapArray{}, os.ErrProcessDone) // want "is always false"
+	_ = errors.Is(&myUnwrapArrayError{}, os.ErrProcessDone) // want "is always false"
 
-	(errors.Is(err, nil)) // want " \\(et:unu\\+\\)"
+	(errors.Is(err, nil)) // want ` \(et:unu\+\)$`
 
-	(errors.As(err, nil)) // want " \\(et:arg\\)" " \\(et:unu\\)"
+	(errors.As(err, nil)) // want ` \(et:arg\)$` ` \(et:unu\)$`
 }
 
 type nonError struct{ err error }

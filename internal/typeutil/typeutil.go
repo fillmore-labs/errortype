@@ -21,40 +21,6 @@ import (
 	"go/types"
 )
 
-// TypeNameOf extracts the underlying type name from a given type.
-// It handles pointers, dereferencing them to find the core [types.TypeName].
-//
-// It returns the found [types.TypeName] type, a boolean indicating if the original type
-// was a pointer, and a boolean indicating if a type name was successfully found.
-// It returns false for anonymous types (like struct literals).
-func TypeNameOf(t types.Type) (tn *types.TypeName, ptr, ok bool) {
-	ptr = false
-
-	for {
-		switch typ := t.(type) {
-		case *types.Named:
-			return typ.Obj(), ptr, true
-
-		case *types.Alias:
-			return typ.Obj(), ptr, true
-
-		case *types.Pointer:
-			if ptr {
-				// Double Pointer
-				return nil, ptr, false
-			}
-
-			t = typ.Elem()
-			ptr = true
-
-		default:
-			// Anonymous types (struct literals, nil, etc.)
-			// We are also not interested in type parameters or basic types
-			return nil, ptr, false
-		}
-	}
-}
-
 // ErrorResultIndex checks whether the given function result list has an error type as its last return value.
 // Returns the index of the error result or -1 when not found.
 func ErrorResultIndex(info *types.Info, results *ast.FieldList) int {

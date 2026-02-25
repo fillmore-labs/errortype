@@ -31,28 +31,28 @@ var _, _ error = IntError{}, &StringError{}
 func Generics() {
 	var err error
 
-	_, _ = err.(*IntError)   // want " \\(et:ast\\)$"
-	_, _ = err.(StringError) // want " \\(et:ast\\+\\)$"
+	_, _ = err.(*IntError)   // want ` \(et:ast\)$`
+	_, _ = err.(StringError) // want ` \(et:ast\+\)$`
 
 	switch err.(type) {
-	case *IntError: // want " \\(et:ast\\)$"
-	case StringError: // want " \\(et:ast\\+\\)$"
+	case *IntError: // want ` \(et:ast\)$`
+	case StringError: // want ` \(et:ast\+\)$`
 	case nil:
 	default:
 	}
 
 	var itarget *IntError
-	_ = errors.As(err, &itarget) // want " \\(et:err\\)$"
+	_ = errors.As(err, &itarget) // want ` \(et:err\)$`
 
 	var starget StringError
-	_ = errors.As(err, &starget) // want " \\(et:err\\+\\)$"
+	_ = errors.As(err, &starget) // want ` \(et:err\+\)$`
 
 	_ = func() error {
-		return (*IntError)(nil) // want " \\(et:ret\\)$"
+		return (*IntError)(nil) // want ` \(et:ret\)$`
 	}
 
 	_ = func() error {
-		return StringError{} // want " \\(et:ret\\+\\)$"
+		return StringError{} // want ` \(et:ret\+\)$`
 	}
 
 	_ = func() error {

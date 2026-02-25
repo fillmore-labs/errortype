@@ -39,13 +39,8 @@ func IsTest(p *analysis.Pass) bool {
 	}
 
 	// Check if any files in the package are test files
-	for _, file := range p.Files {
-		pos := file.Pos()
-		if !pos.IsValid() {
-			continue
-		}
-
-		if position := p.Fset.PositionFor(pos, false); strings.HasSuffix(position.Filename, "_test.go") {
+	for file := range p.Fset.Iterate {
+		if strings.HasSuffix(file.Name(), "_test.go") {
 			return true
 		}
 	}

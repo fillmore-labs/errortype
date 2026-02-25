@@ -19,27 +19,37 @@ package gclplugin
 import (
 	errortype "fillmore-labs.com/errortype/analyzer"
 	"fillmore-labs.com/errortype/detect"
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 // Settings are the linter settings.
 type Settings struct {
 	Overrides       Overrides `json:"overrides,omitzero"`
+	Wrappers        Wrappers  `json:"wrappers,omitzero"`
 	StyleCheck      *bool     `json:"style-check,omitzero"`
 	DeepIsCheck     *bool     `json:"deep-is-check,omitzero"`
 	CheckIs         *bool     `json:"check-is,omitzero"`
 	UncheckedAssert *bool     `json:"unchecked-assert,omitzero"`
 	CheckUnused     *bool     `json:"check-unused,omitzero"`
+	Naming          *bool     `json:"naming,omitzero"`
 }
 
 // Overrides defines overrides for error types.
 type Overrides struct {
 	// Types that should be treated as pointer errors.
 	Pointer []string `json:"pointer,omitempty"`
+
 	// Types that should be treated as value errors.
 	Value []string `json:"value,omitempty"`
+
 	// Types for which error type checks should be suppressed.
 	Suppress []string `json:"suppress,omitempty"`
+
+	Wrappers Wrappers `json:"wrappers,omitzero"`
 }
+
+// Wrappers overrides wrapper function autodetection in packages.
+type Wrappers map[result.WrapperType][]string
 
 // detectOptions converts Settings into [detect.Options] for the detect analyzer.
 // It processes override configurations and returns them in the appropriate format.
@@ -47,9 +57,9 @@ func detectOptions(settings Settings) detect.Options {
 	overrides := settings.Overrides
 
 	var d detectOverrides
-	d.setOverrides(detect.OverridePointer, overrides.Pointer)
-	d.setOverrides(detect.OverrideValue, overrides.Value)
-	d.setOverrides(detect.OverrideSuppress, overrides.Suppress)
+	d.setOverrides(result.Pointer, overrides.Pointer)
+	d.setOverrides(result.Value, overrides.Value)
+	d.setOverrides(result.Suppress, overrides.Suppress)
 
 	if len(d) == 0 {
 		return nil
@@ -58,12 +68,44 @@ func detectOptions(settings Settings) detect.Options {
 	return detect.Options{detect.WithOverrides(d)}
 }
 
-type detectOverrides map[detect.Override][]string
+type detectOverrides map[result.ErrorType][]string
 
-func (d *detectOverrides) setOverrides(key detect.Override, values []string) {
+func (d *detectOverrides) setOverrides(key result.ErrorType, values []string) {
 	if len(values) > 0 {
 		if *d == nil {
 			*d = make(detectOverrides, 3)
+		}
+
+		(*d)[key] = values
+	}
+}
+
+// wrapperOptions converts Settings into [detect.Options] for the detect analyzer.
+// It processes override configurations and returns them in the appropriate format.
+func wrapperOptions(settings Settings) detect.Options {
+	var w wrapperOverrides
+
+	for k, v := range settings.Overrides.Wrappers {
+		w.setOverrides(k, v)
+	}
+
+	for k, v := range settings.Wrappers {
+		w.setOverrides(k, v)
+	}
+
+	if len(w) == 0 {
+		return nil
+	}
+
+	return detect.Options{detect.WithWrappers(w)}
+}
+
+type wrapperOverrides map[result.WrapperType][]string
+
+func (d *wrapperOverrides) setOverrides(key result.WrapperType, values []string) {
+	if len(values) > 0 {
+		if *d == nil {
+			*d = make(wrapperOverrides, 3)
 		}
 
 		(*d)[key] = values
@@ -80,6 +122,7 @@ func (s Settings) Options() []errortype.Option {
 	opts = appendOption(opts, s.CheckIs, errortype.WithCheckIs)
 	opts = appendOption(opts, s.UncheckedAssert, errortype.WithUncheckedAssert)
 	opts = appendOption(opts, s.CheckUnused, errortype.WithCheckUnused)
+	opts = appendOption(opts, s.Naming, errortype.WithNaming)
 
 	return opts
 }

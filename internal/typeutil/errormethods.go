@@ -88,3 +88,8 @@ func HasAsSig(sig *types.Signature) bool {
 func HasUnwrapSig(sig *types.Signature) bool {
 	return unwrapSig.matchSignature(sig) || unwrapMultipleSig.matchSignature(sig)
 }
+
+// HasUnwrapMultipleSig checks whether the provided function signature is `func() []error`.
+func HasUnwrapMultipleSig(sig *types.Signature) bool {
+	return unwrapMultipleSig.matchSignature(sig)
+}

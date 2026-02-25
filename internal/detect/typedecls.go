@@ -33,7 +33,7 @@ import (
 func (p pass) processTypeDecls(ctx context.Context) {
 	defer trace.StartRegion(ctx, "typeDecls").End()
 
-	for typeDecl := range p.AllTypeDecls {
+	for typeDecl := range typeutil.AllTypeDecls(p.Files) {
 		tn, ok := p.TypesInfo.Defs[typeDecl.Name].(*types.TypeName)
 		if !ok { // should not happen
 			p.LogErrorf(typeDecl.Name, "Not a TypeName: %s", typeDecl.Name.Name)
@@ -99,7 +99,7 @@ func (p pass) processTypeDecls(ctx context.Context) {
 
 		// Otherwise the type has a (possibly embedded) `Error() string` method, either with value receiver
 		// or the receiver type is not relevant because of indirection. We need to rely on heuristics.
-		p.DetectedTypes[tn] |= prop
+		p.ErrorTypes[tn] |= prop
 	}
 }
 

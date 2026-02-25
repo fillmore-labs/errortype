@@ -18,6 +18,22 @@ package typeutil
 
 import "go/types"
 
+// IsErrorInterface checks if the provided type is the built-in `error` interface.
+func IsErrorInterface(typ types.Type) bool {
+	return typ == errorType
+}
+
+// IsAnyInterface determines if the given type is the `any` interface or an interface with no methods.
+func IsAnyInterface(typ types.Type) bool {
+	if typ == anyType {
+		return true
+	}
+
+	iface, ok := typ.Underlying().(*types.Interface)
+
+	return ok && iface.NumMethods() == 0
+}
+
 // HasErrorMethod checks if a given type implements the standard `error` interface.
 // Note that when T implements `error`, *T can, but does not necessarily implement `error` too.
 func HasErrorMethod(typ types.Type) bool {

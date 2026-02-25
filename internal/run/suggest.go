@@ -26,7 +26,7 @@ import (
 )
 
 func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Overrides, pkgPath string) error {
-	if o.Suggest == "" || len(suggestions) == 0 {
+	if o.Suggest == "" || (len(suggestions.Types) == 0 && len(suggestions.Wrappers) == 0) {
 		return nil
 	}
 
@@ -44,7 +44,7 @@ func (o *Options) writeSuggestions(ctx context.Context, suggestions overrides.Ov
 			return fmt.Errorf("can't write suggestion file: %w", err)
 		}
 
-		defer out.Close()
+		defer out.Close() // ignore error
 	}
 
 	return overrides.Write(ctx, out, suggestions, pkgPath)

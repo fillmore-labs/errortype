@@ -19,17 +19,15 @@ package c
 import "errors"
 
 type (
-	AmbiguousPointer   struct{ error }
-	AmbiguousValue     struct{ error }
-	AmbiguousAmbiguous struct{ error }
-
-	EmbeddedPointer   struct{ PointerDefault }
-	EmbeddedValue     struct{ ValueDefault }
-	EmbeddedAmbiguous struct{ EmbeddedDefault }
-
-	EmbeddedPPointer   struct{ *PointerDefault }
-	EmbeddedPValue     struct{ *ValueDefault }
-	EmbeddedPAmbiguous struct{ *EmbeddedDefault }
+	AmbiguousPointer   struct{ error }            // want AmbiguousPointer:"pointer"
+	AmbiguousValue     struct{ error }            // want AmbiguousValue:"value"
+	AmbiguousAmbiguous struct{ error }            // want AmbiguousAmbiguous:"undecided"
+	EmbeddedPointer    struct{ PointerDefault }   // want EmbeddedPointer:"pointer"
+	EmbeddedValue      struct{ ValueDefault }     // want EmbeddedValue:"undecided"
+	EmbeddedAmbiguous  struct{ EmbeddedDefault }  // want EmbeddedAmbiguous:"undecided"
+	EmbeddedPPointer   struct{ *PointerDefault }  // want EmbeddedPPointer:"undecided"
+	EmbeddedPValue     struct{ *ValueDefault }    // want EmbeddedPValue:"undecided"
+	EmbeddedPAmbiguous struct{ *EmbeddedDefault } // want EmbeddedPAmbiguous:"undecided"
 )
 
 func (a *AmbiguousPointer) As(target any) bool { return errors.As(a.error, target) }

@@ -20,15 +20,13 @@ jobs:
     timeout-minutes: 10
     strategy:
       matrix:
-        go: ["1.26", "1.25", "1.24"]
+        go: ["1.26", "1.25"]
         include:
           - go: "1.26"
-            go-version: "1.26.0-rc.2"
+            go-version: "1.26.0"
             latest: true
           - go: "1.25"
-            go-version: "1.25.6"
-          - go: "1.24"
-            go-version: "1.24.12"
+            go-version: "1.25.7"
     env:
       GOTOOLCHAIN: local
     steps:
@@ -47,12 +45,12 @@ jobs:
         uses: golangci/golangci-lint-action@1e7e51e771db61008b38414a730f564565cf7c20 # v9.2.0
         if: ${{ matrix.latest }}
         with:
-          version: v2.8.0
+          version: v2.10.1
           verify: false
+      - name: ⬇️ Download test packages
+        run: (cd ./analyzer/testdata && go mod download)
       - name: 🔨 Test
-        run: |
-          (cd ./analyzer/testdata && go mod download)
-          go test -coverpkg ./... -coverprofile=cover.out ./...
+        run: go test -coverpkg ./... -coverprofile=cover.out ./...
       - name: 🧑🏻‍💻 codecov
         uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5.5.2
         if: ${{ matrix.latest }}

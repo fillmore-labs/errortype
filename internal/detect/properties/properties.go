@@ -21,7 +21,7 @@ import (
 	"slices"
 	"strings"
 
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 )
 
 // Properties is a map that associates a type name with its corresponding ErrorProperty, describing error type behaviors.
@@ -30,7 +30,7 @@ type Properties map[*types.TypeName]ErrorProperty
 // HasUndeterminedErrors checks if the PropertyMap contains any entries with undetermined error types.
 func (p Properties) HasUndeterminedErrors() bool {
 	for _, errorType := range p {
-		if errorType.DeterminedType() == facts.UndecidedType {
+		if errorType.DeterminedType() == result.Undecided {
 			return true
 		}
 	}

@@ -30,7 +30,7 @@ func (p Pass) checkAssert(t types.Type, e ast.Expr) {
 }
 
 // checkErrorsAs creates a new reporter for errors.As like functions.
-func (p Pass) checkErrorsAs(t types.Type, e ast.Expr, fun *types.Func) {
+func (p Pass) checkErrorsAs(t types.Type, e, fun ast.Expr) {
 	reporter := report.ErrorsAs{Base: report.Base{Pass: p.Pass, Expr: e}, Fun: fun}
 	p.Check(t, reporter)
 
@@ -52,7 +52,7 @@ func (p Pass) checkTypeSwitch(t types.Type, e ast.Expr) {
 }
 
 // checkGenericCall creates a new reporter for generic functions.
-func (p Pass) checkGenericCall(t types.Type, e ast.Expr, fun *types.Func) {
+func (p Pass) checkGenericCall(t types.Type, e, fun ast.Expr) {
 	reporter := report.GenericCall{Base: report.Base{Pass: p.Pass, Expr: e}, Fun: fun}
 	p.Check(t, reporter)
 }

@@ -16,4 +16,4 @@
 
 package internal
 
-var _ = 1 // want "^Internal error: .*\\. \\(et:xxx\\)$"
+var _ = 1 // want `^Internal error: .*\. \(et:xxx\)$`

@@ -45,6 +45,41 @@ func NewTypeName(tn *types.TypeName) TypeName {
 	return name
 }
 
+// TypeNameOf extracts the underlying type name from a given type.
+// It handles pointers, dereferencing them to find the core [types.TypeName].
+//
+// It returns the found [types.TypeName] type, a boolean indicating if the original type
+// was a pointer, and a boolean indicating if a type name was successfully found.
+// It returns false for anonymous types (like struct literals).
+func TypeNameOf(t types.Type) (tn *types.TypeName, ptr, ok bool) {
+	ptr = false
+
+unwrap:
+	switch typ := t.(type) {
+	case *types.Named:
+		return typ.Obj(), ptr, true
+
+	case *types.Alias:
+		return typ.Obj(), ptr, true
+
+	case *types.Pointer:
+		if ptr {
+			// Double Pointer
+			return nil, ptr, false
+		}
+
+		t = typ.Elem()
+		ptr = true
+
+		goto unwrap
+
+	default:
+		// Anonymous types (struct literals, interface, etc.).
+		// We are also not interested in type parameters or basic types
+		return nil, ptr, false
+	}
+}
+
 // String returns the fully qualified name of the type ("pkg/path.TypeName").
 // If the type has no package path, it returns just the type name.
 func (t TypeName) String() string {

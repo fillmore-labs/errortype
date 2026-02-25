@@ -18,10 +18,8 @@ package analyze
 
 import (
 	"go/ast"
-	"go/printer"
 	"go/token"
 	"go/types"
-	"strings"
 
 	"golang.org/x/tools/go/analysis"
 
@@ -142,22 +140,11 @@ func (p Pass) diagUncomparable(n analysis.Range, typ types.Type, other ast.Expr,
 	}
 
 	// Report diagnostic
-	msg := "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
+	const msg = "Result of comparison of %q with non-comparable variable of type %q is always false. (et:%s+)"
 	otherName := p.exprToString(other)
 	typeName := types.TypeString(typ, types.RelativeTo(p.Pkg))
 
 	p.ReportRangef(n, msg, otherName, typeName, tag)
-}
-
-var _config = printer.Config{Mode: printer.RawFormat}
-
-func (p Pass) exprToString(expr ast.Expr) string {
-	var sb strings.Builder
-	if _config.Fprint(&sb, p.Fset, expr) != nil {
-		return "<unknown>"
-	}
-
-	return sb.String()
 }
 
 // isNewPointer checks if an expression `x` is one of the following:
@@ -178,20 +165,7 @@ func (p Pass) isNewPointer(x ast.Expr) bool {
 		return true
 
 	case *ast.CallExpr:
-		if len(e.Args) != 1 {
-			return false // some function
-		}
-
-		fun, ok := ast.Unparen(e.Fun).(*ast.Ident)
-		if !ok || fun.Name != "new" {
-			return false // not new(...)
-		}
-
-		if _, ok := p.TypesInfo.Uses[fun].(*types.Builtin); !ok {
-			return false // not the built-in "new"
-		}
-
-		return true
+		return typeutil.BuiltinNew(p.TypesInfo, e)
 
 	default:
 		return false

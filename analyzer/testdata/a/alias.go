@@ -21,50 +21,50 @@ import (
 	"fmt"
 )
 
-type myError2 struct{}
+type my2Error struct{}
 
-type aliasError2 = *myError2
+type alias2Error = *my2Error
 
-func (aliasError2) Error() string {
-	return "aliasError2"
+func (alias2Error) Error() string {
+	return "alias2Error"
 }
 
-func (aliasError2) String() string {
-	return "aliasError2"
+func (alias2Error) String() string {
+	return "alias2Error"
 }
 
-type aliasError3 = *struct{ error }
+type alias3Error = *struct{ error }
 
 func Alias() {
 	var err interface {
 		fmt.Stringer
 		Error() string
-	} = &myError2{}
+	} = &my2Error{}
 
-	_, _ = err.(aliasError2)
+	_, _ = err.(alias2Error)
 
-	_, _ = err.(*myError2)
+	_, _ = err.(*my2Error)
 
-	var e2 *myError2
+	var e2 *my2Error
 
 	_ = errors.As(err, &e2)
 
-	var a2 aliasError2
+	var a2 alias2Error
 
 	_ = errors.As(err, &a2)
 
 	switch err.(type) {
-	case *myError2:
+	case *my2Error:
 	}
 
 	switch err.(type) {
-	case aliasError2:
+	case alias2Error:
 	}
 
-	var err3 error = aliasError3(&struct{ error }{error: err})
+	var err3 error = alias3Error(&struct{ error }{error: err})
 
-	var e3 aliasError3
-	_ = errors.As(err3, e3) // want " \\(et:sty\\)$"
+	var e3 alias3Error
+	_ = errors.As(err3, e3) // want ` \(et:sty\)$`
 
 	_ = errors.As(err3, &e3)
 }

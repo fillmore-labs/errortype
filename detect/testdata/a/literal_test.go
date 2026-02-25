@@ -19,8 +19,8 @@ package a
 import "math/rand/v2"
 
 type (
-	PointerLiteralAlias = PointerLiteral1
-	ValueLiteralAlias   = ValueLiteral
+	PointerLiteralAlias = PointerLiteral1 // want PointerLiteralAlias:"pointer"
+	ValueLiteralAlias   = ValueLiteral    // want ValueLiteralAlias:"value"
 )
 
 func ReturnLiteralAlias(err error) error {

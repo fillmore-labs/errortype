@@ -25,17 +25,17 @@ type AStringError = b.GenericError[string]
 type AGenericError[T string | int] = b.GenericError[T]
 
 var _, _, _ error = AIntError{},
-	&AStringError{}, // want " \\(et:var\\)$"
-	&AGenericError[string]{} // want " \\(et:var\\)$"
+	&AStringError{}, // want ` \(et:var\)$`
+	&AGenericError[string]{} // want ` \(et:var\)$`
 
 func AGenerics() {
 	var err error
 
-	_, _ = err.(*AIntError) // want " \\(et:ast\\)$"
+	_, _ = err.(*AIntError) // want ` \(et:ast\)$`
 	_, _ = err.(AStringError)
 
 	switch err.(type) {
-	case *AIntError: // want " \\(et:ast\\)$"
+	case *AIntError: // want ` \(et:ast\)$`
 	case AStringError:
 	case nil:
 	default:
@@ -43,20 +43,20 @@ func AGenerics() {
 
 	switch err.(type) {
 	case AGenericError[int]:
-	case *AGenericError[int]: // want " \\(et:ast\\)$"
+	case *AGenericError[int]: // want ` \(et:ast\)$`
 	case nil:
 	default:
 	}
 
 	switch err.(type) {
-	case *b.GenericError[int]: // want " \\(et:ast\\)$"
+	case *b.GenericError[int]: // want ` \(et:ast\)$`
 	case b.GenericError[string]:
 	case nil:
 	default:
 	}
 
 	_ = func() error {
-		return (*AIntError)(nil) // want " \\(et:ret\\)$"
+		return (*AIntError)(nil) // want ` \(et:ret\)$`
 	}
 
 	_ = func() error {
@@ -68,11 +68,11 @@ func AGenerics() {
 	}
 
 	_ = func() error {
-		return &AGenericError[int]{} // want " \\(et:ret\\)$"
+		return &AGenericError[int]{} // want ` \(et:ret\)$`
 	}
 
 	_ = func() error {
-		return (*AIntError)(&b.GenericError[int]{}) // want " \\(et:ret\\)$"
+		return (*AIntError)(&b.GenericError[int]{}) // want ` \(et:ret\)$`
 	}
 
 	_ = func() error {
@@ -80,7 +80,7 @@ func AGenerics() {
 	}
 
 	_ = func() error {
-		return &b.GenericError[int]{} // want " \\(et:ret\\)$"
+		return &b.GenericError[int]{} // want ` \(et:ret\)$`
 	}
 
 	_ = func() error {

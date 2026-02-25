@@ -17,12 +17,11 @@
 package detect
 
 import (
-	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/detect/properties"
 )
 
@@ -32,32 +31,17 @@ import (
 // within the current package.
 type pass struct {
 	*analysis.Pass
-	DetectedTypes properties.Properties
-	StyleCheck    bool
+	ErrorTypes properties.Properties
+	ErrorFuncs result.ErrorFuncs
 }
 
 // newPass creates and initializes a new pass for the detecttypes analyzer.
 func newPass(ap *analysis.Pass) pass {
 	return pass{
-		Pass:          ap,
-		DetectedTypes: make(properties.Properties),
-		StyleCheck:    false,
+		Pass:       ap,
+		ErrorTypes: make(properties.Properties),
+		ErrorFuncs: nil,
 	}
-}
-
-// AllTypeDecls is an iterator over all type declarations (*ast.TypeSpec) in the pass's files.
-func (p pass) AllTypeDecls(yield func(*ast.TypeSpec) bool) {
-	iterateOverSpecs(p.Files, token.TYPE, yield)
-}
-
-// AllVarDecls is an iterator over all variable declarations (*ast.ValueSpec) in the pass's files.
-func (p pass) AllVarDecls(yield func(*ast.ValueSpec) bool) {
-	iterateOverSpecs(p.Files, token.VAR, yield)
-}
-
-// AllFuncDecls is an iterator over all function declarations (*ast.FuncDecl) in the pass's files.
-func (p pass) AllFuncDecls(yield func(*ast.FuncDecl) bool) {
-	iterateOverDecls(p.Files, yield)
 }
 
 func (p pass) inCurrentPkg(tn *types.TypeName) bool {

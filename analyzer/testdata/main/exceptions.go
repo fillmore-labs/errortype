@@ -18,46 +18,46 @@ package main
 
 import "errors"
 
-type myErr struct{ Msg string }
+type myError struct{ Msg string }
 
-func (m *myErr) Error() string { return m.Msg }
+func (m *myError) Error() string { return m.Msg }
 
-func (m *myErr) f() (*myErr, bool) { return m, true }
+func (m *myError) f() (*myError, bool) { return m, true }
 
-type myErrorEmbedded struct{ *myErr }
+type myEmbeddedError struct{ *myError }
 
 func Exception1() {
-	var err error = myErrorEmbedded{&myErr{Msg: "embedded"}} // want " \\(et:emb\\)$"
+	var err error = myEmbeddedError{&myError{Msg: "embedded"}} // want ` \(et:emb\)$`
 
-	var _ error = &myErrorEmbedded{} // want " \\(et:emb\\+\\)$"
+	var _ error = &myEmbeddedError{} // want ` \(et:emb\+\)$`
 
-	var emb myErrorEmbedded
+	var emb myEmbeddedError
 
-	_ = errors.As(err, &emb) // want " \\(et:emb\\)$"
+	_ = errors.As(err, &emb) // want ` \(et:emb\)$`
 
-	var embp *myErrorEmbedded
+	var embp *myEmbeddedError
 
-	_ = errors.As(err, &embp) // want " \\(et:emb\\+\\)$"
+	_ = errors.As(err, &embp) // want ` \(et:emb\+\)$`
 
-	_, _ = err.(*myErr).f() // want " \\(et:uca\\)$"
+	_, _ = err.(*myError).f() // want ` \(et:uca\)$`
 }
 
-type myInterface interface{ error }
+type myInterfaceError interface{ error }
 
 func Exception2() {
-	emb := myErrorEmbedded{&myErr{Msg: "embedded"}}
+	emb := myEmbeddedError{&myError{Msg: "embedded"}}
 
-	_ = &myErrorEmbedded{}
+	_ = &myEmbeddedError{}
 
-	var err error = emb // want " \\(et:emb\\)$"
+	var err error = emb // want ` \(et:emb\)$`
 
-	var myi myInterface
+	var myi myInterfaceError
 
-	_ = err.(myInterface)
+	_ = err.(myInterfaceError)
 
 	_ = err.(any)
 
-	_ = err.(interface{ Unwrap() error }) // want " \\(et:uca\\+\\)$"
+	_ = err.(interface{ Unwrap() error }) // want ` \(et:uca\+\)$`
 
 	_ = errors.As(err, &myi)
 }

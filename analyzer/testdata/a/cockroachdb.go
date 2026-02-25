@@ -14,21 +14,27 @@
 //
 // SPDX-License-Identifier: Apache-2.0
 
-package detect
+package a
 
-// Override represents a type override class.
-type Override uint8
+import (
+	"test/a/b"
 
-//go:generate go tool stringer -type Override -linecomment
-const (
-	_ Override = iota
-
-	// OverridePointer represents the override class for pointer types.
-	OverridePointer // pointer
-
-	// OverrideValue represents the override class for value types.
-	OverrideValue // value
-
-	// OverrideSuppress represents an override to suppress specific error type usage detection.
-	OverrideSuppress // suppress
+	"github.com/cockroachdb/errors"
+	"github.com/cockroachdb/errors/errutil"
+	"github.com/cockroachdb/errors/markers"
 )
+
+func CockroachErrors() {
+	_ = errors.As(&my1Error{}, &b.AmbiguousError{}) // want ` \(et:emb\)$` ` \(et:sty\)$`
+
+	var (
+		err error
+		pve *ValueError
+	)
+
+	_ = errutil.As(err, &pve) // want ` \(et:err\)$`
+
+	_ = errors.Is(err, &my1Error{}) // want "is false or undefined"
+
+	_ = markers.Is(err, &my1Error{}) // want "is false or undefined"
+}

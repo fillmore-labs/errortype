@@ -24,7 +24,7 @@ type Options uint8
 const (
 	// OptionCheckIs controls whether to check for `Is(error) bool` methods.
 	OptionCheckIs Options = 1 << posOptionCheckIs
-	// OptionCheckUnused flags unchecked results of `errors.As` calls.
+	// OptionCheckUnused flags unchecked results of `errors.Is` calls.
 	OptionCheckUnused = 1 << posOptionCheckUnused
 	// OptionDeepIsCheck flags all unwrap methods in `Is` method checks, not only those on target.
 	OptionDeepIsCheck = 1 << posOptionDeepIsCheck
@@ -32,9 +32,11 @@ const (
 	OptionStyleCheck = 1 << posOptionStyleCheck
 	// OptionUncheckedAssert flags all unchecked asserts on errors.
 	OptionUncheckedAssert = 1 << posOptionUncheckedAssert
+	// OptionNaming checks errors for naming.
+	OptionNaming = 1 << posNaming
 
 	// DefaultOptions is the default configuration for error analysis.
-	DefaultOptions = OptionCheckIs | OptionStyleCheck
+	DefaultOptions = OptionCheckIs | OptionCheckUnused
 )
 
 var _options = [...]string{
@@ -43,14 +45,16 @@ var _options = [...]string{
 	posOptionDeepIsCheck:     "deepIsCheck",
 	posOptionStyleCheck:      "styleCheck",
 	posOptionUncheckedAssert: "uncheckedAssert",
+	posNaming:                "naming",
 }
 
 const (
-	posOptionCheckIs = 4 - iota
+	posOptionCheckIs = 5 - iota
 	posOptionCheckUnused
 	posOptionDeepIsCheck
 	posOptionStyleCheck
 	posOptionUncheckedAssert
+	posNaming
 )
 
 func (o Options) String() string {
@@ -62,7 +66,7 @@ func (o Options) CheckIs() bool {
 	return o&OptionCheckIs != 0
 }
 
-// CheckUnused flags unchecked results of `errors.As` calls.
+// CheckUnused flags unchecked results of `errors.Is` calls.
 func (o Options) CheckUnused() bool {
 	return o&OptionCheckUnused != 0
 }
@@ -82,10 +86,15 @@ func (o Options) UncheckedAssert() bool {
 	return o&OptionUncheckedAssert != 0
 }
 
-// Set modifies the state of a specific option flag in the Options configuration
+// Naming checks error types and variables for naming conventions.
+func (o Options) Naming() bool {
+	return o&OptionNaming != 0
+}
+
+// SetOption modifies the state of a specific option flag in the Options configuration
 // based on the provided boolean value. The flag parameter should be a single option
 // constant (e.g., [OptionCheckIs], [OptionStyleCheck]).
-func (o *Options) Set(flag Options, v bool) {
+func SetOption(o *Options, flag Options, v bool) {
 	if v {
 		*o |= flag
 	} else {

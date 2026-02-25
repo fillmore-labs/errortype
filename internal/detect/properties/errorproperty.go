@@ -17,7 +17,7 @@
 package properties
 
 import (
-	"fillmore-labs.com/errortype/facts"
+	"fillmore-labs.com/errortype/detect/result"
 	"fillmore-labs.com/errortype/internal/bitflag"
 )
 
@@ -147,34 +147,34 @@ var _propertyPairs = [...]struct{ pointerProp, valueProp ErrorProperty }{
 
 // DeterminedType checks if the collected properties unambiguously determine
 // whether the type should be a pointer or a value error type.
-// It returns true for `ok` if the pointer-ness is determined.
 //
 // Contradictory properties (e.g., both PointerVar and ValueVar being set)
 // for a given category are ignored, and the decision moves to the next category.
-func (e ErrorProperty) DeterminedType() facts.ErrorFact {
+func (e ErrorProperty) DeterminedType() result.ErrorType {
 	switch e & OverrideMask { // Overrides have the highest precedence.
 	case SuppressOverride:
-		return facts.SuppressType
+		return result.Suppress
 
 	case PointerOverride:
-		return facts.PointerType
+		return result.Pointer
 
 	case ValueOverride:
-		return facts.ValueType
+		return result.Value
 	}
+
 	// Errors with pointer receivers can only be used in only one way.
 	// Errors with an `Unwrap() error` method with pointer receiver would behave differently as values.
 	if e&ReceiverMask != 0 {
-		return facts.PointerType
+		return result.Pointer
 	}
 
 	for _, pair := range _propertyPairs {
 		switch pointerProp, valueProp := pair.pointerProp, pair.valueProp; e & (pointerProp | valueProp) { // Check for a non-contradictory usage within this category.
 		case pointerProp:
-			return facts.PointerType
+			return result.Pointer
 
 		case valueProp:
-			return facts.ValueType
+			return result.Value
 		}
 	}
 
@@ -182,11 +182,11 @@ func (e ErrorProperty) DeterminedType() facts.ErrorFact {
 	// Although the underlying type is a pointer, `T` itself is used as a value
 	// (e.g., you return `T`, not `*T`), so we treat it as a value type.
 	if e&PointerDef != 0 {
-		return facts.ValueType
+		return result.Value
 	}
 
 	// No unambiguous usage was found.
-	return facts.UndecidedType
+	return result.Undecided
 }
 
 const (

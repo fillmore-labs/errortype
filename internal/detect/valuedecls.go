@@ -1,4 +1,4 @@
-// Copyright 2025 Oliver Eikemeier. All Rights Reserved.
+// Copyright 2025-2026 Oliver Eikemeier. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import (
 	"fillmore-labs.com/errortype/internal/typeutil"
 )
 
-// processVarSpecs processes variable declarations to infer error type properties.
-// It identifies whether an error type should be used as a pointer or a value
-// based on two patterns:
+// processValueSpecs processes variable and constant declarations to infer error
+// type properties. It identifies whether an error type should be used as a pointer
+// or a value based on two patterns:
 //
 //  1. Error Assertions: A declaration like `var _ error = &T{}` marks `T`
 //     as a pointer error, while `var _ error = T{}` marks it as a value error.
@@ -37,17 +37,20 @@ import (
 //  2. Sentinel Errors: A declaration like `var ErrSomething = &T{}` indicates
 //     a pointer error, while `var ErrSomething = T{}` indicates a value error.
 //
+//     It also detects sentinel constant, e.g. `const ErrFoo = stringError("foo")`,
+//     although this should be rare.
+//
 // Discovered properties are recorded for analysis. If the type `T` is defined
 // in the current package, this property is exported as a fact.
 //
 // If `T` is from an external package, the property is checked for consistency.
-func (p pass) processVarSpecs(ctx context.Context) {
-	defer trace.StartRegion(ctx, "varSpecs").End()
+func (p pass) processValueSpecs(ctx context.Context) {
+	defer trace.StartRegion(ctx, "valueSpecs").End()
 
-	for varDecl := range p.AllVarDecls {
+	for varDecl := range typeutil.AllValueDecls(p.Files) {
 		// Handle sentinel errors, e.g., `var ErrSomething = ...` where the type is inferred.
 		if varDecl.Type == nil {
-			p.findSentinelErrors(varDecl)
+			p.findSentinelErrorValues(varDecl)
 
 			continue
 		}
@@ -58,25 +61,46 @@ func (p pass) processVarSpecs(ctx context.Context) {
 	}
 }
 
-// findSentinelErrors checks for sentinel error declarations (`var Err...`).
-func (p pass) findSentinelErrors(varDecl *ast.ValueSpec) {
-	for i, id := range varDecl.Names {
-		if len(varDecl.Values) <= i {
-			break
+// findSentinelErrorValues checks for sentinel error declarations (`var Err... = ...`),
+// including multi-return assignments like `var ErrFoo, _ = newError(...)`.
+func (p pass) findSentinelErrorValues(varDecl *ast.ValueSpec) {
+	var typeAt func(int) types.Type
+
+	switch len(varDecl.Values) {
+	case 0:
+		return // No values
+
+	case len(varDecl.Names):
+		typeAt = func(i int) types.Type {
+			return p.TypesInfo.Types[varDecl.Values[i]].Type
 		}
 
+	case 1:
+		// Multiple names with a single value: must be a multi-return function call.
+		tup, ok := p.TypesInfo.Types[varDecl.Values[0]].Type.(*types.Tuple)
+		if !ok || tup.Len() != len(varDecl.Names) {
+			return // should not happen
+		}
+
+		typeAt = func(i int) types.Type {
+			return tup.At(i).Type()
+		}
+
+	default:
+		return // should not happen
+	}
+
+	for i, id := range varDecl.Names {
 		if !strings.HasPrefix(id.Name, "Err") && !strings.HasPrefix(id.Name, "err") {
 			continue
 		}
 
-		value := varDecl.Values[i]
-
-		tv, ok := p.TypesInfo.Types[value]
-		if !ok || !typeutil.HasErrorMethod(tv.Type) {
+		typ := typeAt(i)
+		if typ == nil || !typeutil.HasErrorMethod(typ) {
 			continue // Not an error type
 		}
 
-		p.recordVarProperty(tv.Type)
+		p.recordVarProperty(typ)
 	}
 }
 
